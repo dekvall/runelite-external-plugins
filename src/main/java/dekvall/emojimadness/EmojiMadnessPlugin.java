@@ -24,6 +24,7 @@
  */
 package dekvall.emojimadness;
 
+import com.google.inject.Provides;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.regex.Matcher;
@@ -41,7 +42,10 @@ import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.OverheadTextChanged;
 import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.ImageUtil;
@@ -62,7 +66,16 @@ public class EmojiMadnessPlugin extends Plugin
 	@Inject
 	private ChatMessageManager chatMessageManager;
 
+	@Inject
+	private EmojiMadnessConfig config;
+
 	private int modIconsStart = -1;
+
+	@Provides
+	EmojiMadnessConfig provideConfig(ConfigManager configManager)
+	{
+		return configManager.getConfig(EmojiMadnessConfig.class);
+	}
 
 	@Override
 	protected void startUp()
@@ -78,6 +91,15 @@ public class EmojiMadnessPlugin extends Plugin
 			loadEmojiIcons();
 		}
 	}
+
+//	@Subscribe
+//	public void onConfigChanged(ConfigChanged event)
+//	{
+//		if (event.getGroup().equals("emojimadness"))
+//		{
+//			return;
+//		}
+//	}
 
 	private void loadEmojiIcons()
 	{
@@ -175,7 +197,7 @@ public class EmojiMadnessPlugin extends Plugin
 		{
 			// Remove tags except for <lt> and <gt>
 			final String trigger = removeTags(messageWords[i]);
-			final Emoji emoji = Emoji.getEmoji(trigger);
+			final Emoji emoji = Emoji.getEmoji(trigger.toLowerCase());
 
 			if (emoji == null)
 			{
