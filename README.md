@@ -1,5 +1,5 @@
 # Emoji Madness
-1186 emojis with shortcodes!
+1111 emojis with trigger phrases!
 
 ## Contents
 |Emoji|Name|Trigger|

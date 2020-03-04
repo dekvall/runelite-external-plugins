@@ -26,9 +26,14 @@
 package dekvall.emojimadness;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import net.runelite.client.util.ImageUtil;
 
@@ -1149,6 +1154,7 @@ enum Emoji
 	;
 
 	private static final Map<String, Emoji> EMOJIS;
+	private static final ImmutableListMultimap<String, String> EMOJI_TRIGGERS;
 	private static final Splitter SPLITTER = Splitter.on(" ").trimResults().omitEmptyStrings();
 
 	private final String triggerPhrase;
@@ -1156,19 +1162,50 @@ enum Emoji
 
 	static
 	{
-		ImmutableMap.Builder<String, Emoji> builder = new ImmutableMap.Builder<>();
+		ImmutableMap.Builder<String, Emoji> emojiBuilder = new ImmutableMap.Builder<>();
+		ImmutableListMultimap.Builder<String, String> triggerBuilder = new ImmutableListMultimap.Builder<>();
 
 		for (final Emoji emoji : values())
 		{
-			builder.put(emoji.triggerPhrase, emoji);
+			String key = SPLITTER.splitToList(emoji.triggerPhrase).get(0);
+			triggerBuilder.put(key, emoji.triggerPhrase);
+			emojiBuilder.put(emoji.triggerPhrase, emoji);
 		}
 
-		EMOJIS = builder.build();
+		EMOJIS = emojiBuilder.build();
+		EMOJI_TRIGGERS = triggerBuilder.build();
 	}
 
 	BufferedImage loadImage()
 	{
 		return ImageUtil.getResourceStreamFromClass(getClass(), codepoint + ".png");
+	}
+
+	/**
+	 * Gets a trigger phrase from a word
+	 * We prefer the longest phrase
+	 * @param key usually first word of a trigger phrase
+	 * @return sorted list of trigeger phrases
+	 */
+	static List<List<String>> getTriggers(String key)
+	{
+		List<String> triggers = EMOJI_TRIGGERS.get(key);
+
+		if (triggers == null)
+		{
+			return null;
+		}
+
+		List<List<String>> wordsToTry = new ArrayList<>();
+
+		for (String trigger : triggers)
+		{
+			wordsToTry.add(SPLITTER.splitToList(trigger));
+		}
+
+		wordsToTry.sort((x,y) -> Integer.compare(y.size(), x.size()));
+
+		return wordsToTry;
 	}
 
 	static Emoji getEmoji(String trigger)

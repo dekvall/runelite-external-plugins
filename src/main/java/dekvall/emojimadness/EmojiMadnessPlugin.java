@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019, Lotto <https://github.com/devLotto>
+ * Copyright (c) 2020, dekvall <https://github.com/dekvall>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,9 +25,12 @@
  */
 package dekvall.emojimadness;
 
+import com.google.common.base.Joiner;
 import com.google.inject.Provides;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -191,22 +195,70 @@ public class EmojiMadnessPlugin extends Plugin
 	String updateMessage(final String message)
 	{
 		final String[] messageWords = WHITESPACE_REGEXP.split(message);
+		List<String> newMessageWords = new ArrayList<>();
 
 		boolean editedMessage = false;
 		for (int i = 0; i < messageWords.length; i++)
 		{
 			// Remove tags except for <lt> and <gt>
 			final String trigger = removeTags(messageWords[i]);
-			final Emoji emoji = Emoji.getEmoji(trigger.toLowerCase());
 
-			if (emoji == null)
+			List<List<String>> phrases = Emoji.getTriggers(trigger.toLowerCase());
+			newMessageWords.add(messageWords[i]);
+
+			if (phrases == null)
 			{
 				continue;
 			}
 
+			List<String> splitTrigger = null;
+			middle:
+			for (List<String> words : phrases)
+			{
+				if (i + words.size() > messageWords.length)
+				{
+					// Longest phrases first
+					continue;
+				}
+
+				for (int j = 0; j < words.size(); j++)
+				{
+					if (!words.get(j).equals(messageWords[i+j].toLowerCase()))
+					{
+						continue middle;
+					}
+				}
+
+				splitTrigger = words;
+				// if we find a match we are done
+				break;
+			}
+
+			if (splitTrigger == null)
+			{
+				continue;
+			}
+
+			String triggerPhrase = Joiner.on(" ").join(splitTrigger);
+
+			final Emoji emoji = Emoji.getEmoji(triggerPhrase);
 			final int emojiId = modIconsStart + emoji.ordinal();
 
-			messageWords[i] = messageWords[i].replace(trigger, "<img=" + emojiId + ">");
+			// The trigger is still in new message words
+			newMessageWords.remove(newMessageWords.lastIndexOf(trigger));
+			if (config.appendMode())
+			{
+				// Append the emoji to the phrase in a bracket
+				newMessageWords.addAll(splitTrigger);
+				newMessageWords.add("[<img=" + emojiId + ">]");
+			}
+			else
+			{
+				// Replace the phrase
+				newMessageWords.add("<img=" + emojiId + ">");
+			}
+
+			i += splitTrigger.size() - 1;
 			editedMessage = true;
 		}
 
@@ -216,7 +268,7 @@ public class EmojiMadnessPlugin extends Plugin
 			return null;
 		}
 
-		return Strings.join(messageWords, " ");
+		return Joiner.on(" ").join(newMessageWords);
 	}
 
 	/**
