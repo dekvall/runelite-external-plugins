@@ -245,7 +245,7 @@ public class EmojiMadnessPlugin extends Plugin
 			final int emojiId = modIconsStart + emoji.ordinal();
 
 			// The trigger is still in new message words
-			newMessageWords.remove(newMessageWords.lastIndexOf(trigger));
+			newMessageWords.remove(newMessageWords.lastIndexOf(messageWords[i]));
 			if (config.appendMode())
 			{
 				// Append the emoji to the phrase in a bracket
