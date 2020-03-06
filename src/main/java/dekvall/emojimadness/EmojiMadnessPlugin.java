@@ -57,7 +57,7 @@ import net.runelite.client.util.ImageUtil;
 @Slf4j
 @PluginDescriptor(
 	name = "Emoji Madness",
-	description = "Enables shortcodes for emojis"
+	description = "Use emojis instead of words"
 )
 public class EmojiMadnessPlugin extends Plugin
 {
@@ -95,15 +95,6 @@ public class EmojiMadnessPlugin extends Plugin
 			loadEmojiIcons();
 		}
 	}
-
-//	@Subscribe
-//	public void onConfigChanged(ConfigChanged event)
-//	{
-//		if (event.getGroup().equals("emojimadness"))
-//		{
-//			return;
-//		}
-//	}
 
 	private void loadEmojiIcons()
 	{

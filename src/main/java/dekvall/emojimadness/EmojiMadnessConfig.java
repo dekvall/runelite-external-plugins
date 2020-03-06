@@ -38,6 +38,6 @@ public interface EmojiMadnessConfig extends Config
 	)
 	default boolean appendMode()
 	{
-		return false;
+		return true;
 	}
 }
