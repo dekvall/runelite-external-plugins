@@ -1,2 +1,2 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# World Hider
+Hides your world so you can stream in peace
