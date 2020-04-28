@@ -3,25 +3,17 @@ package dekvall.inventoryscrabble;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
-import com.google.common.collect.Multisets;
 import com.google.inject.Provides;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
-import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
@@ -36,7 +28,6 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.Text;
-import org.graalvm.compiler.replacements.InstanceOfSnippetsTemplates;
 
 @Slf4j
 @PluginDescriptor(
