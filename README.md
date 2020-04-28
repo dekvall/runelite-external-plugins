@@ -1,2 +1,2 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# Lowercase Usernames
+Lowercases right-click menu entries to prevent lookalike usernames
