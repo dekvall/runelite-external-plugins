@@ -14,6 +14,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
 @PluginDescriptor(
@@ -39,7 +40,7 @@ public class LowercaseUsernamesPlugin extends Plugin
 		log.info("Lowercase Usernames stopped!");
 	}
 
-	@Subscribe
+	@Subscribe(priority=1)
 	public void onClientTick(ClientTick event)
 	{
 
@@ -88,8 +89,11 @@ public class LowercaseUsernamesPlugin extends Plugin
 				continue;
 			}
 
-			String oldTarget = entry.getTarget();
+			String target = entry.getTarget();
+			int index = StringUtils.ordinalIndexOf(target, "<", 2);
+			String oldTarget = target.substring(0, index);
 			String newTarget = config.uppercase() ? oldTarget.toUpperCase() : oldTarget.toLowerCase();
+			newTarget += target.substring(index);
 
 			entry.setTarget(newTarget);
 			modified = true;
