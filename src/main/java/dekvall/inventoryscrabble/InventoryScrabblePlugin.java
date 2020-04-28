@@ -1,9 +1,20 @@
 package dekvall.inventoryscrabble;
 
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multiset;
+import com.google.common.collect.Multisets;
 import com.google.inject.Provides;
+import com.sun.org.apache.xpath.internal.operations.Bool;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
@@ -12,14 +23,19 @@ import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Player;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.util.Text;
 import org.graalvm.compiler.replacements.InstanceOfSnippetsTemplates;
 
 @Slf4j
@@ -28,6 +44,9 @@ import org.graalvm.compiler.replacements.InstanceOfSnippetsTemplates;
 )
 public class InventoryScrabblePlugin extends Plugin
 {
+
+	private static final Set<Integer> TUTORIAL_ISLAND_REGIONS = ImmutableSet.of(12336, 12335, 12592, 12080, 12079, 12436);
+
 	@Inject
 	private Client client;
 
@@ -40,7 +59,8 @@ public class InventoryScrabblePlugin extends Plugin
 	@Inject
 	private ItemManager itemManager;
 
-	private List<String> itemNames;
+	private boolean onTutorialIsland;
+	private Multiset<Character> counts;
 
 	@Override
 	protected void startUp() throws Exception
@@ -48,14 +68,17 @@ public class InventoryScrabblePlugin extends Plugin
 		log.info("Inventory Scrabble started!");
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			clientThread.invokeLater(this::gatherItemNames);
+			clientThread.invokeLater(() -> {
+				gatherItemNames();
+				checkArea();
+			});
 		}
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-		itemNames.clear();
+		counts.clear();
 		log.info("Inventory Scrabble stopped!");
 	}
 
@@ -65,9 +88,13 @@ public class InventoryScrabblePlugin extends Plugin
 
 		if (inventory != null)
 		{
-			itemNames = Arrays.stream(inventory.getItems())
-				.map(item -> itemManager.getItemComposition(item.getId()).getName())
-				.collect(Collectors.toList());
+			counts = HashMultiset.create();
+			Arrays.stream(inventory.getItems())
+				.map(item -> itemManager.getItemComposition(item.getId())
+					.getName()
+					.toLowerCase()
+					.charAt(0))
+				.forEach(c -> counts.add(c));
 		}
 	}
 
@@ -77,6 +104,7 @@ public class InventoryScrabblePlugin extends Plugin
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
 		{
 			gatherItemNames();
+			checkArea();
 		}
 	}
 
@@ -86,6 +114,102 @@ public class InventoryScrabblePlugin extends Plugin
 		if (event.getItemContainer() == client.getItemContainer(InventoryID.INVENTORY))
 		{
 			gatherItemNames();
+		}
+	}
+
+	@Subscribe(priority = -1)
+	public void onMenuEntryAdded(MenuEntryAdded event)
+	{
+		if (onTutorialIsland)
+		{
+			return;
+		}
+
+		MenuEntry[] menuEntries = client.getMenuEntries();
+		List<MenuEntry> cleaned = new ArrayList<>();
+
+		Set<String> checked = new HashSet<>();
+		Set<String> okTargets = new HashSet<>();
+
+		for (MenuEntry entry : menuEntries)
+		{
+			int type = entry.getType();
+
+			if (isNpcEntry(type))
+			{
+				String target = entry.getTarget();
+
+				if (!checked.contains(target))
+				{
+					Multiset<Character> targetChars = cleanTarget(target);
+					if (targetChars.entrySet().stream()
+						.noneMatch(e -> e.getCount() > counts.count(e.getElement())))
+					{
+						okTargets.add(target);
+					}
+					checked.add(target);
+				}
+
+				if (!okTargets.contains(target))
+				{
+					continue;
+				}
+			}
+			cleaned.add(entry);
+		}
+
+		MenuEntry[] newEntries = cleaned.toArray(new MenuEntry[0]);
+		client.setMenuEntries(newEntries);
+	}
+
+	Multiset<Character> cleanTarget(String target)
+	{
+		String noTags = Text.removeTags(target).toLowerCase();
+
+		// Do not include level in the comparison
+		int idx = noTags.indexOf('(');
+
+		String name = noTags;
+		if (idx != -1)
+		{
+			name = noTags.substring(0, idx);
+		}
+
+		Multiset<Character> targetCount = HashMultiset.create();
+		char[] chars = name.replaceAll("[^a-z]", "").toCharArray();
+		for (char c : chars)
+		{
+			targetCount.add(c);
+		}
+
+		return targetCount;
+	}
+
+	boolean isNpcEntry(int type)
+	{
+		MenuAction action = MenuAction.of(type);
+
+		switch (action)
+		{
+			case SPELL_CAST_ON_NPC:
+			case ITEM_USE_ON_NPC:
+			case NPC_FIRST_OPTION:
+			case NPC_SECOND_OPTION:
+			case NPC_THIRD_OPTION:
+			case NPC_FOURTH_OPTION:
+			case NPC_FIFTH_OPTION:
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	private void checkArea()
+	{
+		final Player player = client.getLocalPlayer();
+		if (player != null && TUTORIAL_ISLAND_REGIONS.contains(player.getWorldLocation().getRegionID()))
+		{
+			onTutorialIsland = true;
 		}
 	}
 
