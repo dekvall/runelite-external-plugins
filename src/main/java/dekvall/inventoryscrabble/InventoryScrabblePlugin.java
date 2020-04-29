@@ -181,6 +181,11 @@ public class InventoryScrabblePlugin extends Plugin
 
 	boolean isNpcEntry(int type)
 	{
+		if (type >= 2000)
+		{
+			type -= 2000;
+		}
+
 		MenuAction action = MenuAction.of(type);
 
 		switch (action)
