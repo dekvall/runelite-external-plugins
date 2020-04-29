@@ -84,7 +84,7 @@ public class InventoryScrabblePlugin extends Plugin
 				.map(item -> itemManager.getItemComposition(item.getId())
 					.getName()
 					.toLowerCase())
-				.filter(name -> name.equals("null"))
+				.filter(name -> !name.equals("null"))
 				.map(name -> Text.removeTags(name)
 					.replaceAll("[^a-z]", "")
 					.charAt(0))
