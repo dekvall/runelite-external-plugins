@@ -83,7 +83,10 @@ public class InventoryScrabblePlugin extends Plugin
 			Arrays.stream(inventory.getItems())
 				.map(item -> itemManager.getItemComposition(item.getId())
 					.getName()
-					.toLowerCase()
+					.toLowerCase())
+				.filter(name -> name.equals("null"))
+				.map(name -> Text.removeTags(name)
+					.replaceAll("[^a-z]", "")
 					.charAt(0))
 				.forEach(c -> counts.add(c));
 		}
