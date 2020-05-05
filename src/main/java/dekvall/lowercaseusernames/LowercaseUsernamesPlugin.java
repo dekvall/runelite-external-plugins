@@ -14,7 +14,6 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
 @PluginDescriptor(
@@ -40,10 +39,9 @@ public class LowercaseUsernamesPlugin extends Plugin
 		log.info("Lowercase Usernames stopped!");
 	}
 
-	@Subscribe(priority=1)
+	@Subscribe(priority=1) //if we go first we only have to care about col tags
 	public void onClientTick(ClientTick event)
 	{
-
 		if (client.isMenuOpen())
 		{
 			return;
@@ -90,11 +88,32 @@ public class LowercaseUsernamesPlugin extends Plugin
 			}
 
 			String target = entry.getTarget();
-			int index = StringUtils.ordinalIndexOf(target, "<", 2);
-			String oldTarget = target.substring(0, index);
-			String newTarget = config.uppercase() ? oldTarget.toUpperCase() : oldTarget.toLowerCase();
-			newTarget += target.substring(index);
+			String cased = config.uppercase() ? target.toUpperCase() : target.toLowerCase();
+			// A target has tags that we want to preserve
 
+			StringBuilder sb = new StringBuilder();
+			boolean insideTag = false;
+
+			for (int i = 0; i < target.length(); i++)
+			{
+				char part = target.charAt(i);
+				// All tags have to start with < and there are no nested tags so this should work
+				if (part == '<' || part == '>')
+				{
+					insideTag = !insideTag;
+				}
+
+				if (insideTag)
+				{
+					sb.append(part);
+				}
+				else
+				{
+					sb.append(cased.charAt(i));
+				}
+			}
+
+			String newTarget = sb.toString();
 			entry.setTarget(newTarget);
 			modified = true;
 		}
