@@ -1,2 +1,4 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# Fullscreen
+RuneLite, but in fullscreen.
+
+**Not tested with multiple monitors plugged in**
