@@ -1,2 +1,2 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# Left Click Only
+Disable all mouse buttons but one.
