@@ -1,2 +1,6 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# Chat Esolangs
+Run code instead of talking to people
+
+## Supports
+ - Brainfuck
+
