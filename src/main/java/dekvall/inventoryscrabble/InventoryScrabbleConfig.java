@@ -8,12 +8,12 @@ import net.runelite.client.config.ConfigItem;
 public interface InventoryScrabbleConfig extends Config
 {
 	@ConfigItem(
-		keyName = "greeting",
-		name = "Welcome Greeting",
-		description = "The message to show to the user when they login"
+		keyName = "wornItems",
+		name = "Allow worn items",
+		description = "Allow worn items to count when solving the puzzle"
 	)
-	default String greeting()
+	default boolean wornItems()
 	{
-		return "Hello";
+		return false;
 	}
 }

@@ -24,6 +24,7 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -73,23 +74,47 @@ public class InventoryScrabblePlugin extends Plugin
 		log.info("Inventory Scrabble stopped!");
 	}
 
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (client.getGameState() == GameState.LOGGED_IN && event.getGroup().equals("inventoryscrabble"))
+		{
+			clientThread.invokeLater(this::gatherItemNames);
+		}
+	}
+
+
+
 	private void gatherItemNames()
 	{
 		final ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
+		final ItemContainer equipment = client.getItemContainer(InventoryID.EQUIPMENT);
+		counts = HashMultiset.create();
 
-		if (inventory != null)
+		addCharsFrom(inventory);
+
+		if (config.wornItems())
 		{
-			counts = HashMultiset.create();
-			Arrays.stream(inventory.getItems())
-				.map(item -> itemManager.getItemComposition(item.getId())
-					.getName()
-					.toLowerCase())
-				.filter(name -> !name.equals("null"))
-				.map(name -> Text.removeTags(name)
-					.replaceAll("[^a-z]", "")
-					.charAt(0))
-				.forEach(c -> counts.add(c));
+			addCharsFrom(equipment);
 		}
+	}
+
+	private void addCharsFrom(ItemContainer container)
+	{
+		if (container == null)
+		{
+			return;
+		}
+
+		Arrays.stream(container.getItems())
+			.map(item -> itemManager.getItemComposition(item.getId())
+				.getName()
+				.toLowerCase())
+			.filter(name -> !name.equals("null"))
+			.map(name -> Text.removeTags(name)
+				.replaceAll("[^a-z]", "")
+				.charAt(0))
+			.forEach(c -> counts.add(c));
 	}
 
 	@Subscribe
@@ -105,7 +130,8 @@ public class InventoryScrabblePlugin extends Plugin
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
-		if (event.getItemContainer() == client.getItemContainer(InventoryID.INVENTORY))
+		if (event.getItemContainer() == client.getItemContainer(InventoryID.INVENTORY)
+			|| event.getItemContainer() == client.getItemContainer(InventoryID.EQUIPMENT))
 		{
 			gatherItemNames();
 		}
