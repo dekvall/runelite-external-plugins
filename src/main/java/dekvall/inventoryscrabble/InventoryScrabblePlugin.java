@@ -3,6 +3,7 @@ package dekvall.inventoryscrabble;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
+import com.google.common.collect.Multisets;
 import com.google.inject.Provides;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
@@ -21,7 +23,12 @@ import net.runelite.api.Player;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -36,7 +43,7 @@ import net.runelite.client.util.Text;
 )
 public class InventoryScrabblePlugin extends Plugin
 {
-
+	static final String CONFIG_GROUP = "inventoryscrabble";
 	private static final Set<Integer> TUTORIAL_ISLAND_REGIONS = ImmutableSet.of(12336, 12335, 12592, 12080, 12079, 12436);
 
 	@Inject
@@ -50,6 +57,9 @@ public class InventoryScrabblePlugin extends Plugin
 
 	@Inject
 	private ItemManager itemManager;
+
+	@Inject
+	private ChatMessageManager chatMessageManager;
 
 	private boolean onTutorialIsland;
 	private Multiset<Character> counts;
@@ -77,7 +87,7 @@ public class InventoryScrabblePlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (client.getGameState() == GameState.LOGGED_IN && event.getGroup().equals("inventoryscrabble"))
+		if (client.getGameState() == GameState.LOGGED_IN && event.getGroup().equals(CONFIG_GROUP))
 		{
 			clientThread.invokeLater(this::gatherItemNames);
 		}
@@ -184,7 +194,20 @@ public class InventoryScrabblePlugin extends Plugin
 
 	Multiset<Character> cleanTarget(String target)
 	{
-		String noTags = Text.removeTags(target).toLowerCase();
+		String name = onlyName(target);
+		Multiset<Character> targetCount = HashMultiset.create();
+		char[] chars = name.toLowerCase().replaceAll("[^a-z]", "").toCharArray();
+		for (char c : chars)
+		{
+			targetCount.add(c);
+		}
+
+		return targetCount;
+	}
+
+	private String onlyName(String target)
+	{
+		String noTags = Text.removeTags(target);
 
 		// Do not include level in the comparison
 		int idx = noTags.indexOf('(');
@@ -195,14 +218,7 @@ public class InventoryScrabblePlugin extends Plugin
 			name = noTags.substring(0, idx);
 		}
 
-		Multiset<Character> targetCount = HashMultiset.create();
-		char[] chars = name.replaceAll("[^a-z]", "").toCharArray();
-		for (char c : chars)
-		{
-			targetCount.add(c);
-		}
-
-		return targetCount;
+		return name;
 	}
 
 	boolean isNpcEntry(int type)
@@ -236,6 +252,54 @@ public class InventoryScrabblePlugin extends Plugin
 		{
 			onTutorialIsland = true;
 		}
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event)
+	{
+		if (event.getMenuAction() != MenuAction.EXAMINE_NPC)
+		{
+			return;
+		}
+
+		Multiset<Character> targetChars = cleanTarget(event.getMenuTarget());
+		Multiset<Character> diff = Multisets.difference(targetChars, counts);
+
+		if (diff.isEmpty())
+		{
+			return;
+		}
+
+		String name = onlyName(event.getMenuTarget());
+
+		final StringBuilder sb = new StringBuilder();
+		sb.append("[Scrabble]").append(" Missing");
+
+		diff.entrySet().stream().forEach(e -> {
+			Character c = Character.toUpperCase(e.getElement());
+			sb.append(" ").append(c);
+			if (e.getCount() > 1)
+			{
+				sb.append(" x ").append(e.getCount());
+			}
+		});
+
+		sb.append(" to allow interacting with ").append(name.trim()).append(".");
+		sendChatMessage(sb.toString());
+	}
+
+	private void sendChatMessage(String chatMessage)
+	{
+		final String message = new ChatMessageBuilder()
+			.append(ChatColorType.NORMAL)
+			.append(chatMessage)
+			.build();
+
+		chatMessageManager.queue(
+			QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(message)
+				.build());
 	}
 
 	@Provides

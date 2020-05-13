@@ -4,7 +4,7 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("inventoryscrabble")
+@ConfigGroup(InventoryScrabblePlugin.CONFIG_GROUP)
 public interface InventoryScrabbleConfig extends Config
 {
 	@ConfigItem(
