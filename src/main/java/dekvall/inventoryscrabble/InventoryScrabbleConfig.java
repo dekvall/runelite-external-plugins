@@ -16,4 +16,14 @@ public interface InventoryScrabbleConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "hardMode",
+		name = "Hard mode",
+		description = "Apply limitations when interacting with objects"
+	)
+	default boolean hardMode()
+	{
+		return false;
+	}
 }

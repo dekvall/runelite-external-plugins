@@ -165,7 +165,7 @@ public class InventoryScrabblePlugin extends Plugin
 		{
 			int type = entry.getType();
 
-			if (isNpcEntry(type))
+			if (isNpcEntry(type) || config.hardMode() && isObjectEntry(type))
 			{
 				String target = entry.getTarget();
 
@@ -245,6 +245,25 @@ public class InventoryScrabblePlugin extends Plugin
 		}
 	}
 
+	boolean isObjectEntry(int type)
+	{
+		MenuAction action = MenuAction.of(type);
+
+		switch (action)
+		{
+			case SPELL_CAST_ON_GAME_OBJECT:
+			case ITEM_USE_ON_GAME_OBJECT:
+			case GAME_OBJECT_FIRST_OPTION:
+			case GAME_OBJECT_SECOND_OPTION:
+			case GAME_OBJECT_THIRD_OPTION:
+			case GAME_OBJECT_FOURTH_OPTION:
+			case GAME_OBJECT_FIFTH_OPTION:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	private void checkArea()
 	{
 		final Player player = client.getLocalPlayer();
@@ -257,7 +276,8 @@ public class InventoryScrabblePlugin extends Plugin
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		if (event.getMenuAction() != MenuAction.EXAMINE_NPC)
+		if (event.getMenuAction() != MenuAction.EXAMINE_NPC
+			&& !config.hardMode() && event.getMenuAction() != MenuAction.EXAMINE_OBJECT)
 		{
 			return;
 		}
@@ -273,26 +293,30 @@ public class InventoryScrabblePlugin extends Plugin
 		String name = onlyName(event.getMenuTarget());
 
 		final StringBuilder sb = new StringBuilder();
-		sb.append("[Scrabble]").append(" Missing");
 
 		diff.entrySet().stream().forEach(e -> {
 			Character c = Character.toUpperCase(e.getElement());
 			sb.append(" ").append(c);
 			if (e.getCount() > 1)
 			{
-				sb.append(" x ").append(e.getCount());
+				sb.append("x").append(e.getCount());
 			}
 		});
 
-		sb.append(" to allow interacting with ").append(name.trim()).append(".");
-		sendChatMessage(sb.toString());
+		sendChatMessage(sb.toString(), name.trim());
 	}
 
-	private void sendChatMessage(String chatMessage)
+	private void sendChatMessage(String missingChars, String name)
 	{
 		final String message = new ChatMessageBuilder()
 			.append(ChatColorType.NORMAL)
-			.append(chatMessage)
+			.append("[Scrabble]").append(" Missing")
+			.append(ChatColorType.HIGHLIGHT)
+			.append(missingChars)
+			.append(ChatColorType.NORMAL)
+			.append(" to allow interactions with ")
+			.append(name)
+			.append(".")
 			.build();
 
 		chatMessageManager.queue(
