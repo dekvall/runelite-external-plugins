@@ -277,7 +277,7 @@ public class InventoryScrabblePlugin extends Plugin
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
 		if (event.getMenuAction() != MenuAction.EXAMINE_NPC
-			&& !config.hardMode() && event.getMenuAction() != MenuAction.EXAMINE_OBJECT)
+			&& (!config.hardMode() || event.getMenuAction() != MenuAction.EXAMINE_OBJECT))
 		{
 			return;
 		}
