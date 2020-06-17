@@ -143,12 +143,13 @@ public class WorldHiderPlugin extends Plugin
 		{
 			case DRAW_FRIEND_ENTRIES:
 				clientThread.invokeLater(this::recolorFriends);
+				break;
 			case WORLD_HOPPER_BUILD:
 				clientThread.invokeLater(this::killWorldHopper);
+				break;
 			case BUILD_CC:
 				clientThread.invokeLater(this::hideClanWorlds);
-			default:
-				return;
+				break;
 		}
 	}
 
@@ -187,7 +188,6 @@ public class WorldHiderPlugin extends Plugin
 
 		worldHopper.setText("Current World - " + (config.randomWorld() ? randomWorld : "XXX"));
 
-		//dc10d
 		Widget worldList = client.getWidget(69, 17);
 
 		if (worldList == null)
@@ -206,8 +206,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideClanWorlds()
 	{
-		int world = client.getWorld();
-		Widget clan = client.getWidget(WidgetInfo.CLAN_CHAT_LIST);
+		Widget clan = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
 
 		if (clan == null)
 		{
@@ -216,10 +215,8 @@ public class WorldHiderPlugin extends Plugin
 
 		Widget[] entries = clan.getDynamicChildren();
 
-		String name = client.getLocalPlayer().getName();
-		for (int i = 0; i < entries.length; i++)
+		for (Widget entry : entries)
 		{
-			Widget entry = entries[i];
 			if (entry.getText().startsWith("World"))
 			{
 				if (config.massHide())
