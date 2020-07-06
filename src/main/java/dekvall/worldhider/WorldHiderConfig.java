@@ -51,4 +51,14 @@ public interface WorldHiderConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "hideList",
+		name = "Hide List",
+		description = "Hides value in world hopper list"
+	)
+	default boolean hideList()
+	{
+		return false;
+	}
 }
