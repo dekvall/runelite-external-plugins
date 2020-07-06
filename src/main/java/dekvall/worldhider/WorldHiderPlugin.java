@@ -48,7 +48,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 
 @Slf4j
 @PluginDescriptor(
-		name = "World Hider"
+	name = "World Hider"
 )
 public class WorldHiderPlugin extends Plugin
 {
@@ -70,9 +70,9 @@ public class WorldHiderPlugin extends Plugin
 
 	@Override
 	protected void startUp() throws Exception
-	{
+    {
 		log.info("World Hider started!");
-	}
+    }
 
 	@Override
 	protected void shutDown() throws Exception
@@ -108,12 +108,12 @@ public class WorldHiderPlugin extends Plugin
 			final int limit = isMember ? 400 : 200;
 
 			final String title = "Friends - W" +
-					(config.randomWorld() ? randomWorld : "XXX") +
-					" (" +
-					friendCount +
-					"/" +
-					limit +
-					")";
+				(config.randomWorld() ? randomWorld : "XXX") +
+				" (" +
+				friendCount +
+				"/" +
+				limit +
+				")";
 
 			setFriendsListTitle(title);
 		}
@@ -125,12 +125,12 @@ public class WorldHiderPlugin extends Plugin
 			final int limit = isMember ? 400 : 200;
 
 			final String title = "Ignores - W" +
-					(config.randomWorld() ? randomWorld : "XXX") +
-					" (" +
-					ignoreCount +
-					"/" +
-					limit +
-					")";
+				(config.randomWorld() ? randomWorld : "XXX") +
+				" (" +
+				ignoreCount +
+				"/" +
+				limit +
+				")";
 
 			setIgnoreListTitle(title);
 		}
@@ -264,6 +264,7 @@ public class WorldHiderPlugin extends Plugin
 		worldTooltip.setHidden(true);
 	}
 
+
 	private int getRandomWorld()
 	{
 		return ThreadLocalRandom.current().nextInt(301, 500);
@@ -287,4 +288,3 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 }
-
