@@ -48,7 +48,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 
 @Slf4j
 @PluginDescriptor(
-	name = "World Hider"
+		name = "World Hider"
 )
 public class WorldHiderPlugin extends Plugin
 {
@@ -70,9 +70,9 @@ public class WorldHiderPlugin extends Plugin
 
 	@Override
 	protected void startUp() throws Exception
-    {
+	{
 		log.info("World Hider started!");
-    }
+	}
 
 	@Override
 	protected void shutDown() throws Exception
@@ -108,12 +108,12 @@ public class WorldHiderPlugin extends Plugin
 			final int limit = isMember ? 400 : 200;
 
 			final String title = "Friends - W" +
-				(config.randomWorld() ? randomWorld : "XXX") +
-				" (" +
-				friendCount +
-				"/" +
-				limit +
-				")";
+					(config.randomWorld() ? randomWorld : "XXX") +
+					" (" +
+					friendCount +
+					"/" +
+					limit +
+					")";
 
 			setFriendsListTitle(title);
 		}
@@ -125,12 +125,12 @@ public class WorldHiderPlugin extends Plugin
 			final int limit = isMember ? 400 : 200;
 
 			final String title = "Ignores - W" +
-				(config.randomWorld() ? randomWorld : "XXX") +
-				" (" +
-				ignoreCount +
-				"/" +
-				limit +
-				")";
+					(config.randomWorld() ? randomWorld : "XXX") +
+					" (" +
+					ignoreCount +
+					"/" +
+					limit +
+					")";
 
 			setIgnoreListTitle(title);
 		}
@@ -146,6 +146,7 @@ public class WorldHiderPlugin extends Plugin
 				break;
 			case WORLD_HOPPER_BUILD:
 				clientThread.invokeLater(this::killWorldHopper);
+				clientThread.invokeLater(this::hideHopperWorlds);
 				break;
 			case BUILD_CC:
 				clientThread.invokeLater(this::hideClanWorlds);
@@ -228,6 +229,41 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
+	private void hideHopperWorlds()
+	{
+		Widget list = client.getWidget(69, 17);
+
+		if (list == null)
+		{
+			return;
+		}
+
+		Widget[] entries = list.getDynamicChildren();
+
+		for (Widget entry : entries)
+		{
+			entry.setText("XXX");
+		}
+
+		Widget listLabel = client.getWidget(69, 16);
+
+		if (listLabel == null)
+		{
+			return;
+		}
+
+		Widget[] listEntries = listLabel.getDynamicChildren();
+
+		for (Widget entry : listEntries)
+		{
+			entry.setName("XXX");
+		}
+
+		Widget worldTooltip = client.getWidget(69, 24);
+
+		worldTooltip.setHidden(true);
+	}
+
 	private int getRandomWorld()
 	{
 		return ThreadLocalRandom.current().nextInt(301, 500);
@@ -251,3 +287,4 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 }
+
