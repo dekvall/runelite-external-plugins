@@ -231,37 +231,39 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideHopperWorlds()
 	{
-		Widget list = client.getWidget(69, 17);
+		if (config.hideList()) {
+			Widget list = client.getWidget(69, 17);
 
-		if (list == null)
-		{
-			return;
+			if (list == null)
+			{
+				return;
+			}
+
+			Widget[] entries = list.getDynamicChildren();
+
+			for (Widget entry : entries)
+			{
+				entry.setText("XXX");
+			}
+
+			Widget listLabel = client.getWidget(69, 16);
+
+			if (listLabel == null)
+			{
+				return;
+			}
+
+			Widget[] listEntries = listLabel.getDynamicChildren();
+
+			for (Widget entry : listEntries)
+			{
+				entry.setName("XXX");
+			}
+
+			Widget worldTooltip = client.getWidget(69, 24);
+
+			worldTooltip.setHidden(true);
 		}
-
-		Widget[] entries = list.getDynamicChildren();
-
-		for (Widget entry : entries)
-		{
-			entry.setText("XXX");
-		}
-
-		Widget listLabel = client.getWidget(69, 16);
-
-		if (listLabel == null)
-		{
-			return;
-		}
-
-		Widget[] listEntries = listLabel.getDynamicChildren();
-
-		for (Widget entry : listEntries)
-		{
-			entry.setName("XXX");
-		}
-
-		Widget worldTooltip = client.getWidget(69, 24);
-
-		worldTooltip.setHidden(true);
 	}
 
 
