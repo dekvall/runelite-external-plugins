@@ -1,2 +1,2 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# Not Empty
+Never empty potions again!
