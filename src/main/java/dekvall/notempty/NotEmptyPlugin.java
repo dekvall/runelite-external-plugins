@@ -17,6 +17,7 @@ import net.runelite.client.util.Text;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 )
 public class NotEmptyPlugin extends Plugin
 {
+	private static final String DRINK_PATTERN = ".*\\(\\d\\)";
 
 	@Inject
 	private Client client;
@@ -54,7 +56,8 @@ public class NotEmptyPlugin extends Plugin
 			String option = entry.getOption().toLowerCase();
 
 			if (type != MenuAction.ITEM_FOURTH_OPTION.getId()
-				|| !"empty".equals(option))
+				|| !"empty".equals(option)
+				|| !Pattern.matches(DRINK_PATTERN, entry.getTarget()))
 			{
 				cleaned.add(entry);
 			}
