@@ -16,4 +16,14 @@ public interface DancePartyConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+			keyName = "disableInPvp",
+			name = "Disable in PvP",
+			description = "Disable dance moves when entering dangerous situations :("
+	)
+	default boolean disableInPvp()
+	{
+		return false;
+	}
 }
