@@ -84,11 +84,14 @@ public class BankDiffPlugin extends Plugin
 		{
 			grabSnapshot();
 		}
+		else if (event.getGameState() == GameState.LOGIN_SCREEN)
+		{
+			snapshot.clear();
+		}
 	}
 
 	private void grabSnapshot()
 	{
-
 		String json = configManager.getConfiguration(CONFIG_GROUP, getConfigKey(), String.class);
 
 		Map<Integer, Integer> fromConfig = gson.fromJson(json, new TypeToken<Map<Integer, Integer>>() {}.getType());
@@ -97,6 +100,11 @@ public class BankDiffPlugin extends Plugin
 		if (fromConfig != null)
 		{
 			snapshot.putAll(fromConfig);
+		}
+		else
+		{
+			// Disable the view if no diff snapshot exists
+			config.diffViewToggled(false);
 		}
 	}
 
