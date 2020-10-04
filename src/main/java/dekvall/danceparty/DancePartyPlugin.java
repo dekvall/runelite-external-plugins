@@ -3,12 +3,8 @@ package dekvall.danceparty;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.Player;
-import net.runelite.api.Varbits;
-import net.runelite.api.events.GameTick;
-import net.runelite.api.events.PlayerDespawned;
-import net.runelite.api.events.PlayerSpawned;
+import net.runelite.api.*;
+import net.runelite.api.events.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -24,6 +20,7 @@ import java.util.Set;
 )
 public class DancePartyPlugin extends Plugin
 {
+	private static int LEVELUP_DANCE_DURATION = 40; // Ticks
 	@Inject
 	private Client client;
 
@@ -33,6 +30,8 @@ public class DancePartyPlugin extends Plugin
 	private Set<Player> players = new HashSet<>();
 
 	private Random rand = new Random();
+
+	private int levelUpTick;
 
 	@Override
 	protected void startUp() throws Exception
@@ -63,34 +62,63 @@ public class DancePartyPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onGameTick(GameTick tick)
+	public void onGraphicChanged(GraphicChanged event)
 	{
-		if (config.disableInPvp() && client.getVar(Varbits.PVP_SPEC_ORB) == 1)
+		if (event.getActor() != client.getLocalPlayer())
 		{
 			return;
 		}
 
+		switch (event.getActor().getGraphic())
+		{
+			// Levelup Fireworks
+			case 199:
+			case 1388:
+			case 1389:
+				levelUpTick = client.getTickCount();
+		}
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
 		for (Player player : players)
 		{
-			if (player.getAnimation() == -1)
-			{
-				if (config.workoutMode())
-				{
-					setPlayerMoveFrom(WorkoutMove.values(), player);
-				}
-				else
-				{
-					setPlayerMoveFrom(DanceMove.values(), player);
-				}
-			}
+			applyAnimationIfPossible(player);
+		}
+	}
+
+	void applyAnimationIfPossible(Player player)
+	{
+		if (player.getAnimation() != -1
+			|| config.disableInPvp() && client.getVar(Varbits.PVP_SPEC_ORB) == 1
+			|| config.partyOnLevelup()
+				&& (levelUpTick == 0 || client.getTickCount() - levelUpTick > LEVELUP_DANCE_DURATION))
+		{
+			return;
+		}
+
+		if (config.workoutMode())
+		{
+			setPlayerMoveFrom(WorkoutMove.values(), player);
+		}
+		else
+		{
+			setPlayerMoveFrom(DanceMove.values(), player);
 		}
 	}
 
 	private void setPlayerMoveFrom(Move [] moves, Player player)
 	{
-		int anim = moves[rand.nextInt(moves.length)].getAnimId();
-		player.setAnimation(anim);
+		Move move = moves[rand.nextInt(moves.length)];
+		player.setAnimation(move.getAnimId());
 		player.setActionFrame(0);
+
+		if (move.getGfxId() != -1)
+		{
+			player.setGraphic(move.getGfxId());
+			player.setSpotAnimFrame(0);
+		}
 	}
 
 	@Provides

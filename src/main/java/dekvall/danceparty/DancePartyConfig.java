@@ -26,4 +26,14 @@ public interface DancePartyConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+			keyName = "partyOnLevelup",
+			name = "Celebrate levelup",
+			description = "Players will only dance when you level up"
+	)
+	default boolean partyOnLevelup()
+	{
+		return false;
+	}
 }

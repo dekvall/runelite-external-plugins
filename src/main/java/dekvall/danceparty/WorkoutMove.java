@@ -14,4 +14,10 @@ enum WorkoutMove implements Move
     ;
 
     private int animId;
+    private int gfxId;
+
+    WorkoutMove(int animId)
+    {
+        this(animId, -1);
+    }
 }
