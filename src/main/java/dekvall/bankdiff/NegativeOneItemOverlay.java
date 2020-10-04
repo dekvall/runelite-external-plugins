@@ -12,17 +12,19 @@ import java.awt.*;
 public class NegativeOneItemOverlay extends WidgetItemOverlay {
 
     private final BankDiffPlugin plugin;
+    private final BankDiffConfig config;
 
     @Inject
-    NegativeOneItemOverlay(BankDiffPlugin plugin)
+    NegativeOneItemOverlay(BankDiffPlugin plugin, BankDiffConfig config)
     {
         this.plugin = plugin;
+        this.config = config;
         showOnBank();
     }
 
     @Override
     public void renderItemOverlay(Graphics2D g, int itemId, WidgetItem itemWidget) {
-        if (!plugin.isDiffViewToggled()
+        if (!config.diffViewToggled()
                 || !plugin.getNegativeOneCounts().contains(itemId)
                 || itemWidget.getWidget().getParentId() != WidgetInfo.BANK_ITEM_CONTAINER.getId())
         {

@@ -51,8 +51,7 @@ public class BankDiffPlugin extends Plugin
 	private NegativeOneItemOverlay negativeOneItemOverlay;
 
 	private final Map<Integer, Integer> snapshot = new HashMap<>();
-	@Getter
-	private boolean isDiffViewToggled;
+
 	@Getter
 	private final Set<Integer> negativeOneCounts = new HashSet<>();
 
@@ -112,7 +111,7 @@ public class BankDiffPlugin extends Plugin
 
 		MenuEntry[] entries = client.getMenuEntries();
 
-		int offset = isDiffViewToggled || snapshot.isEmpty() ? 1 : 2;
+		int offset = config.diffViewToggled() || snapshot.isEmpty() ? 1 : 2;
 		entries = Arrays.copyOf(entries, entries.length + offset);
 		int place = 1;
 
@@ -121,7 +120,7 @@ public class BankDiffPlugin extends Plugin
 			entries[entries.length - place++] = createEntry(TOGGLE_VIEW, event);
 		}
 
-		if (!isDiffViewToggled)
+		if (!config.diffViewToggled())
 		{
 			entries[entries.length - place] = createEntry(CREATE_SNAPSHOT, event);
 		}
@@ -169,7 +168,7 @@ public class BankDiffPlugin extends Plugin
 		}
 		else if (event.getMenuOption().equals(TOGGLE_VIEW))
 		{
-			isDiffViewToggled = !isDiffViewToggled;
+			config.diffViewToggled(!config.diffViewToggled());
 			layoutBank();
 		}
 	}
@@ -252,7 +251,7 @@ public class BankDiffPlugin extends Plugin
 	{
 		if (event.getScriptId() == ScriptID.BANKMAIN_BUILD)
 		{
-			if (isDiffViewToggled)
+			if (config.diffViewToggled())
 			{
 				diffAgainstSnapshot();
 			}

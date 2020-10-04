@@ -16,4 +16,23 @@ public interface BankDiffConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+			keyName = "diffViewToggled",
+			name = "",
+			description = "",
+			hidden = true
+	)
+	default boolean diffViewToggled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "diffViewToggled",
+			name = "",
+			description = ""
+	)
+	void diffViewToggled(boolean diffViewToggled);
+
 }
