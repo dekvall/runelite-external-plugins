@@ -1,2 +1,2 @@
-# runelite-external-plugins
-External plugins for RuneLite
+# Plank Sack
+A plank sack overlay
