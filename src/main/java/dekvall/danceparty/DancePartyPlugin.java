@@ -12,7 +12,10 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.Text;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -158,6 +161,7 @@ public class DancePartyPlugin extends Plugin
 	void applyAnimationIfPossible(Player player)
 	{
 		if (player.getAnimation() != -1
+			|| config.danceChance() < rand.nextInt(100)
 			|| config.disableInPvp() && client.getVar(Varbits.PVP_SPEC_ORB) == 1
 			|| ((config.partyOnBossKill() || config.partyOnLevelup() || config.partyOnPetDrop() || config.partyOnRaidDone())
 				&& forceDanceTick < client.getTickCount()))
@@ -165,19 +169,21 @@ public class DancePartyPlugin extends Plugin
 			return;
 		}
 
-		if (config.workoutMode())
-		{
-			setPlayerMoveFrom(WorkoutMove.values(), player);
-		}
-		else
-		{
-			setPlayerMoveFrom(DanceMove.values(), player);
-		}
-	}
+		List<Move> moves = new ArrayList<>(Arrays.asList(Move.values()));
 
-	private void setPlayerMoveFrom(Move [] moves, Player player)
-	{
-		Move move = moves[rand.nextInt(moves.length)];
+		for (int i = moves.size() - 1; i >= 0; i--)
+		{
+			if (!moves.get(i).isEnabled(config)) {
+				moves.remove(i);
+			}
+		}
+
+		if (moves.size() == 0)
+		{
+			return;
+		}
+
+		Move move = moves.get(rand.nextInt(moves.size()));
 		player.setAnimation(move.getAnimId());
 		player.setActionFrame(0);
 
