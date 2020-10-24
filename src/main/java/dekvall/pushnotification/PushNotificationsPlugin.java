@@ -91,7 +91,7 @@ public class PushNotificationsPlugin extends Plugin
 
 	private void handlePushover(NotificationFired event)
 	{
-		if(Strings.isNullOrEmpty(config.pushover_api()) && Strings.isNullOrEmpty(config.pushover_user()))
+		if(Strings.isNullOrEmpty(config.pushover_api()) || Strings.isNullOrEmpty(config.pushover_user()))
 		{
 			return;
 		}
