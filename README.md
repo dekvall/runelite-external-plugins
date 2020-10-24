@@ -11,7 +11,7 @@ Open your client and paste the key into the `Pushbullet` config field of `Push N
 ## Pushover
 You need to provide both a pushover user key and api token to use this service.
 
-Go [here](https://www.pushbullet.com/), login and your user key will be in the top right of the page.
+Go [here](https://pushover.net/), login and your user key will be in the top right of the page.
 
 To get an api key, click `Create an Application/API Token`, enter a name for the application such as `Runelite` and click `Create Application`.
 
