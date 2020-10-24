@@ -5,11 +5,9 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-@ConfigGroup(PushNotificationsConfig.GROUP)
+@ConfigGroup("pushnotifications")
 public interface PushNotificationsConfig extends Config
 {
-	String GROUP = "pushnotifications";
-
 	@ConfigSection(
 			name = "Pushbullet",
 			description = "Pushbullet Settings",
