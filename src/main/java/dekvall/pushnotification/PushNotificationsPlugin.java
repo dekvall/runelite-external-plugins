@@ -65,26 +65,26 @@ public class PushNotificationsPlugin extends Plugin
 		}
 
 		HttpUrl url = new HttpUrl.Builder()
-				.scheme("https")
-				.host("api.pushbullet.com")
-				.addPathSegment("v2")
-				.addPathSegment("pushes")
-				.build();
+			.scheme("https")
+			.host("api.pushbullet.com")
+			.addPathSegment("v2")
+			.addPathSegment("pushes")
+			.build();
 
 		RequestBody push = new FormBody.Builder()
-				.add("body", "You should probably do something about that..")
-				.add("title", event.getMessage())
-				.add("type", "note")
-				.build();
+			.add("body", "You should probably do something about that..")
+			.add("title", event.getMessage())
+			.add("type", "note")
+			.build();
 
 		Request request = new Request.Builder()
-				.header("User-Agent", "RuneLite")
-				.header("Access-Token", config.pushbullet())
-				.header("Content-Type", "application/json")
-				.header("User-Agent", "RuneLite")
-				.post(push)
-				.url(url)
-				.build();
+			.header("User-Agent", "RuneLite")
+			.header("Access-Token", config.pushbullet())
+			.header("Content-Type", "application/json")
+			.header("User-Agent", "RuneLite")
+			.post(push)
+			.url(url)
+			.build();
 
 		sendRequest("Pushbullet", request);
 	}
@@ -97,25 +97,25 @@ public class PushNotificationsPlugin extends Plugin
 		}
 
 		HttpUrl url = new HttpUrl.Builder()
-				.scheme("https")
-				.host("api.pushover.net")
-				.addPathSegment("1")
-				.addPathSegment("messages.json")
-				.build();
+			.scheme("https")
+			.host("api.pushover.net")
+			.addPathSegment("1")
+			.addPathSegment("messages.json")
+			.build();
 
 		RequestBody push = new FormBody.Builder()
-				.add("token", config.pushover_api())
-				.add("user", config.pushover_user())
-				.add("message", event.getMessage())
-				.build();
+			.add("token", config.pushover_api())
+			.add("user", config.pushover_user())
+			.add("message", event.getMessage())
+			.build();
 
 		Request request = new Request.Builder()
-				.header("User-Agent", "RuneLite")
-				.header("Content-Type", "application/json")
-				.header("User-Agent", "RuneLite")
-				.post(push)
-				.url(url)
-				.build();
+			.header("User-Agent", "RuneLite")
+			.header("Content-Type", "application/json")
+			.header("User-Agent", "RuneLite")
+			.post(push)
+			.url(url)
+			.build();
 
 		sendRequest("Pushover", request);
 	}
