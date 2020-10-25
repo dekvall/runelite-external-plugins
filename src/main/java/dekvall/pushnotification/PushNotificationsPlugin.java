@@ -22,7 +22,7 @@ import okhttp3.Response;
 
 @Slf4j
 @PluginDescriptor(
-		name = "Push Notifications"
+	name = "Push Notifications"
 )
 public class PushNotificationsPlugin extends Plugin
 {
