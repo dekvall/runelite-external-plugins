@@ -9,40 +9,40 @@ import net.runelite.client.config.ConfigSection;
 public interface PushNotificationsConfig extends Config
 {
 	@ConfigSection(
-			name = "Pushbullet",
-			description = "Pushbullet Settings",
-			position = 0
+		name = "Pushbullet",
+		description = "Pushbullet Settings",
+		position = 0
 	)
 	String pushbulletSection = "pushbullet";
 
 	@ConfigItem(
-			keyName = "pushbullet",
-			name = "Pushbullet token",
-			description = "API token for pushbullet",
-			section = pushbulletSection
+		keyName = "pushbullet",
+		name = "Pushbullet token",
+		description = "API token for pushbullet",
+		section = pushbulletSection
 	)
 	String pushbullet();
 
 	@ConfigSection(
-			name = "Pushover",
-			description = "Pushover Settings",
-			position = 1
+		name = "Pushover",
+		description = "Pushover Settings",
+		position = 1
 	)
 	String pushoverSection = "pushover";
 
 	@ConfigItem(
-			keyName = "pushover_user",
-			name = "Pushover user key",
-			description = "User key for Pushover",
-			section = pushoverSection
+		keyName = "pushover_user",
+		name = "Pushover user key",
+		description = "User key for Pushover",
+		section = pushoverSection
 	)
 	String pushover_user();
 
 	@ConfigItem(
-			keyName = "pushover_api",
-			name = "Pushover API token",
-			description = "API token for Pushover",
-			section = pushoverSection
+		keyName = "pushover_api",
+		name = "Pushover API token",
+		description = "API token for Pushover",
+		section = pushoverSection
 	)
 	String pushover_api();
 }
