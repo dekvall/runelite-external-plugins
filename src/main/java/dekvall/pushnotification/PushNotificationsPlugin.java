@@ -53,6 +53,12 @@ public class PushNotificationsPlugin extends Plugin
 	@Subscribe
 	public void onNotificationFired(NotificationFired event)
 	{
+		handlePushbullet(event);
+		handlePushover(event);
+	}
+
+	private void handlePushbullet(NotificationFired event)
+	{
 		if(Strings.isNullOrEmpty(config.pushbullet()))
 		{
 			return;
@@ -81,6 +87,37 @@ public class PushNotificationsPlugin extends Plugin
 			.build();
 
 		sendRequest("Pushbullet", request);
+	}
+
+	private void handlePushover(NotificationFired event)
+	{
+		if(Strings.isNullOrEmpty(config.pushover_api()) || Strings.isNullOrEmpty(config.pushover_user()))
+		{
+			return;
+		}
+
+		HttpUrl url = new HttpUrl.Builder()
+			.scheme("https")
+			.host("api.pushover.net")
+			.addPathSegment("1")
+			.addPathSegment("messages.json")
+			.build();
+
+		RequestBody push = new FormBody.Builder()
+			.add("token", config.pushover_api())
+			.add("user", config.pushover_user())
+			.add("message", event.getMessage())
+			.build();
+
+		Request request = new Request.Builder()
+			.header("User-Agent", "RuneLite")
+			.header("Content-Type", "application/json")
+			.header("User-Agent", "RuneLite")
+			.post(push)
+			.url(url)
+			.build();
+
+		sendRequest("Pushover", request);
 	}
 
 	private static void sendRequest(String platform, Request request)
