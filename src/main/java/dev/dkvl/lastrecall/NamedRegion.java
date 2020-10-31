@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import lombok.Getter;
+import lombok.NonNull;
 import net.runelite.api.coords.WorldPoint;
 
 @Getter
@@ -406,7 +407,7 @@ enum NamedRegion
 	}
 
 	@Nullable
-	static NamedRegion fromWorldPoint(@NonNull WorldPoint p)
+	static NamedRegion fromWorldPoint(WorldPoint p)
 	{
 		return FROM_REGION.get(p.getRegionID());
 	}
