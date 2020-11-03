@@ -69,8 +69,8 @@ public class TheGunsGainsPlugin extends Plugin
 	private String calculateRepCount()
 	{
 		// 100 reps every 3 mins
-		long seconds = ChronoUnit.MILLIS.between(RELEASE_DATE, ZonedDateTime.now(ZoneId.of("GMT")));
-		long reps = seconds * 100 / 180_000;
+		long millis = ChronoUnit.MILLIS.between(RELEASE_DATE, ZonedDateTime.now(ZoneId.of("GMT")));
+		long reps = millis * 100 / 180_000;
 		return NumberFormat.getNumberInstance(Locale.US).format(reps);
 	}
 }
