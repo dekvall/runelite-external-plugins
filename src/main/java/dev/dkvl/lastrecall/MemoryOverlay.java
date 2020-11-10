@@ -17,6 +17,7 @@ import net.runelite.client.util.ColorUtil;
 
 public class MemoryOverlay extends WidgetItemOverlay
 {
+	private static int WONT_SAVE = 1212;
 	private final Client client;
 	private final LastRecallConfig config;
 	private final TooltipManager tooltipManager;
@@ -48,11 +49,22 @@ public class MemoryOverlay extends WidgetItemOverlay
 
 		NamedRegion namedRegion = NamedRegion.fromWorldPoint(config.location());
 		String loc = namedRegion != null ? namedRegion.getName() : config.region();
-		String tooltip = "Stores a teleport to " + ColorUtil.wrapWithColorTag(loc, JagexColors.MENU_TARGET) + ".";
+		String tooltip = "Has a teleport to " + ColorUtil.wrapWithColorTag(loc, JagexColors.MENU_TARGET) + ".";
 
 		if (itemWidget.getCanvasBounds().contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY()))
 		{
 			tooltipManager.add(new Tooltip(tooltip));
+
+			if (client.isInInstancedRegion())
+			{
+				tooltipManager.add(new Tooltip("Teleports from here won't be stored"));
+			}
+		}
+
+		if (client.isInInstancedRegion())
+		{
+			BufferedImage saved = spriteManager.getSprite(WONT_SAVE, 0);
+			OverlayUtil.renderImageLocation(graphics, new Point(location.getX() + 18, location.getY() + 18), saved);
 		}
 	}
 }
