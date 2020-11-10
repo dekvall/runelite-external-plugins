@@ -1,48 +1,42 @@
 package dev.dkvl.lastrecall;
 
 import com.google.common.collect.ImmutableMap;
-import java.awt.image.BufferedImage;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import net.runelite.client.util.ImageUtil;
 
+@AllArgsConstructor
 @Getter
 enum RegionShield
 {
-	MISTHALIN("Misthalin", "misthalin.png"),
-	KARAMJA("Karamja", "karamja.png"),
-	ASGARNIA("Asgarnia", "asgarnia.png"),
-	FREMENNIK("Fremennik Provinces", "fremennik.png"),
-	KANDARIN("Kandarin", "kandarin.png"),
-	DESERT("Kharidian Desert", "desert.png"),
-	MORYTANIA("Morytania", "morytania.png"),
-	TIRANNWN("Tirannwn", "tirannwn.png"),
-	WILDERNESS("Wilderness", "wilderness.png");
+	MISTHALIN("Misthalin", 2731),
+	KARAMJA("Karamja", 2732),
+	ASGARNIA("Asgarnia", 2733),
+	FREMENNIK("Fremennik Provinces", 2738),
+	KANDARIN("Kandarin", 2737),
+	DESERT("Kharidian Desert", 2734),
+	MORYTANIA("Morytania", 2735),
+	TIRANNWN("Tirannwn", 2739),
+	WILDERNESS("Wilderness", 2736);
 
-	private static Map<String, BufferedImage> SHIELDS;
+	private static Map<String, Integer> SHIELDS;
 
 	private final String region;
-	private final BufferedImage image;
-
-	RegionShield(String region, String imgPath)
-	{
-		this.region = region;
-		this.image = ImageUtil.getResourceStreamFromClass(LastRecallPlugin.class, imgPath);
-	}
+	private final int spriteId;
 
 	static
 	{
-		ImmutableMap.Builder<String, BufferedImage> builder = new ImmutableMap.Builder<>();
+		ImmutableMap.Builder<String, Integer> builder = new ImmutableMap.Builder<>();
 
 		for (RegionShield shield : values())
 		{
-			builder.put(shield.getRegion(), shield.getImage());
+			builder.put(shield.getRegion(), shield.getSpriteId());
 		}
 
 		SHIELDS = builder.build();
 	}
 
-	static BufferedImage getRegionShield(String region)
+	static int getRegionShield(String region)
 	{
 		return SHIELDS.get(region);
 	}
