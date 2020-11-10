@@ -25,4 +25,22 @@ public interface LastRecallConfig extends Config
 		description = ""
 	)
 	void location(WorldPoint location);
+
+	@ConfigItem(
+		keyName = "lastrecallRegion",
+		name = "",
+		description = ""
+	)
+	void region(String region);
+
+	@ConfigItem(
+		keyName = "lastrecallRegion",
+		name = "",
+		description = "",
+		hidden = true
+	)
+	default String region()
+	{
+		return null;
+	}
 }
