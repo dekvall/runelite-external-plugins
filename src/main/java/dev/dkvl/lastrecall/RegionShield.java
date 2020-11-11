@@ -12,7 +12,7 @@ enum RegionShield
 	MISTHALIN("Misthalin", 2731),
 	KARAMJA("Karamja", 2732),
 	ASGARNIA("Asgarnia", 2733),
-	FREMENNIK("Fremennik Provinces", 2738),
+	FREMENNIK("Fremennik Province", 2738),
 	KANDARIN("Kandarin", 2737),
 	DESERT("Kharidian Desert", 2734),
 	MORYTANIA("Morytania", 2735),
