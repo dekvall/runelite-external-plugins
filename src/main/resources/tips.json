@@ -1,0 +1,29 @@
+{
+  "tips":
+  [
+    {
+      "tip": "You can use ESC to close interfaces",
+      "url": "https://oldschool.runescape.wiki/w/Settings#Keybinds"
+    },
+    {
+      "tip": "The fishing plugin will highlight fishing spots,\n but only if you have a rod in your inventory",
+      "pluginName": "Fishing"
+    },
+    {
+      "tip": "The Zalcano plugin will show the amount of damage dealt to her shield as well as her health",
+      "pluginName": "Zalcano"
+    },
+    {
+      "tip": "You can play with different settings profiles by using the --config flag",
+      "url": "https://github.com/runelite/runelite/wiki/General-Features#playing-with-multiple-accounts"
+    },
+    {
+      "tip": "You can move overlays by holding the alt key\nand dragging them, reset them to their\norignal position by shift-right clicking them",
+      "url": "https://github.com/runelite/runelite/wiki/General-Features#moving-overlays"
+    },
+    {
+      "tip": "You can hide the sidebar quickly by pressing ctrl+f11",
+      "url": "https://github.com/runelite/runelite/wiki/General-Features#hiding-the-sidebar"
+    }
+  ]
+}
