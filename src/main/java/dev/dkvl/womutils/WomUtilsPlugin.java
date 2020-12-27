@@ -106,7 +106,6 @@ public class WomUtilsPlugin extends Plugin
 			}
 
 			cache.put(name, prev);
-
 			log.info("Logged a name change from {} to {}", prev, name);
 			queueNameChangeUpdate(prev, name);
 		}
@@ -119,7 +118,7 @@ public class WomUtilsPlugin extends Plugin
 	}
 
 	@Schedule(
-		period = 150,
+		period = 30,
 		unit = ChronoUnit.MINUTES
 	)
 	public void sendUpdate()
@@ -128,8 +127,11 @@ public class WomUtilsPlugin extends Plugin
 		{
 			return;
 		}
-		log.info(gson.toJson(queue));
+
 		sendNameChanges(queue);
+		// This can probably race if we add changes to the queue
+		// at this point in time, so we risk clearing changes that we haven't submitted
+		// Let's just not care rn
 		queue.clear();
 
 		try
