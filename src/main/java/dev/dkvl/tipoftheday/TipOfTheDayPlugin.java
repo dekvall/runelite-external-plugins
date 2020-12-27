@@ -33,11 +33,9 @@ import java.util.Random;
 public class TipOfTheDayPlugin extends Plugin
 {
 	private static final int OPEN_URL = 2399;
-	@Inject
-	private Client client;
 
 	@Inject
-	private TipOfTheDayConfig config;
+	private Client client;
 
 	private String url = "https://runelite.net";
 	private TipData tips;
@@ -68,15 +66,6 @@ public class TipOfTheDayPlugin extends Plugin
 		else
 		{
 			url = "https://github.com/runelite/runelite/wiki/" + entry.getPluginName().replace(" ", "-");
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
-		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Tip of the Day says " + config.greeting(), null);
 		}
 	}
 
@@ -118,11 +107,5 @@ public class TipOfTheDayPlugin extends Plugin
 		}
 
 		client.getStringStack()[0] = url;
-	}
-
-	@Provides
-	TipOfTheDayConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(TipOfTheDayConfig.class);
 	}
 }
