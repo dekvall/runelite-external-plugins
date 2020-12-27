@@ -10,10 +10,9 @@ import dev.dkvl.womutils.beans.NameChangeEntry;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -50,7 +49,7 @@ public class WomUtilsPlugin extends Plugin
 	private Gson gson = new Gson();
 
 	private Map<String, String> cache = new HashMap<>();
-	private List<NameChangeEntry> queue = new ArrayList<>();
+	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 
 	static
 	{
@@ -95,25 +94,27 @@ public class WomUtilsPlugin extends Plugin
 				return;
 			}
 
-			name = Text.toJagexName(name);
-			prev = Text.toJagexName(prev);
+			NameChangeEntry entry = new NameChangeEntry(Text.toJagexName(prev), Text.toJagexName(name));
 
-			if (cache.get(name) != null && cache.get(name).equals(prev))
+			if (isChangeAlreadyRegistered(entry))
 			{
-				// Name change already registered, ignore
-				// We can't just check the key because people can change back and forth between names
 				return;
 			}
 
-			cache.put(name, prev);
-			log.info("Logged a name change from {} to {}", prev, name);
-			queueNameChangeUpdate(prev, name);
+			registerNameChange(entry);
 		}
 	}
 
-	private void queueNameChangeUpdate(String oldName, String newName)
+	private boolean isChangeAlreadyRegistered(NameChangeEntry entry)
 	{
-		NameChangeEntry entry = new NameChangeEntry(oldName, newName);
+		String expected = cache.get(entry.getNewName());
+		// We can't just check the key because people can change back and forth between names
+		return expected != null && expected.equals(entry.getOldName());
+	}
+
+	private void registerNameChange(NameChangeEntry entry)
+	{
+		cache.put(entry.getNewName(), entry.getOldName());
 		queue.add(entry);
 	}
 
@@ -128,10 +129,8 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		sendNameChanges(queue);
-		// This can probably race if we add changes to the queue
-		// at this point in time, so we risk clearing changes that we haven't submitted
-		// Let's just not care rn
+		sendNameChanges(queue.toArray(new NameChangeEntry[0]));
+		// I am not 100 % this clear is thread safe, but i think so
 		queue.clear();
 
 		try
@@ -162,7 +161,7 @@ public class WomUtilsPlugin extends Plugin
 		Files.asCharSink(file, Charsets.UTF_8).write(changes);
 	}
 
-	private void sendNameChanges(List<NameChangeEntry> changes)
+	private void sendNameChanges(NameChangeEntry[] changes)
 	{
 		HttpUrl url = new HttpUrl.Builder()
 			.scheme("https")
@@ -171,9 +170,11 @@ public class WomUtilsPlugin extends Plugin
 			.addPathSegment("bulk")
 			.build();
 
+		String payload = gson.toJson(changes);
+
 		RequestBody body = RequestBody.create(
 			MediaType.parse("application/json; charset=utf-8"),
-			gson.toJson(changes)
+			payload
 		);
 
 		Request request = new Request.Builder()
@@ -181,8 +182,8 @@ public class WomUtilsPlugin extends Plugin
 			.url(url)
 			.post(body)
 			.build();
-
 		sendRequest(request);
+		log.info("Submitted the following name changes to WOM: {}", payload);
 	}
 
 	private void sendRequest(Request request)
