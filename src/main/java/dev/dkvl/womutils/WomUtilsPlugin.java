@@ -48,7 +48,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private Gson gson = new Gson();
 
-	private Map<String, String> cache = new HashMap<>();
+	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 
 	static
@@ -107,14 +107,14 @@ public class WomUtilsPlugin extends Plugin
 
 	private boolean isChangeAlreadyRegistered(NameChangeEntry entry)
 	{
-		String expected = cache.get(entry.getNewName());
+		String expected = nameChanges.get(entry.getNewName());
 		// We can't just check the key because people can change back and forth between names
 		return expected != null && expected.equals(entry.getOldName());
 	}
 
 	private void registerNameChange(NameChangeEntry entry)
 	{
-		cache.put(entry.getNewName(), entry.getOldName());
+		nameChanges.put(entry.getNewName(), entry.getOldName());
 		queue.add(entry);
 	}
 
@@ -130,7 +130,8 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		sendNameChanges(queue.toArray(new NameChangeEntry[0]));
-		// I am not 100 % this clear is thread safe, but i think so
+		// I am not 100 % sure this clear is thread safe, but i think so
+		// Should probably also check if the request succeeds before clearing, but meh
 		queue.clear();
 
 		try
@@ -150,13 +151,13 @@ public class WomUtilsPlugin extends Plugin
 		{
 			String json = Files.asCharSource(file, Charsets.UTF_8).read();
 			Type typeOfHashMap = new TypeToken<Map<String, String>>() {}.getType();
-			cache = gson.fromJson(json, typeOfHashMap);
+			nameChanges = gson.fromJson(json, typeOfHashMap);
 		}
 	}
 
 	private void saveFile() throws IOException
 	{
-		String changes = gson.toJson(cache);
+		String changes = gson.toJson(this.nameChanges);
 		File file = new File(WORKING_DIR, NAME_CHANGES);
 		Files.asCharSink(file, Charsets.UTF_8).write(changes);
 	}
