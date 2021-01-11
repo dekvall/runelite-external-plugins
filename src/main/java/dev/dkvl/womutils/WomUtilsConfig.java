@@ -9,10 +9,10 @@ import net.runelite.client.config.ConfigSection;
 public interface WomUtilsConfig extends Config
 {
 	@ConfigSection(
-			name = "Group",
-			description = "The group configurations",
-			position = 1,
-			closedByDefault = false
+		name = "Group",
+		description = "The group configurations",
+		position = 1,
+		closedByDefault = false
 	)
 	String groupConfig = "groupConfig";
 
@@ -27,11 +27,11 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
-			keyName = "menuOptions",
-			name = "Menu options",
-			description = "Show member and import options in menus",
-			position = 0,
-			section = groupConfig
+		keyName = "menuOptions",
+		name = "Menu options",
+		description = "Show member and import options in menus",
+		position = 0,
+		section = groupConfig
 	)
 	default boolean menuOptions()
 	{
@@ -39,11 +39,11 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
-			keyName = "groupId",
-			name = "Group Id",
-			description = "The group id in WOM",
-			position = 1,
-			section = groupConfig
+		keyName = "groupId",
+		name = "Group Id",
+		description = "The group id in WOM",
+		position = 1,
+		section = groupConfig
 	)
 	default int groupId()
 	{
@@ -51,12 +51,12 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
-			keyName = "verificationCode",
-			name = "Verification code",
-			description = "Verification code for the WOM group",
-			secret = true,
-			position = 2,
-			section = groupConfig
+		keyName = "verificationCode",
+		name = "Verification code",
+		description = "Verification code for the WOM group",
+		secret = true,
+		position = 2,
+		section = groupConfig
 	)
 	default String verificationCode()
 	{
