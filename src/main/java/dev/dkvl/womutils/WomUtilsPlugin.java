@@ -55,7 +55,7 @@ public class WomUtilsPlugin extends Plugin
 	private static final String REMOVE_MEMBER = "Remove member";
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String MENU_TARGET = "Group members";
-	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Message", "Add ignore", "Remove friend", "Delete");
+	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Delete");
 	private static final WidgetMenuOption FIXED_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
 		MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB);
 	private static final WidgetMenuOption RESIZABLE_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
@@ -274,10 +274,9 @@ public class WomUtilsPlugin extends Plugin
 	}
 
 	private void buildErrorMessage(Response response) throws IOException {
-		int code = response.code();
 		WomError error = gson.fromJson(response.body().string(), WomError.class);
 
-		if (code == 200)
+		if (response.code() == 200)
 		{
 			return;
 		}
@@ -328,9 +327,9 @@ public class WomUtilsPlugin extends Plugin
 		String option = event.getOption();
 		String target = event.getTarget();
 
-		if ((groupId != WidgetInfo.FRIENDS_CHAT.getGroupId()
-			|| groupId != WidgetInfo.FRIENDS_LIST.getGroupId())
-			&& !AFTER_OPTIONS.contains(option))
+		if (groupId != WidgetInfo.FRIENDS_CHAT.getGroupId()
+			&& groupId != WidgetInfo.FRIENDS_LIST.getGroupId()
+			|| !AFTER_OPTIONS.contains(option))
 		{
 			return;
 		}
@@ -391,15 +390,6 @@ public class WomUtilsPlugin extends Plugin
 				removeImportMenuOption();
 			}
 		}
-	}
-
-
-	private void insertMenuEntry(MenuEntry newEntry, MenuEntry[] entries)
-	{
-		MenuEntry[] newMenu = ObjectArrays.concat(entries, newEntry);
-		int menuEntryCount = newMenu.length;
-		ArrayUtils.swap(newMenu,  menuEntryCount - 1, menuEntryCount - 2);
-		client.setMenuEntries(newMenu);
 	}
 
 	private void addImportMenuOption()
