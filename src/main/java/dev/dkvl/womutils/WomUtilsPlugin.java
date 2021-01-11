@@ -7,19 +7,13 @@ import com.google.common.collect.ObjectArrays;
 import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.inject.Provides;
-import dev.dkvl.womutils.beans.GroupMember;
-import dev.dkvl.womutils.beans.GroupMemberAddition;
-import dev.dkvl.womutils.beans.GroupMemberRemoval;
-import dev.dkvl.womutils.beans.NameChangeEntry;
+import dev.dkvl.womutils.beans.*;
+
 import java.io.File;
 import java.lang.reflect.Type;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.inject.Inject;
 
@@ -61,11 +55,11 @@ public class WomUtilsPlugin extends Plugin
 	private static final String REMOVE_MEMBER = "Remove member";
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String MENU_TARGET = "Group members";
-	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Delete", "Add ignore", "Remove friend");
+	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Message", "Add ignore", "Remove friend", "Delete");
 	private static final WidgetMenuOption FIXED_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
-			MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB);
+		MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB);
 	private static final WidgetMenuOption RESIZABLE_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
-			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB);
+		MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB);
 
 	@Inject
 	private Client client;
@@ -263,7 +257,7 @@ public class WomUtilsPlugin extends Plugin
 			public void onResponse(Call call, Response response) {
 				try
 				{
-					buildErrorMessage(response, add);
+					buildErrorMessage(response);
 				}
 				catch (Exception e)
 				{
@@ -279,19 +273,17 @@ public class WomUtilsPlugin extends Plugin
 		});
 	}
 
-	private void buildErrorMessage(Response response, boolean add) throws IOException {
-		Type messageType = new TypeToken<JsonObject>() {}.getType();
-		String responseBody = response.body().string();
-		JsonObject data = gson.fromJson(responseBody, messageType);
-		String errorMessage = data.get("message").toString().replace("\"", "");
+	private void buildErrorMessage(Response response) throws IOException {
+		int code = response.code();
+		WomError error = gson.fromJson(response.body().string(), WomError.class);
 
-		if (!add && errorMessage.contains("Successfully"))
+		if (code == 200)
 		{
 			return;
 		}
 
 		ChatMessageBuilder cmb = new ChatMessageBuilder();
-		cmb.append(ChatColorType.HIGHLIGHT).append(errorMessage);
+		cmb.append(ChatColorType.HIGHLIGHT).append(error.getMessage());
 
 		chatMessageManager.queue(QueuedMessage.builder()
 				.type(ChatMessageType.CONSOLE)
@@ -312,12 +304,12 @@ public class WomUtilsPlugin extends Plugin
 			@Override
 			public void onResponse(Call call, Response response) throws IOException {
 				groupMembers.clear();
-				Type typeOfArrayList = new TypeToken<ArrayList<GroupMember>>() {}.getType();
+				Type typeOfArrayList = new TypeToken<ArrayList<GroupInfo>>() {}.getType();
 				String responseBody = response.body().string();
-				ArrayList<GroupMember> data = gson.fromJson(responseBody, typeOfArrayList);
+				ArrayList<GroupInfo> data = gson.fromJson(responseBody, typeOfArrayList);
 				response.close();
 
-				for (GroupMember gm : data) {
+				for (GroupInfo gm : data) {
 					groupMembers.add(gm.getUsername());
 				}
 			}
@@ -336,30 +328,31 @@ public class WomUtilsPlugin extends Plugin
 		String option = event.getOption();
 		String target = event.getTarget();
 
-		if (groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
-				|| groupId == WidgetInfo.FRIENDS_LIST.getGroupId())
+		if ((groupId != WidgetInfo.FRIENDS_CHAT.getGroupId()
+			|| groupId != WidgetInfo.FRIENDS_LIST.getGroupId())
+			&& !AFTER_OPTIONS.contains(option))
 		{
-
-			if (!AFTER_OPTIONS.contains(option))
-			{
-				return;
-			}
-
-			final MenuEntry addMember = new MenuEntry();
-			if (groupMembers.contains(Text.toJagexName(Text.removeTags(target).toLowerCase())))
-			{
-				addMember.setOption(REMOVE_MEMBER);
-			} else {
-				addMember.setOption(ADD_MEMBER);
-			}
-			addMember.setTarget(target);
-			addMember.setType(MenuAction.RUNELITE.getId());
-			addMember.setParam0(event.getActionParam0());
-			addMember.setParam1(event.getActionParam1());
-			addMember.setIdentifier(event.getIdentifier());
-
-			insertMenuEntry(addMember, client.getMenuEntries());
+			return;
 		}
+
+		MenuEntry[] entries = client.getMenuEntries();
+		entries = Arrays.copyOf(entries, entries.length + 1);
+		MenuEntry addMember = entries[entries.length - 1] = new MenuEntry();
+
+		if (groupMembers.contains(Text.toJagexName(Text.removeTags(target).toLowerCase())))
+		{
+			addMember.setOption(REMOVE_MEMBER);
+		} else {
+			addMember.setOption(ADD_MEMBER);
+		}
+		addMember.setTarget(target);
+		addMember.setType(MenuAction.RUNELITE.getId());
+		addMember.setParam0(event.getActionParam0());
+		addMember.setParam1(event.getActionParam1());
+		addMember.setIdentifier(event.getIdentifier());
+
+		client.setMenuEntries(entries);
+
 	}
 
 	@Subscribe
@@ -423,13 +416,8 @@ public class WomUtilsPlugin extends Plugin
 
 	private void addGroupMember(String username)
 	{
-		ArrayList<JsonObject> members = new ArrayList<>();
-		JsonObject member = new JsonObject();
-		member.addProperty("username", username);
-		member.addProperty("role", "member");
-		members.add(member);
-
-		GroupMemberAddition gme = new GroupMemberAddition(config.verificationCode(), members);
+		Member[] member = { new Member(username, "member") };
+		GroupMemberAddition gme = new GroupMemberAddition(config.verificationCode(), member);
 
 		HttpUrl url = new HttpUrl.Builder()
 				.scheme("https")
@@ -456,8 +444,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private void removeGroupMember(String username)
 	{
-		ArrayList<String> members = new ArrayList<>();
-		members.add(username);
+		String[] members = {username};
 		GroupMemberRemoval gme = new GroupMemberRemoval(config.verificationCode(), members);
 
 		HttpUrl url = new HttpUrl.Builder()
