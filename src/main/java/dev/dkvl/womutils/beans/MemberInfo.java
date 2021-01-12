@@ -5,7 +5,7 @@ import lombok.Value;
 @Value
 public class MemberInfo
 {
-    int exp;
+    long exp;
     int id;
     String username;
     String displayName;
