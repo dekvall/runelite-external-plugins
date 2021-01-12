@@ -16,6 +16,7 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.inject.Inject;
 
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.MenuEntryAdded;
@@ -24,6 +25,7 @@ import net.runelite.api.events.PlayerMenuOptionClicked;
 import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
@@ -36,6 +38,7 @@ import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
+import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 import okhttp3.*;
 
@@ -50,15 +53,33 @@ public class WomUtilsPlugin extends Plugin
 	static final String CONFIG_GROUP = "womutils";
 	private static final File WORKING_DIR;
 	private static final String NAME_CHANGES = "name-changes.json";
+
 	private static final String ADD_MEMBER = "Add member";
 	private static final String REMOVE_MEMBER = "Remove member";
+
 	private static final String IMPORT_MEMBERS = "Import";
-	private static final String MENU_TARGET = "Group members";
+	private static final String BROWSE_GROUP = "Browse";
+	private static final String MENU_TARGET = "WOM Group";
+
 	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete");
-	private static final WidgetMenuOption FIXED_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
-		MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB);
-	private static final WidgetMenuOption RESIZABLE_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
-		MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB);
+
+	private static final ImmutableList<WidgetMenuOption> WIDGET_MENU_OPTIONS =
+		new ImmutableList.Builder<WidgetMenuOption>()
+		.add(new WidgetMenuOption(IMPORT_MEMBERS,
+			MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB))
+		.add(new WidgetMenuOption(IMPORT_MEMBERS,
+			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
+		.add(new WidgetMenuOption(IMPORT_MEMBERS,
+			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+		.add(new WidgetMenuOption(BROWSE_GROUP,
+			MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB))
+		.add(new WidgetMenuOption(BROWSE_GROUP,
+			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
+		.add(new WidgetMenuOption(BROWSE_GROUP,
+			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+		.build();
+	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
+	// I think the one we want is 164.38, but it needs to be added to core to use.
 
 	@Inject
 	private Client client;
@@ -75,7 +96,11 @@ public class WomUtilsPlugin extends Plugin
 	@Inject
 	private ChatMessageManager chatMessageManager;
 
-	private Gson gson = new Gson();
+	@Inject
+	private ClientThread clientThread;
+
+	@Inject
+	private Gson gson;
 
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
@@ -97,7 +122,7 @@ public class WomUtilsPlugin extends Plugin
 			importGroupMembers();
 			if (config.menuOptions())
 			{
-				addImportMenuOption();
+				addCustomOptions();
 			}
 
 		}
@@ -110,7 +135,7 @@ public class WomUtilsPlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		removeImportMenuOption();
+		removeCustomOptions();
 		log.info("Wom Utils stopped!");
 	}
 
@@ -162,9 +187,7 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		sendNameChanges(queue.toArray(new NameChangeEntry[0]));
-		// I am not 100 % sure this clear is thread safe, but i think so
-		// Should probably also check if the request succeeds before clearing, but meh
-		queue.clear();
+		clientThread.invoke(queue::clear);
 
 		try
 		{
@@ -219,55 +242,59 @@ public class WomUtilsPlugin extends Plugin
 		});
 	}
 
-	private void sendPlayerRequest(Request request, String target, boolean add)
+	private void sendPlayerRequest(Request request, String username)
 	{
-		okHttpClient.newCall(request).enqueue(new Callback()
+		okHttpClient.newCall(request).enqueue(
+			createPlayerCallback(username)
+		);
+	}
+
+	private Callback createPlayerCallback(final String username)
+	{
+		return new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
 			{
-				log.warn("Error adding new member {}.", e.getMessage());
+				log.warn("Error submitting request, caused by {}.", e.getMessage());
 			}
 
 			@Override
-			public void onResponse(Call call, Response response) {
-				try {
-					if (buildErrorMessage(response))
-					{
-						return;
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				final String message;
+				String body = response.body().string();
 
-				if (add)
+				if (response.isSuccessful())
 				{
-					groupMembers.add(target);
-				} else {
-					groupMembers.remove(target);
+					// A success here gives a weird response of the entire group,
+					// so we don;t care about it
+					if (groupMembers.remove(username))
+					{
+						message = "Player removed: " + username;
+					}
+					else
+					{
+						message = "New player added: " + username;
+						groupMembers.add(username);
+					}
+				}
+				else
+				{
+					WomStatus status = gson.fromJson(body, WomStatus.class);
+					message = status.getMessage();
 				}
 
+				ChatMessageBuilder cmb = new ChatMessageBuilder();
+				cmb.append(ChatColorType.HIGHLIGHT).append(message);
+
+				chatMessageManager.queue(QueuedMessage.builder()
+					.type(ChatMessageType.CONSOLE)
+					.runeLiteFormattedMessage(cmb.build())
+					.build());
 				response.close();
 			}
-		});
-	}
-
-	private boolean buildErrorMessage(Response response) throws IOException {
-		WomStatus status = gson.fromJson(response.body().string(), WomStatus.class);
-
-		if (response.code() == 200)
-		{
-			return false;
-		}
-
-		ChatMessageBuilder cmb = new ChatMessageBuilder();
-		cmb.append(ChatColorType.HIGHLIGHT).append(status.getMessage());
-
-		chatMessageManager.queue(QueuedMessage.builder()
-				.type(ChatMessageType.CONSOLE)
-				.runeLiteFormattedMessage(cmb.build())
-				.build());
-		return true;
+		};
 	}
 
 	private void sendMembersRequest(Request request)
@@ -281,11 +308,30 @@ public class WomUtilsPlugin extends Plugin
 			}
 
 			@Override
-			public void onResponse(Call call, Response response) throws IOException {
-				groupMembers.clear();
-				MemberInfo[] members = gson.fromJson(response.body().string(), MemberInfo[].class);
-				response.close();
+			public void onResponse(Call call, Response response)
+			{
+				if (!response.isSuccessful())
+				{
+					response.close();
+					return;
+				}
 
+				MemberInfo[] members = new MemberInfo[0];
+
+				try
+				{
+					members = gson.fromJson(response.body().string(), MemberInfo[].class);
+				}
+				catch(IOException e)
+				{
+					log.error("Error when getting response {}", e.getMessage());
+				}
+				finally
+				{
+					response.close();
+				}
+
+				groupMembers.clear();
 				for (MemberInfo m : members)
 				{
 					groupMembers.add(m.getUsername());
@@ -297,7 +343,9 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
-		if (!config.menuOptions() && !Strings.isNullOrEmpty(config.verificationCode()))
+		if (!config.menuOptions()
+			|| config.groupId() < 1
+			|| Strings.isNullOrEmpty(config.verificationCode()))
 		{
 			return;
 		}
@@ -316,11 +364,14 @@ public class WomUtilsPlugin extends Plugin
 		MenuEntry[] entries = client.getMenuEntries();
 		entries = Arrays.copyOf(entries, entries.length + 1);
 		MenuEntry addMember = entries[entries.length - 1] = new MenuEntry();
+		String name = Text.toJagexName(Text.removeTags(target).toLowerCase());
 
-		if (groupMembers.contains(Text.toJagexName(Text.removeTags(target).toLowerCase())))
+		if (groupMembers.contains(name))
 		{
 			addMember.setOption(REMOVE_MEMBER);
-		} else {
+		}
+		else
+		{
 			addMember.setOption(ADD_MEMBER);
 		}
 		addMember.setTarget(target);
@@ -351,12 +402,36 @@ public class WomUtilsPlugin extends Plugin
 	public void onWidgetMenuOptionClicked(final WidgetMenuOptionClicked event)
 	{
 		WidgetInfo widget = event.getWidget();
-		if ((widget == WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB
-			|| widget == WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB)
-			&& event.getMenuOption().equals(IMPORT_MEMBERS))
+		if (widget != WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB
+			&& widget != WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB
+			&& widget != WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON
+			|| config.groupId() < 1)
+		{
+			return;
+		}
+
+		String opt = event.getMenuOption();
+		if (opt.equals(IMPORT_MEMBERS))
 		{
 			importGroupMembers();
 		}
+		else if (opt.equals(BROWSE_GROUP))
+		{
+			openGroupInBrowser();
+		}
+	}
+
+	private void openGroupInBrowser()
+	{
+		String url = new HttpUrl.Builder()
+		.scheme("https")
+		.host("wiseoldman.net")
+		.addPathSegment("groups")
+		.addPathSegment("" + config.groupId())
+		.build()
+		.toString();
+
+		SwingUtilities.invokeLater(() -> LinkBrowser.browse(url));
 	}
 
 	@Subscribe
@@ -364,27 +439,32 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (event.getGroup().equals(CONFIG_GROUP))
 		{
-			if (config.menuOptions())
+			if (config.menuOptions() && config.groupId() > 0)
 			{
-				addImportMenuOption();
+				addCustomOptions();
 			}
 			else
 			{
-				removeImportMenuOption();
+				removeCustomOptions();
 			}
 		}
 	}
 
-	private void addImportMenuOption()
+	private void addCustomOptions()
 	{
-		menuManager.addManagedCustomMenu(FIXED_FRIENDS_TAB_IMPORT);
-		menuManager.addManagedCustomMenu(RESIZABLE_FRIENDS_TAB_IMPORT);
+		for (WidgetMenuOption option : WIDGET_MENU_OPTIONS)
+		{
+			log.info("Adding {}", option.getWidget());
+			menuManager.addManagedCustomMenu(option);
+		}
 	}
 
-	private void removeImportMenuOption()
+	private void removeCustomOptions()
 	{
-		menuManager.removeManagedCustomMenu(FIXED_FRIENDS_TAB_IMPORT);
-		menuManager.removeManagedCustomMenu(RESIZABLE_FRIENDS_TAB_IMPORT);
+		for (WidgetMenuOption option : WIDGET_MENU_OPTIONS)
+		{
+			menuManager.removeManagedCustomMenu(option);
+		}
 	}
 
 	private Request createRequest(Object payload, String... pathSegments)
@@ -431,7 +511,7 @@ public class WomUtilsPlugin extends Plugin
 		GroupMemberAddition gme = new GroupMemberAddition(config.verificationCode(), member);
 
 		Request request = createRequest(gme, "groups", "" + config.groupId(), "add-members");
-		sendPlayerRequest(request, username, true);
+		sendPlayerRequest(request, username);
 	}
 
 	private void removeGroupMember(String username)
@@ -439,7 +519,7 @@ public class WomUtilsPlugin extends Plugin
 		String[] members = {username};
 		GroupMemberRemoval gme = new GroupMemberRemoval(config.verificationCode(), members);
 		Request request = createRequest(gme, "groups", "" + config.groupId(), "remove-members");
-		sendPlayerRequest(request, username, false);
+		sendPlayerRequest(request, username);
 	}
 
 	private void importGroupMembers()
