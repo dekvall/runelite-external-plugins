@@ -245,56 +245,51 @@ public class WomUtilsPlugin extends Plugin
 	private void sendPlayerRequest(Request request, String username)
 	{
 		okHttpClient.newCall(request).enqueue(
-			createPlayerCallback(username)
-		);
-	}
-
-	private Callback createPlayerCallback(final String username)
-	{
-		return new Callback()
-		{
-			@Override
-			public void onFailure(Call call, IOException e)
+			new Callback()
 			{
-				log.warn("Error submitting request, caused by {}.", e.getMessage());
-			}
-
-			@Override
-			public void onResponse(Call call, Response response) throws IOException
-			{
-				final String message;
-				String body = response.body().string();
-
-				if (response.isSuccessful())
+				@Override
+				public void onFailure(Call call, IOException e)
 				{
-					// A success here gives a weird response of the entire group,
-					// so we don;t care about it
-					if (groupMembers.remove(username))
+					log.warn("Error submitting request, caused by {}.", e.getMessage());
+				}
+
+				@Override
+				public void onResponse(Call call, Response response) throws IOException
+				{
+					final String message;
+					String body = response.body().string();
+
+					if (response.isSuccessful())
 					{
-						message = "Player removed: " + username;
+						// A success here gives a weird response of the entire group,
+						// so we don;t care about it
+						if (groupMembers.remove(username))
+						{
+							message = "Player removed: " + username;
+						}
+						else
+						{
+							message = "New player added: " + username;
+							groupMembers.add(username);
+						}
 					}
 					else
 					{
-						message = "New player added: " + username;
-						groupMembers.add(username);
+						WomStatus status = gson.fromJson(body, WomStatus.class);
+						message = status.getMessage();
 					}
-				}
-				else
-				{
-					WomStatus status = gson.fromJson(body, WomStatus.class);
-					message = status.getMessage();
-				}
 
-				ChatMessageBuilder cmb = new ChatMessageBuilder();
-				cmb.append(ChatColorType.HIGHLIGHT).append(message);
+					ChatMessageBuilder cmb = new ChatMessageBuilder();
+					cmb.append(ChatColorType.HIGHLIGHT).append(message);
 
-				chatMessageManager.queue(QueuedMessage.builder()
-					.type(ChatMessageType.CONSOLE)
-					.runeLiteFormattedMessage(cmb.build())
-					.build());
-				response.close();
+					chatMessageManager.queue(QueuedMessage.builder()
+						.type(ChatMessageType.CONSOLE)
+						.runeLiteFormattedMessage(cmb.build())
+						.build());
+					response.close();
+				}
 			}
-		};
+		);
 	}
 
 	private void sendMembersRequest(Request request)
@@ -324,7 +319,7 @@ public class WomUtilsPlugin extends Plugin
 				}
 				catch(IOException e)
 				{
-					log.error("Error when getting response {}", e.getMessage());
+					log.error("Error when reading response {}", e.getMessage());
 				}
 				finally
 				{
