@@ -3,6 +3,6 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class WomError {
+public class WomStatus {
     String message;
 }
