@@ -320,7 +320,7 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
-		if (!config.menuOptions())
+		if (!config.menuOptions() && !Strings.isNullOrEmpty(config.verificationCode()))
 		{
 			return;
 		}
