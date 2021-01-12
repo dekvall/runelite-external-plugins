@@ -3,7 +3,6 @@ package dev.dkvl.womutils;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ObjectArrays;
 import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
@@ -39,7 +38,6 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.util.Text;
 import okhttp3.*;
-import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.IOException;
 
@@ -55,7 +53,7 @@ public class WomUtilsPlugin extends Plugin
 	private static final String REMOVE_MEMBER = "Remove member";
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String MENU_TARGET = "Group members";
-	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Delete");
+	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete");
 	private static final WidgetMenuOption FIXED_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
 		MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB);
 	private static final WidgetMenuOption RESIZABLE_FRIENDS_TAB_IMPORT = new WidgetMenuOption(IMPORT_MEMBERS,
@@ -255,39 +253,43 @@ public class WomUtilsPlugin extends Plugin
 
 			@Override
 			public void onResponse(Call call, Response response) {
-				try
-				{
-					buildErrorMessage(response);
-				}
-				catch (Exception e)
-				{
-					if (add)
+				try {
+					if (buildErrorMessage(response))
 					{
-						groupMembers.add(target);
-					} else {
-						groupMembers.remove(target);
+						return;
 					}
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
+
+				if (add)
+				{
+					groupMembers.add(target);
+				} else {
+					groupMembers.remove(target);
+				}
+
 				response.close();
 			}
 		});
 	}
 
-	private void buildErrorMessage(Response response) throws IOException {
-		WomError error = gson.fromJson(response.body().string(), WomError.class);
+	private boolean buildErrorMessage(Response response) throws IOException {
+		WomStatus status = gson.fromJson(response.body().string(), WomStatus.class);
 
 		if (response.code() == 200)
 		{
-			return;
+			return false;
 		}
 
 		ChatMessageBuilder cmb = new ChatMessageBuilder();
-		cmb.append(ChatColorType.HIGHLIGHT).append(error.getMessage());
+		cmb.append(ChatColorType.HIGHLIGHT).append(status.getMessage());
 
 		chatMessageManager.queue(QueuedMessage.builder()
 				.type(ChatMessageType.CONSOLE)
 				.runeLiteFormattedMessage(cmb.build())
 				.build());
+		return true;
 	}
 
 	private void sendMembersRequest(Request request)
@@ -351,20 +353,23 @@ public class WomUtilsPlugin extends Plugin
 		addMember.setIdentifier(event.getIdentifier());
 
 		client.setMenuEntries(entries);
-
 	}
 
 	@Subscribe
 	public void onPlayerMenuOptionClicked(PlayerMenuOptionClicked event)
 	{
 		String target = Text.toJagexName(event.getMenuTarget()).toLowerCase();
-		if (event.getMenuOption().equals(ADD_MEMBER))
+
+		switch (event.getMenuOption())
 		{
-			addGroupMember(target);
-		}
-		else if (event.getMenuOption().equals(REMOVE_MEMBER))
-		{
-			removeGroupMember(target);
+			case ADD_MEMBER:
+				addGroupMember(target);
+				break;
+			case REMOVE_MEMBER:
+				removeGroupMember(target);
+				break;
+			default:
+				return;
 		}
 	}
 
@@ -372,8 +377,9 @@ public class WomUtilsPlugin extends Plugin
 	public void onWidgetMenuOptionClicked(final WidgetMenuOptionClicked event)
 	{
 		WidgetInfo widget = event.getWidget();
-		if (widget == WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB
-				|| widget == WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB)
+		if ((widget == WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB
+			|| widget == WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB)
+			&& event.getMenuOption().equals(IMPORT_MEMBERS))
 		{
 			importGroupMembers();
 		}
@@ -404,31 +410,41 @@ public class WomUtilsPlugin extends Plugin
 		menuManager.removeManagedCustomMenu(RESIZABLE_FRIENDS_TAB_IMPORT);
 	}
 
+	private HttpUrl buildUrl(String endpoint)
+	{
+		return new HttpUrl.Builder()
+			.scheme("https")
+			.host("api.wiseoldman.net")
+			.addPathSegment("groups")
+			.addPathSegment(String.valueOf(config.groupId()))
+			.addPathSegment(endpoint)
+			.build();
+	}
+
+	private Request buildRequest(String endpoint, String payload)
+	{
+
+		HttpUrl url = buildUrl(endpoint);
+		RequestBody body = RequestBody.create(
+			MediaType.parse("application/json; charset=utf-8"),
+			payload
+		);
+
+		Request request = new Request.Builder()
+			.header("User-Agent", "RuneLite")
+			.url(url)
+			.post(body)
+			.build();
+
+		return request;
+	}
+
 	private void addGroupMember(String username)
 	{
 		Member[] member = { new Member(username, "member") };
 		GroupMemberAddition gme = new GroupMemberAddition(config.verificationCode(), member);
-
-		HttpUrl url = new HttpUrl.Builder()
-				.scheme("https")
-				.host("api.wiseoldman.net")
-				.addPathSegment("groups")
-				.addPathSegment(String.valueOf(config.groupId()))
-				.addPathSegment("add-members")
-				.build();
-
 		String payload = gson.toJson(gme);
-
-		RequestBody body = RequestBody.create(
-				MediaType.parse("application/json; charset=utf-8"),
-				payload
-		);
-
-		Request request = new Request.Builder()
-				.header("User-Agent", "RuneLite")
-				.url(url)
-				.post(body)
-				.build();
+		Request request = buildRequest("add-members", payload);
 		sendPlayerRequest(request, username, true);
 	}
 
@@ -436,40 +452,14 @@ public class WomUtilsPlugin extends Plugin
 	{
 		String[] members = {username};
 		GroupMemberRemoval gme = new GroupMemberRemoval(config.verificationCode(), members);
-
-		HttpUrl url = new HttpUrl.Builder()
-				.scheme("https")
-				.host("api.wiseoldman.net")
-				.addPathSegment("groups")
-				.addPathSegment(String.valueOf(config.groupId()))
-				.addPathSegment("remove-members")
-				.build();
-
 		String payload = gson.toJson(gme);
-
-		RequestBody body = RequestBody.create(
-				MediaType.parse("application/json; charset=utf-8"),
-				payload
-		);
-
-		Request request = new Request.Builder()
-				.header("User-Agent", "RuneLite")
-				.url(url)
-				.post(body)
-				.build();
-
+		Request request = buildRequest("remove-members", payload);
 		sendPlayerRequest(request, username, false);
 	}
 
 	private void importGroupMembers()
 	{
-		HttpUrl url = new HttpUrl.Builder()
-				.scheme("https")
-				.host("api.wiseoldman.net")
-				.addPathSegment("groups")
-				.addPathSegment(String.valueOf(config.groupId()))
-				.addPathSegment("members")
-				.build();
+		HttpUrl url = buildUrl("members");
 
 		Request request = new Request.Builder()
 				.header("User-Agent", "RuneLite")
