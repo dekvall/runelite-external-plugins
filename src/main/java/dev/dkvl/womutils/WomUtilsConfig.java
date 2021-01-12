@@ -5,14 +5,13 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-@ConfigGroup("womutils")
+@ConfigGroup(WomUtilsPlugin.CONFIG_GROUP)
 public interface WomUtilsConfig extends Config
 {
 	@ConfigSection(
 		name = "Group",
 		description = "The group configurations",
-		position = 1,
-		closedByDefault = false
+		position = 1
 	)
 	String groupConfig = "groupConfig";
 

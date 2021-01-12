@@ -47,6 +47,7 @@ import java.io.IOException;
 )
 public class WomUtilsPlugin extends Plugin
 {
+	static final String CONFIG_GROUP = "womutils";
 	private static final File WORKING_DIR;
 	private static final String NAME_CHANGES = "name-changes.json";
 	private static final String ADD_MEMBER = "Add member";
@@ -305,13 +306,12 @@ public class WomUtilsPlugin extends Plugin
 			@Override
 			public void onResponse(Call call, Response response) throws IOException {
 				groupMembers.clear();
-				Type typeOfArrayList = new TypeToken<ArrayList<GroupInfo>>() {}.getType();
-				String responseBody = response.body().string();
-				ArrayList<GroupInfo> data = gson.fromJson(responseBody, typeOfArrayList);
+				MemberInfo[] members = gson.fromJson(response.body().string(), MemberInfo[].class);
 				response.close();
 
-				for (GroupInfo gm : data) {
-					groupMembers.add(gm.getUsername());
+				for (MemberInfo m : members)
+				{
+					groupMembers.add(m.getUsername());
 				}
 			}
 		});
@@ -359,16 +359,13 @@ public class WomUtilsPlugin extends Plugin
 	public void onPlayerMenuOptionClicked(PlayerMenuOptionClicked event)
 	{
 		String target = Text.toJagexName(event.getMenuTarget()).toLowerCase();
-
 		switch (event.getMenuOption())
 		{
 			case ADD_MEMBER:
 				addGroupMember(target);
-				break;
+				return;
 			case REMOVE_MEMBER:
 				removeGroupMember(target);
-				break;
-			default:
 				return;
 		}
 	}
@@ -388,11 +385,14 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (event.getGroup().equals("womutils"))
+		if (event.getGroup().equals(CONFIG_GROUP))
 		{
-			if (config.menuOptions()) {
+			if (config.menuOptions())
+			{
 				addImportMenuOption();
-			} else {
+			}
+			else
+			{
 				removeImportMenuOption();
 			}
 		}
@@ -410,41 +410,50 @@ public class WomUtilsPlugin extends Plugin
 		menuManager.removeManagedCustomMenu(RESIZABLE_FRIENDS_TAB_IMPORT);
 	}
 
-	private HttpUrl buildUrl(String endpoint)
+	private Request createRequest(Object payload, String... pathSegments)
 	{
-		return new HttpUrl.Builder()
-			.scheme("https")
-			.host("api.wiseoldman.net")
-			.addPathSegment("groups")
-			.addPathSegment(String.valueOf(config.groupId()))
-			.addPathSegment(endpoint)
-			.build();
-	}
-
-	private Request buildRequest(String endpoint, String payload)
-	{
-
-		HttpUrl url = buildUrl(endpoint);
+		HttpUrl url = buildUrl(pathSegments);
 		RequestBody body = RequestBody.create(
 			MediaType.parse("application/json; charset=utf-8"),
-			payload
+			gson.toJson(payload)
 		);
 
-		Request request = new Request.Builder()
+		return new Request.Builder()
 			.header("User-Agent", "RuneLite")
 			.url(url)
 			.post(body)
 			.build();
+	}
 
-		return request;
+	private Request createRequest(String... pathSegments)
+	{
+		HttpUrl url = buildUrl(pathSegments);
+		return new Request.Builder()
+			.header("User-Agent", "RuneLite")
+			.url(url)
+			.build();
+	}
+
+	private HttpUrl buildUrl(String[] pathSegments)
+	{
+		HttpUrl.Builder urlBuilder = new HttpUrl.Builder()
+			.scheme("https")
+			.host("api.wiseoldman.net");
+
+		for (String pathSegment : pathSegments)
+		{
+			urlBuilder.addPathSegment(pathSegment);
+		}
+
+		return urlBuilder.build();
 	}
 
 	private void addGroupMember(String username)
 	{
 		Member[] member = { new Member(username, "member") };
 		GroupMemberAddition gme = new GroupMemberAddition(config.verificationCode(), member);
-		String payload = gson.toJson(gme);
-		Request request = buildRequest("add-members", payload);
+
+		Request request = createRequest(gme, "groups", "" + config.groupId(), "add-members");
 		sendPlayerRequest(request, username, true);
 	}
 
@@ -452,20 +461,13 @@ public class WomUtilsPlugin extends Plugin
 	{
 		String[] members = {username};
 		GroupMemberRemoval gme = new GroupMemberRemoval(config.verificationCode(), members);
-		String payload = gson.toJson(gme);
-		Request request = buildRequest("remove-members", payload);
+		Request request = createRequest(gme, "groups", "" + config.groupId(), "remove-members");
 		sendPlayerRequest(request, username, false);
 	}
 
 	private void importGroupMembers()
 	{
-		HttpUrl url = buildUrl("members");
-
-		Request request = new Request.Builder()
-				.header("User-Agent", "RuneLite")
-				.url(url)
-				.build();
-
+		Request request = createRequest("groups", "" + config.groupId(), "members");
 		sendMembersRequest(request);
 	}
 
