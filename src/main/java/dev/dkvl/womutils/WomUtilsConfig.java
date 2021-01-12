@@ -16,16 +16,6 @@ public interface WomUtilsConfig extends Config
 	String groupConfig = "groupConfig";
 
 	@ConfigItem(
-		keyName = "updateIgnored",
-		name = "Update Ignored",
-		description = "Send name updates for people on your ignore list"
-	)
-	default boolean updateIgnored()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 		keyName = "menuOptions",
 		name = "Menu options",
 		description = "Show member and import options in menus",
