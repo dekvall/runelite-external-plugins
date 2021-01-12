@@ -119,27 +119,22 @@ public class WomUtilsPlugin extends Plugin
 	{
 		final Nameable nameable = nameableNameChanged.getNameable();
 
-		if (nameable instanceof FriendsChatMember
-			|| nameable instanceof Friend
-			|| config.updateIgnored() && nameable instanceof Ignore)
+		String name = nameable.getName();
+		String prev = nameable.getPrevName();
+
+		if (Strings.isNullOrEmpty(prev) || name.startsWith("[#"))
 		{
-			String name = nameable.getName();
-			String prev = nameable.getPrevName();
-
-			if (Strings.isNullOrEmpty(prev) || name.startsWith("[#"))
-			{
-				return;
-			}
-
-			NameChangeEntry entry = new NameChangeEntry(Text.toJagexName(prev), Text.toJagexName(name));
-
-			if (isChangeAlreadyRegistered(entry))
-			{
-				return;
-			}
-
-			registerNameChange(entry);
+			return;
 		}
+
+		NameChangeEntry entry = new NameChangeEntry(Text.toJagexName(prev), Text.toJagexName(name));
+
+		if (isChangeAlreadyRegistered(entry))
+		{
+			return;
+		}
+
+		registerNameChange(entry);
 	}
 
 	private boolean isChangeAlreadyRegistered(NameChangeEntry entry)
@@ -201,27 +196,9 @@ public class WomUtilsPlugin extends Plugin
 
 	private void sendNameChanges(NameChangeEntry[] changes)
 	{
-		HttpUrl url = new HttpUrl.Builder()
-			.scheme("https")
-			.host("api.wiseoldman.net")
-			.addPathSegment("names")
-			.addPathSegment("bulk")
-			.build();
-
-		String payload = gson.toJson(changes);
-
-		RequestBody body = RequestBody.create(
-			MediaType.parse("application/json; charset=utf-8"),
-			payload
-		);
-
-		Request request = new Request.Builder()
-			.header("User-Agent", "RuneLite")
-			.url(url)
-			.post(body)
-			.build();
+		Request request = createRequest(changes, "names", "bulk");
 		sendRequest(request);
-		log.info("Submitted the following name changes to WOM: {}", payload);
+		log.info("Submitted {} name changes to WOM", changes.length);
 	}
 
 	private void sendRequest(Request request)
