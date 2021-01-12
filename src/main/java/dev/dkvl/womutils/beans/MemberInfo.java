@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class GroupInfo
+public class MemberInfo
 {
     int exp;
     int id;
