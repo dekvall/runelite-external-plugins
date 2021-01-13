@@ -9,6 +9,8 @@ import com.google.gson.Gson;
 import com.google.inject.Provides;
 import dev.dkvl.womutils.beans.*;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.time.temporal.ChronoUnit;
@@ -19,10 +21,8 @@ import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.NameableNameChanged;
-import net.runelite.api.events.PlayerMenuOptionClicked;
-import net.runelite.api.events.WidgetMenuOptionClicked;
+import net.runelite.api.events.*;
+import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
@@ -38,6 +38,7 @@ import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 import okhttp3.*;
@@ -46,7 +47,7 @@ import java.io.IOException;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Wom Utils"
+	name = "WOM Utils"
 )
 public class WomUtilsPlugin extends Plugin
 {
@@ -54,12 +55,17 @@ public class WomUtilsPlugin extends Plugin
 	private static final File WORKING_DIR;
 	private static final String NAME_CHANGES = "name-changes.json";
 
-	private static final String ADD_MEMBER = "Add member";
-	private static final String REMOVE_MEMBER = "Remove member";
+	private static final String ADD_MEMBER = "Add Member";
+	private static final String REMOVE_MEMBER = "Remove Member";
 
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String BROWSE_GROUP = "Browse";
 	private static final String MENU_TARGET = "WOM Group";
+	private final static int BUILD_CC = 1658;
+
+	// TODO: Find colors that are not an eyesore
+	private static final Color SUCCESS = new Color(0, 255, 0);
+	private static final Color ERROR = new Color(255, 0, 0);
 
 	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete");
 
@@ -80,6 +86,12 @@ public class WomUtilsPlugin extends Plugin
 		.build();
 	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
 	// I think the one we want is 164.38, but it needs to be added to core to use.
+
+	private static final int ICON_WIDTH = 12;
+	private static final int ICON_HEIGHT = 12;
+
+	private int iconIdx = -1;
+	private String currentLayouting;
 
 	@Inject
 	private Client client;
@@ -120,11 +132,17 @@ public class WomUtilsPlugin extends Plugin
 		{
 			loadFile();
 			importGroupMembers();
+			clientThread.invoke(this::loadIcon);
+
 			if (config.menuOptions())
 			{
 				addCustomOptions();
 			}
 
+			if (client.getGameState() == GameState.LOGGED_IN)
+			{
+				rebuildFriendsList();
+			}
 		}
 		catch (IOException e)
 		{
@@ -136,6 +154,12 @@ public class WomUtilsPlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		removeCustomOptions();
+
+		if (client.getGameState() == GameState.LOGGED_IN)
+		{
+			rebuildFriendsList();
+		}
+
 		log.info("Wom Utils stopped!");
 	}
 
@@ -258,6 +282,7 @@ public class WomUtilsPlugin extends Plugin
 				{
 					final String message;
 					String body = response.body().string();
+					Color colorType = SUCCESS;
 
 					if (response.isSuccessful())
 					{
@@ -272,15 +297,17 @@ public class WomUtilsPlugin extends Plugin
 							message = "New player added: " + username;
 							groupMembers.add(username);
 						}
+						rebuildFriendsList();
 					}
 					else
 					{
 						WomStatus status = gson.fromJson(body, WomStatus.class);
-						message = status.getMessage();
+						message = "Error: " + status.getMessage();
+						colorType = ERROR;
 					}
 
 					ChatMessageBuilder cmb = new ChatMessageBuilder();
-					cmb.append(ChatColorType.HIGHLIGHT).append(message);
+					cmb.append(colorType, message);
 
 					chatMessageManager.queue(QueuedMessage.builder()
 						.type(ChatMessageType.CONSOLE)
@@ -331,6 +358,7 @@ public class WomUtilsPlugin extends Plugin
 				{
 					groupMembers.add(m.getUsername());
 				}
+				rebuildFriendsList();
 			}
 		});
 	}
@@ -432,17 +460,103 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (event.getGroup().equals(CONFIG_GROUP))
+		if (!event.getGroup().equals(CONFIG_GROUP))
 		{
-			if (config.menuOptions() && config.groupId() > 0)
-			{
-				addCustomOptions();
-			}
-			else
-			{
-				removeCustomOptions();
-			}
+			return;
 		}
+
+		if (config.menuOptions() && config.groupId() > 0)
+		{
+			addCustomOptions();
+		}
+		else
+		{
+			removeCustomOptions();
+		}
+
+		if (event.getKey().equals("showIcons") && client.getGameState() == GameState.LOGGED_IN)
+		{
+			rebuildFriendsList();
+		}
+
+	}
+
+	@Subscribe
+	public void onScriptCallbackEvent(ScriptCallbackEvent event)
+	{
+		if (!config.showicons() || iconIdx == -1)
+		{
+			return;
+		}
+
+		switch (event.getEventName())
+		{
+			case "friend_cc_settext":
+				String[] stringStack = client.getStringStack();
+				int stringStackSize = client.getStringStackSize();
+				final String rsn = stringStack[stringStackSize - 1];
+				final String sanitized = Text.toJagexName(Text.removeTags(rsn).toLowerCase());
+				currentLayouting = sanitized;
+				if (groupMembers.contains(sanitized))
+				{
+					stringStack[stringStackSize - 1] = rsn + " <img=" + iconIdx + ">";
+				}
+				break;
+			case "friend_cc_setposition":
+				if (currentLayouting == null || !groupMembers.contains(currentLayouting))
+				{
+					return;
+				}
+
+				int[] intStack = client.getIntStack();
+				int intStackSize = client.getIntStackSize();
+				int xpos = intStack[intStackSize - 4];
+				xpos += ICON_WIDTH + 1;
+				intStack[intStackSize - 4] = xpos;
+				break;
+		}
+	}
+	
+	private void rebuildFriendsList()
+	{
+		clientThread.invokeLater(() ->
+		{
+			log.debug("Rebuilding friends list");
+			client.runScript(
+				ScriptID.FRIENDS_UPDATE,
+				WidgetInfo.FRIEND_LIST_FULL_CONTAINER.getPackedId(),
+				WidgetInfo.FRIEND_LIST_SORT_BY_NAME_BUTTON.getPackedId(),
+				WidgetInfo.FRIEND_LIST_SORT_BY_LAST_WORLD_CHANGE_BUTTON.getPackedId(),
+				WidgetInfo.FRIEND_LIST_SORT_BY_WORLD_BUTTON.getPackedId(),
+				WidgetInfo.FRIEND_LIST_LEGACY_SORT_BUTTON.getPackedId(),
+				WidgetInfo.FRIEND_LIST_NAMES_CONTAINER.getPackedId(),
+				WidgetInfo.FRIEND_LIST_SCROLL_BAR.getPackedId(),
+				WidgetInfo.FRIEND_LIST_LOADING_TEXT.getPackedId(),
+				WidgetInfo.FRIEND_LIST_PREVIOUS_NAME_HOLDER.getPackedId()
+			);
+		});
+	}
+
+	private void loadIcon()
+	{
+		final IndexedSprite[] modIcons = client.getModIcons();
+		if (iconIdx != -1 || modIcons == null)
+		{
+			return;
+		}
+		final BufferedImage iconImg = ImageUtil.getResourceStreamFromClass(getClass(),"/crown_icon.png");
+		if (iconImg == null)
+		{
+			return;
+		}
+
+		final BufferedImage resized = ImageUtil.resizeImage(iconImg, ICON_WIDTH, ICON_HEIGHT);
+
+		final IndexedSprite[] newIcons = Arrays.copyOf(modIcons, modIcons.length + 1);
+		newIcons[newIcons.length - 1] = ImageUtil.getImageIndexedSprite(resized, client);
+
+		iconIdx = newIcons.length - 1;
+		client.setModIcons(newIcons);
 	}
 
 	private void addCustomOptions()
