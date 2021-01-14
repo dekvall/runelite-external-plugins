@@ -26,7 +26,6 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
-import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -61,7 +60,6 @@ public class WomUtilsPlugin extends Plugin
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String BROWSE_GROUP = "Browse";
 	private static final String MENU_TARGET = "WOM Group";
-	private final static int BUILD_CC = 1658;
 
 	// TODO: Find colors that are not an eyesore
 	private static final Color SUCCESS = new Color(0, 255, 0);
@@ -127,12 +125,12 @@ public class WomUtilsPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		log.info("Wom Utils started!");
+		log.info("WOM Utils started!");
 		try
 		{
 			loadFile();
+			loadIcon();
 			importGroupMembers();
-			clientThread.invoke(this::loadIcon);
 
 			if (config.menuOptions())
 			{
@@ -142,6 +140,7 @@ public class WomUtilsPlugin extends Plugin
 			if (client.getGameState() == GameState.LOGGED_IN)
 			{
 				rebuildFriendsList();
+				rebuildFriendsChatList(false);
 			}
 		}
 		catch (IOException e)
@@ -158,9 +157,10 @@ public class WomUtilsPlugin extends Plugin
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
 			rebuildFriendsList();
+			rebuildFriendsChatList(true);
 		}
 
-		log.info("Wom Utils stopped!");
+		log.info("WOM Utils stopped!");
 	}
 
 	@Subscribe
@@ -298,6 +298,7 @@ public class WomUtilsPlugin extends Plugin
 							groupMembers.add(username);
 						}
 						rebuildFriendsList();
+						rebuildFriendsChatList(false);
 					}
 					else
 					{
@@ -305,6 +306,7 @@ public class WomUtilsPlugin extends Plugin
 						message = "Error: " + status.getMessage();
 						colorType = ERROR;
 					}
+
 
 					ChatMessageBuilder cmb = new ChatMessageBuilder();
 					cmb.append(colorType, message);
@@ -314,6 +316,7 @@ public class WomUtilsPlugin extends Plugin
 						.runeLiteFormattedMessage(cmb.build())
 						.build());
 					response.close();
+
 				}
 			}
 		);
@@ -359,6 +362,7 @@ public class WomUtilsPlugin extends Plugin
 					groupMembers.add(m.getUsername());
 				}
 				rebuildFriendsList();
+				rebuildFriendsChatList(false);
 			}
 		});
 	}
@@ -477,8 +481,17 @@ public class WomUtilsPlugin extends Plugin
 		if (event.getKey().equals("showIcons") && client.getGameState() == GameState.LOGGED_IN)
 		{
 			rebuildFriendsList();
+			rebuildFriendsChatList(false);
 		}
+	}
 
+	@Subscribe
+	public void onScriptPostFired(ScriptPostFired event)
+	{
+		if (event.getScriptId() == ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD)
+		{
+			clientThread.invoke(() -> rebuildFriendsChatList(false));
+		}
 	}
 
 	@Subscribe
@@ -516,7 +529,7 @@ public class WomUtilsPlugin extends Plugin
 				break;
 		}
 	}
-	
+
 	private void rebuildFriendsList()
 	{
 		clientThread.invokeLater(() ->
@@ -535,6 +548,40 @@ public class WomUtilsPlugin extends Plugin
 				WidgetInfo.FRIEND_LIST_PREVIOUS_NAME_HOLDER.getPackedId()
 			);
 		});
+	}
+
+	private void rebuildFriendsChatList(boolean disable)
+	{
+		log.info("Rebuilding friends chat list");
+		Widget containerWidget = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
+		if (containerWidget == null)
+		{
+			return;
+		}
+
+		Widget[] children = containerWidget.getChildren();
+		if (children == null)
+		{
+			return;
+		}
+
+		for (int i = 0; i < children.length; i+=3)
+		{
+			String name = children[i].getName();
+			String sanitized = Text.toJagexName(Text.removeTags(name));
+
+			String newName;
+			if (disable || !groupMembers.contains(sanitized.toLowerCase()) || !config.showicons())
+			{
+				newName = sanitized;
+			}
+			else
+			{
+				newName = sanitized + " <img=" + iconIdx + ">";
+			}
+
+			children[i].setText(newName);
+		}
 	}
 
 	private void loadIcon()
