@@ -517,6 +517,7 @@ public class WomUtilsPlugin extends Plugin
 		switch (event.getEventName())
 		{
 			case "friend_cc_settext":
+			case "ignore_cc_settext":
 				String[] stringStack = client.getStringStack();
 				int stringStackSize = client.getStringStackSize();
 				final String rsn = stringStack[stringStackSize - 1];
@@ -528,6 +529,7 @@ public class WomUtilsPlugin extends Plugin
 				}
 				break;
 			case "friend_cc_setposition":
+			case "ignore_cc_setposition":
 				if (currentLayouting == null || !groupMembers.contains(currentLayouting))
 				{
 					return;
@@ -580,35 +582,6 @@ public class WomUtilsPlugin extends Plugin
 		{
 			lastXp = client.getOverallExperience();
 			fetchXp = false;
-		}
-	}
-
-	// TODO: rewrite this function to use the other functions
-	private void update(String username)
-	{
-		if (!xpUpdaterConfig.wiseoldman())
-		{
-			final String host = "wiseoldman.net";
-
-			HttpUrl url = new HttpUrl.Builder()
-				.scheme("https")
-				.host(host)
-				.addPathSegment("api")
-				.addPathSegment("players")
-				.addPathSegment("track")
-				.build();
-
-			RequestBody formBody = new FormBody.Builder()
-				.add("username", username)
-				.build();
-
-			Request request = new Request.Builder()
-				.header("User-Agent", "RuneLite")
-				.url(url)
-				.post(formBody)
-				.build();
-
-			sendRequest("player update", request);
 		}
 	}
 
@@ -745,7 +718,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private void addGroupMember(String username)
 	{
-		Member[] member = { new Member(username, "member") };
+		Member[] member = { new Member(username) };
 		GroupMemberAddition gme = new GroupMemberAddition(config.verificationCode(), member);
 
 		Request request = createRequest(gme, "groups", "" + config.groupId(), "add-members");
@@ -764,6 +737,15 @@ public class WomUtilsPlugin extends Plugin
 	{
 		Request request = createRequest("groups", "" + config.groupId(), "members");
 		sendMembersRequest(request);
+	}
+
+	private void update(String username)
+	{
+		if (!xpUpdaterConfig.wiseoldman())
+		{
+			Request request = createRequest(new Member(username), "players", "track");
+			sendRequest("player update", request);
+		}
 	}
 
 	@Provides
