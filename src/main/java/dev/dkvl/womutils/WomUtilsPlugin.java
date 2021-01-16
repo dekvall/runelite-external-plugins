@@ -79,7 +79,8 @@ import okhttp3.Response;
 @PluginDependency(XpUpdaterPlugin.class)
 @PluginDescriptor(
 	name = "Wise Old Man",
-	tags = {"wom", "utils", "group", "xp"}
+	tags = {"wom", "utils", "group", "xp"},
+	description = "Helps you manage your wiseoldman.net group."
 )
 public class WomUtilsPlugin extends Plugin
 {
