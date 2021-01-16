@@ -35,7 +35,10 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.menus.MenuManager;
 import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.xpupdater.XpUpdaterConfig;
+import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
@@ -45,6 +48,7 @@ import okhttp3.*;
 import java.io.IOException;
 
 @Slf4j
+@PluginDependency(XpUpdaterPlugin.class)
 @PluginDescriptor(
 	name = "WOM Utils"
 )
@@ -61,9 +65,8 @@ public class WomUtilsPlugin extends Plugin
 	private static final String BROWSE_GROUP = "Browse";
 	private static final String MENU_TARGET = "WOM Group";
 
-	// TODO: Find colors that are not an eyesore
-	private static final Color SUCCESS = new Color(0, 255, 0);
-	private static final Color ERROR = new Color(255, 0, 0);
+	private static final Color SUCCESS = new Color(170, 255, 40);
+	private static final Color ERROR = new Color(204, 66, 66);
 
 	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete");
 
@@ -87,6 +90,8 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final int ICON_WIDTH = 12;
 	private static final int ICON_HEIGHT = 12;
+
+	private static final int XP_THRESHOLD = 10000;
 
 	private int iconIdx = -1;
 	private String currentLayouting;
@@ -112,9 +117,16 @@ public class WomUtilsPlugin extends Plugin
 	@Inject
 	private Gson gson;
 
+	@Inject
+	XpUpdaterConfig xpUpdaterConfig;
+
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private final HashSet<String> groupMembers = new HashSet<>();
+
+	private String lastUsername;
+	private boolean fetchXp;
+	private long lastXp;
 
 	static
 	{
@@ -129,7 +141,7 @@ public class WomUtilsPlugin extends Plugin
 		try
 		{
 			loadFile();
-			loadIcon();
+			clientThread.invokeLater(this::loadIcon);
 			importGroupMembers();
 
 			if (config.menuOptions())
@@ -244,18 +256,18 @@ public class WomUtilsPlugin extends Plugin
 	private void sendNameChanges(NameChangeEntry[] changes)
 	{
 		Request request = createRequest(changes, "names", "bulk");
-		sendRequest(request);
+		sendRequest("name change", request);
 		log.info("Submitted {} name changes to WOM", changes.length);
 	}
 
-	private void sendRequest(Request request)
+	private void sendRequest(String requestType, Request request)
 	{
 		okHttpClient.newCall(request).enqueue(new Callback()
 		{
 			@Override
 			public void onFailure(Call call, IOException e)
 			{
-				log.warn("Error submitting name change, caused by {}.", e.getMessage());
+				log.warn("Error submitting {}, caused by {}.", requestType, e.getMessage());
 			}
 
 			@Override
@@ -527,6 +539,76 @@ public class WomUtilsPlugin extends Plugin
 				xpos += ICON_WIDTH + 1;
 				intStack[intStackSize - 4] = xpos;
 				break;
+		}
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged gameStateChanged)
+	{
+		GameState state = gameStateChanged.getGameState();
+		if (state == GameState.LOGGED_IN)
+		{
+			if (!Objects.equals(client.getUsername(), lastUsername))
+			{
+				lastUsername = client.getUsername();
+				fetchXp = true;
+			}
+		}
+		else if (state == GameState.LOGIN_SCREEN)
+		{
+			Player local = client.getLocalPlayer();
+			if (local == null)
+			{
+				return;
+			}
+
+			long totalXp = client.getOverallExperience();
+			// Don't submit update unless xp threshold is reached
+			if (Math.abs(totalXp - lastXp) > XP_THRESHOLD)
+			{
+				log.debug("Submitting update for {}", local.getName());
+				update(local.getName());
+				lastXp = totalXp;
+			}
+		}
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick gameTick)
+	{
+		if (fetchXp)
+		{
+			lastXp = client.getOverallExperience();
+			fetchXp = false;
+		}
+	}
+
+	// TODO: rewrite this function to use the other functions
+	private void update(String username)
+	{
+		if (!xpUpdaterConfig.wiseoldman())
+		{
+			final String host = "wiseoldman.net";
+
+			HttpUrl url = new HttpUrl.Builder()
+				.scheme("https")
+				.host(host)
+				.addPathSegment("api")
+				.addPathSegment("players")
+				.addPathSegment("track")
+				.build();
+
+			RequestBody formBody = new FormBody.Builder()
+				.add("username", username)
+				.build();
+
+			Request request = new Request.Builder()
+				.header("User-Agent", "RuneLite")
+				.url(url)
+				.post(formBody)
+				.build();
+
+			sendRequest("player update", request);
 		}
 	}
 

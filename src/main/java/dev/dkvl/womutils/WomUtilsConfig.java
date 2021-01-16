@@ -5,6 +5,8 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
+import java.awt.*;
+
 @ConfigGroup(WomUtilsPlugin.CONFIG_GROUP)
 public interface WomUtilsConfig extends Config
 {
@@ -18,7 +20,7 @@ public interface WomUtilsConfig extends Config
 	@ConfigItem(
 		keyName = "showIcons",
 		name = "Show icons",
-		description = "Show icons on friend and clan chat",
+		description = "Show icons in friend list and clan chat for people who are in the WOM group",
 		position = 0,
 		section = groupConfig
 	)
