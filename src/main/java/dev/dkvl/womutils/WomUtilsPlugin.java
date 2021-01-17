@@ -12,6 +12,7 @@ import dev.dkvl.womutils.beans.GroupMemberRemoval;
 import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
+import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -786,7 +787,7 @@ public class WomUtilsPlugin extends Plugin
 		if (!xpUpdaterConfig.wiseoldman())
 		{
 			// Send update requests even if the user has forgot to enable player updates in the core plugin
-			Request request = createRequest(new Member(username), "players", "track");
+			Request request = createRequest(new WomPlayer(username), "players", "track");
 			sendRequest(request);
 		}
 	}
