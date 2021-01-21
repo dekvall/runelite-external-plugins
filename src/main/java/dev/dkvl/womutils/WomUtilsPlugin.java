@@ -123,8 +123,8 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final int XP_THRESHOLD = 10000;
 
-	private int iconIdx = -1;
 	private String currentLayouting;
+	private int modIconsStart = -1;
 
 	@Inject
 	private Client client;
@@ -178,7 +178,7 @@ public class WomUtilsPlugin extends Plugin
 			log.error("Could not load previous name changes");
 		}
 
-		clientThread.invokeLater(this::loadIcon);
+		clientThread.invokeLater(this::loadIcons);
 		importGroupMembers();
 
 		if (config.menuOptions())
@@ -543,7 +543,7 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onScriptCallbackEvent(ScriptCallbackEvent event)
 	{
-		if (!config.showicons() || iconIdx == -1)
+		if (!config.showicons() || modIconsStart == -1)
 		{
 			return;
 		}
@@ -558,6 +558,8 @@ public class WomUtilsPlugin extends Plugin
 				currentLayouting = sanitized;
 				if (groupMembers.contains(sanitized))
 				{
+					CountryIcon icon = CountryIcon.getIcon("default");
+					int iconIdx = modIconsStart + icon.ordinal();
 					stringStack[stringStackSize - 1] = rsn + " <img=" + iconIdx + ">";
 				}
 				break;
@@ -664,6 +666,8 @@ public class WomUtilsPlugin extends Plugin
 			}
 			else
 			{
+				CountryIcon icon = CountryIcon.getIcon("default");
+				int iconIdx = modIconsStart + icon.ordinal();
 				newName = sanitized + " <img=" + iconIdx + ">";
 			}
 
@@ -680,23 +684,27 @@ public class WomUtilsPlugin extends Plugin
 		});
 	}
 
-	private boolean loadIcon()
+	private boolean loadIcons()
 	{
 		final IndexedSprite[] modIcons = client.getModIcons();
-		if (iconIdx != -1 || modIcons == null)
-		{
-			return false;
-		}
-		final BufferedImage icon = ImageUtil.getResourceStreamFromClass(getClass(),"/small-crown.png");
-		if (icon == null)
+		if (modIconsStart != -1 || modIcons == null)
 		{
 			return false;
 		}
 
-		final IndexedSprite[] newIcons = Arrays.copyOf(modIcons, modIcons.length + 1);
-		iconIdx = newIcons.length - 1;
-		newIcons[iconIdx] = ImageUtil.getImageIndexedSprite(icon, client);
-		client.setModIcons(newIcons);
+		final CountryIcon[] countryIcons = CountryIcon.values();
+		final IndexedSprite[] newModIcons = Arrays.copyOf(modIcons, modIcons.length + countryIcons.length);
+		modIconsStart = modIcons.length;
+
+		for (int i = 0; i < countryIcons.length; i++)
+		{
+			CountryIcon icon = countryIcons[i];
+			BufferedImage image = icon.loadImage();
+			IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
+			newModIcons[modIconsStart + i] = sprite;
+		}
+
+		client.setModIcons(newModIcons);
 
 		return true;
 	}

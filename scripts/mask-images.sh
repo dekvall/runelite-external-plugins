@@ -1,10 +1,9 @@
 #!/usr/bin/bash
 
-[ ! -d "./out" ] && mkdir "./out"
-
-for f in "$@"
+root=$(git rev-parse --show-toplevel)
+for f in $(ls "$root/flags/")
 do
-	convert "$f" -alpha on \( +clone -channel a -fx 0 \) +swap mask.png -composite "out/$f"
+	convert "$root/flags/$f" -crop 12x12+0+0 -alpha on \( +clone -channel a -fx 0 \) +swap "$root/scripts/mask.png" -composite "$root/src/main/resources/dev/dkvl/womutils/$f"
 done
 
-optipng -o7 -strip all out/*
+#optipng -o7 -strip all -silent "$root/src/main/resources/*"

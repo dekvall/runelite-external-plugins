@@ -154,7 +154,6 @@ enum CountryIcon
 	MALDIVES("mv", "1f1f2-1f1fb"),
 	MALI("ml", "1f1f2-1f1f1"),
 	MALTA("mt", "1f1f2-1f1f9"),
-	MAN_IN_SUIT_LEVITATING("man in suit", "1f574"),
 	MARSHALL_ISLANDS("mh", "1f1f2-1f1ed"),
 	MARTINIQUE("mq", "1f1f2-1f1f6"),
 	MAURITANIA("mr", "1f1f2-1f1f7"),
@@ -193,7 +192,6 @@ enum CountryIcon
 	PARAGUAY("py", "1f1f5-1f1fe"),
 	PERU("pe", "1f1f5-1f1ea"),
 	PHILIPPINES("ph", "1f1f5-1f1ed"),
-	PILE_OF_POO("poop", "1f4a9"),
 	PITCAIRN_ISLANDS("pn", "1f1f5-1f1f3"),
 	POLAND("pl", "1f1f5-1f1f1"),
 	PORTUGAL("pt", "1f1f5-1f1f9"),
@@ -259,7 +257,6 @@ enum CountryIcon
 	UNITED_ARAB_EMIRATES("ae", "1f1e6-1f1ea"),
 	UNITED_KINGDOM("gb", "1f1ec-1f1e7"),
 	UNITED_STATES("us", "1f1fa-1f1f8"),
-	UNITED_STATES_OF_AMERICA("us", "1f1fa"),
 	URUGUAY("uy", "1f1fa-1f1fe"),
 	UZBEKISTAN("uz", "1f1fa-1f1ff"),
 	VANUATU("vu", "1f1fb-1f1fa"),
@@ -294,7 +291,7 @@ enum CountryIcon
 		return ImageUtil.getResourceStreamFromClass(getClass(), codepoint + ".png");
 	}
 
-	CountryIcon getIcon(String countryCode)
+	static CountryIcon getIcon(String countryCode)
 	{
 		return ICONS.getOrDefault(countryCode, DEFAULT);
 	}
