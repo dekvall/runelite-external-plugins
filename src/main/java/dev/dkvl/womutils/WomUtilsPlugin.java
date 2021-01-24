@@ -455,16 +455,29 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onPlayerMenuOptionClicked(PlayerMenuOptionClicked event)
 	{
-		String target = Text.toJagexName(event.getMenuTarget());
+		String username = Text.toJagexName(event.getMenuTarget());
+		String usernameLower = username.toLowerCase();
+		final String endpoint;
+		final Object payload;
+		final Callback callback;
+
 		switch (event.getMenuOption())
 		{
 			case ADD_MEMBER:
-				modifyGroupMembers(target, false);
-				return;
+				endpoint = "add-members";
+				payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(usernameLower)});
+				callback = new WomCallback(r -> addCallback(r, username));
+				break;
 			case REMOVE_MEMBER:
-				modifyGroupMembers(target, true);
+				endpoint = "remove-members";
+				payload = new GroupMemberRemoval(config.verificationCode(), new String[] {usernameLower});
+				callback = new WomCallback(r -> removeCallback(r, username));
+				break;
+			default:
 				return;
 		}
+		Request request = createRequest(payload, "groups", "" + config.groupId(), endpoint);
+		sendRequest(request, callback);
 	}
 
 	@Subscribe
@@ -756,31 +769,6 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		return urlBuilder.build();
-	}
-
-	private void modifyGroupMembers(String username, boolean remove)
-	{
-		final String endpoint;
-		final Object payload;
-		final Callback callback;
-
-		String usernameLower = username.toLowerCase();
-
-		if (remove)
-		{
-			endpoint = "remove-members";
-			payload = new GroupMemberRemoval(config.verificationCode(), new String[] {usernameLower});
-			callback = new WomCallback(r -> removeCallback(r, username));
-		}
-		else
-		{
-			endpoint = "add-members";
-			payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(usernameLower)});
-			callback = new WomCallback(r -> addCallback(r, username));
-		}
-
-		Request request = createRequest(payload, "groups", "" + config.groupId(), endpoint);
-		sendRequest(request, callback);
 	}
 
 	private void importGroupMembers()
