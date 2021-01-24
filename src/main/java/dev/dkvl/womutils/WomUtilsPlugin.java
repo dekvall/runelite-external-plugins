@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.google.inject.Binder;
 import com.google.inject.Provides;
 import dev.dkvl.womutils.beans.GroupMemberAddition;
 import dev.dkvl.womutils.beans.GroupMemberRemoval;
@@ -15,7 +16,6 @@ import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
 import java.awt.Color;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -33,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.IndexedSprite;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Nameable;
@@ -47,7 +46,6 @@ import net.runelite.api.events.PlayerMenuOptionClicked;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.WidgetMenuOptionClicked;
-import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
@@ -65,10 +63,8 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.xpupdater.XpUpdaterConfig;
 import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
-import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
-import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -121,12 +117,7 @@ public class WomUtilsPlugin extends Plugin
 	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
 	// I think the one we want is 164.38, but it needs to be added to core to use.
 
-	private static final int ICON_WIDTH = 12;
-
 	private static final int XP_THRESHOLD = 10000;
-
-	private String currentLayouting;
-	private int modIconsStart = -1;
 
 	@Inject
 	private Client client;
@@ -148,6 +139,9 @@ public class WomUtilsPlugin extends Plugin
 
 	@Inject
 	private Gson gson;
+
+	@Inject
+	private WomIconHandler iconHandler;
 
 	@Inject
 	XpUpdaterConfig xpUpdaterConfig;
@@ -180,7 +174,7 @@ public class WomUtilsPlugin extends Plugin
 			log.error("Could not load previous name changes");
 		}
 
-		clientThread.invokeLater(this::loadIcons);
+		iconHandler.loadIcons();
 		importGroupMembers();
 
 		if (config.menuOptions())
@@ -190,7 +184,7 @@ public class WomUtilsPlugin extends Plugin
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			rebuildLists();
+			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 	}
 
@@ -201,11 +195,7 @@ public class WomUtilsPlugin extends Plugin
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			clientThread.invokeLater(() ->
-			{
-				rebuildFriendsChatList(true);
-				rebuildFriendsList();
-			});
+			iconHandler.rebuildLists(groupMembers, false);
 		}
 
 		log.info("Wise Old Man stopped!");
@@ -311,7 +301,7 @@ public class WomUtilsPlugin extends Plugin
 		okHttpClient.newCall(request).enqueue(callback);
 	}
 
-	private void removeCallback(Response response, String username)
+	private void removeMemberCallback(Response response, String username)
 	{
 		final String message;
 		final String body = readResponse(response.body());
@@ -325,7 +315,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			groupMembers.remove(username.toLowerCase());
 			message = "Player removed: " + username;
-			rebuildLists();
+			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 		else
 		{
@@ -337,7 +327,7 @@ public class WomUtilsPlugin extends Plugin
 		sendResponseToChat(message, color);
 	}
 
-	private void addCallback(Response response, String username)
+	private void addMemberCallback(Response response, String username)
 	{
 		final String message;
 		final String body = readResponse(response.body());
@@ -351,7 +341,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			message = "New player added: " + username;
 			groupMembers.add(username.toLowerCase());
-			rebuildLists();
+			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 		else
 		{
@@ -378,7 +368,6 @@ public class WomUtilsPlugin extends Plugin
 
 	private void sendResponseToChat(String message, Color color)
 	{
-
 		ChatMessageBuilder cmb = new ChatMessageBuilder();
 		cmb.append(color, message);
 
@@ -388,7 +377,7 @@ public class WomUtilsPlugin extends Plugin
 			.build());
 	}
 
-	private void memberCallback(Response response)
+	private void importMembersCallback(Response response)
 	{
 		if (!response.isSuccessful())
 		{
@@ -419,7 +408,7 @@ public class WomUtilsPlugin extends Plugin
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			rebuildLists();
+			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 	}
 
@@ -466,12 +455,12 @@ public class WomUtilsPlugin extends Plugin
 			case ADD_MEMBER:
 				endpoint = "add-members";
 				payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(usernameLower)});
-				callback = new WomCallback(r -> addCallback(r, username));
+				callback = new WomCallback(r -> addMemberCallback(r, username));
 				break;
 			case REMOVE_MEMBER:
 				endpoint = "remove-members";
 				payload = new GroupMemberRemoval(config.verificationCode(), new String[] {usernameLower});
-				callback = new WomCallback(r -> removeCallback(r, username));
+				callback = new WomCallback(r -> removeMemberCallback(r, username));
 				break;
 			default:
 				return;
@@ -492,14 +481,14 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		String opt = event.getMenuOption();
-		if (opt.equals(IMPORT_MEMBERS))
+		switch (event.getMenuOption())
 		{
-			importGroupMembers();
-		}
-		else if (opt.equals(BROWSE_GROUP))
-		{
-			openGroupInBrowser();
+			case IMPORT_MEMBERS:
+				importGroupMembers();
+				break;
+			case BROWSE_GROUP:
+				openGroupInBrowser();
+				break;
 		}
 	}
 
@@ -535,7 +524,7 @@ public class WomUtilsPlugin extends Plugin
 
 		if (event.getKey().equals("showIcons") && client.getGameState() == GameState.LOGGED_IN)
 		{
-			rebuildLists();
+			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 	}
 
@@ -544,46 +533,19 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (event.getScriptId() == ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD)
 		{
-			rebuildFriendsChatList();
+			iconHandler.rebuildFriendsChatList(config.showicons(), groupMembers);
 		}
 	}
 
 	@Subscribe
 	public void onScriptCallbackEvent(ScriptCallbackEvent event)
 	{
-		if (!config.showicons() || modIconsStart == -1)
+		if (!config.showicons() || !iconHandler.iconsAreLoaded())
 		{
 			return;
 		}
 
-		switch (event.getEventName())
-		{
-			case "friend_cc_settext":
-				String[] stringStack = client.getStringStack();
-				int stringStackSize = client.getStringStackSize();
-				final String rsn = stringStack[stringStackSize - 1];
-				final String sanitized = Text.toJagexName(Text.removeTags(rsn).toLowerCase());
-				currentLayouting = sanitized;
-				if (groupMembers.contains(sanitized))
-				{
-					CountryIcon icon = CountryIcon.getIcon("default");
-					int iconIdx = modIconsStart + icon.ordinal();
-					stringStack[stringStackSize - 1] = rsn + " <img=" + iconIdx + ">";
-				}
-				break;
-			case "friend_cc_setposition":
-				if (currentLayouting == null || !groupMembers.contains(currentLayouting))
-				{
-					return;
-				}
-
-				int[] intStack = client.getIntStack();
-				int intStackSize = client.getIntStackSize();
-				int xpos = intStack[intStackSize - 4];
-				xpos += ICON_WIDTH + 1;
-				intStack[intStackSize - 4] = xpos;
-				break;
-		}
+		iconHandler.handleScriptEvent(event, groupMembers);
 	}
 
 	@Subscribe
@@ -625,96 +587,6 @@ public class WomUtilsPlugin extends Plugin
 			lastXp = client.getOverallExperience();
 			fetchXp = false;
 		}
-	}
-
-	private void rebuildFriendsList()
-	{
-		client.runScript(
-			ScriptID.FRIENDS_UPDATE,
-			WidgetInfo.FRIEND_LIST_FULL_CONTAINER.getPackedId(),
-			WidgetInfo.FRIEND_LIST_SORT_BY_NAME_BUTTON.getPackedId(),
-			WidgetInfo.FRIEND_LIST_SORT_BY_LAST_WORLD_CHANGE_BUTTON.getPackedId(),
-			WidgetInfo.FRIEND_LIST_SORT_BY_WORLD_BUTTON.getPackedId(),
-			WidgetInfo.FRIEND_LIST_LEGACY_SORT_BUTTON.getPackedId(),
-			WidgetInfo.FRIEND_LIST_NAMES_CONTAINER.getPackedId(),
-			WidgetInfo.FRIEND_LIST_SCROLL_BAR.getPackedId(),
-			WidgetInfo.FRIEND_LIST_LOADING_TEXT.getPackedId(),
-			WidgetInfo.FRIEND_LIST_PREVIOUS_NAME_HOLDER.getPackedId()
-		);
-	}
-
-	private void rebuildFriendsChatList()
-	{
-		rebuildFriendsChatList(false);
-	}
-
-	private void rebuildFriendsChatList(boolean disable)
-	{
-		Widget containerWidget = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
-		if (containerWidget == null)
-		{
-			return;
-		}
-
-		Widget[] children = containerWidget.getChildren();
-		if (children == null)
-		{
-			return;
-		}
-
-		for (int i = 0; i < children.length; i+=3)
-		{
-			String name = children[i].getName();
-			String sanitized = Text.toJagexName(Text.removeTags(name));
-
-			String newName;
-			if (disable || !groupMembers.contains(sanitized.toLowerCase()) || !config.showicons())
-			{
-				newName = sanitized;
-			}
-			else
-			{
-				CountryIcon icon = CountryIcon.getIcon("default");
-				int iconIdx = modIconsStart + icon.ordinal();
-				newName = sanitized + " <img=" + iconIdx + ">";
-			}
-
-			children[i].setText(newName);
-		}
-	}
-
-	private void rebuildLists()
-	{
-		clientThread.invokeLater(() ->
-		{
-			rebuildFriendsList();
-			rebuildFriendsChatList();
-		});
-	}
-
-	private boolean loadIcons()
-	{
-		final IndexedSprite[] modIcons = client.getModIcons();
-		if (modIconsStart != -1 || modIcons == null)
-		{
-			return false;
-		}
-
-		final CountryIcon[] countryIcons = CountryIcon.values();
-		final IndexedSprite[] newModIcons = Arrays.copyOf(modIcons, modIcons.length + countryIcons.length);
-		modIconsStart = modIcons.length;
-
-		for (int i = 0; i < countryIcons.length; i++)
-		{
-			CountryIcon icon = countryIcons[i];
-			BufferedImage image = icon.loadImage();
-			IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
-			newModIcons[modIconsStart + i] = sprite;
-		}
-
-		client.setModIcons(newModIcons);
-
-		return true;
 	}
 
 	private void addCustomOptions()
@@ -774,7 +646,7 @@ public class WomUtilsPlugin extends Plugin
 	private void importGroupMembers()
 	{
 		Request request = createRequest("groups", "" + config.groupId(), "members");
-		sendRequest(request, this::memberCallback);
+		sendRequest(request, this::importMembersCallback);
 	}
 
 	private void update(String username)
@@ -791,5 +663,11 @@ public class WomUtilsPlugin extends Plugin
 	WomUtilsConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(WomUtilsConfig.class);
+	}
+
+	@Override
+	public void configure(Binder binder)
+	{
+		binder.bind(WomIconHandler.class);
 	}
 }

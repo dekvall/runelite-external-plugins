@@ -273,7 +273,9 @@ enum CountryIcon
 	private final String languageCode;
 	private final String codepoint;
 
+	static final int ICON_WIDTH = 12;
 	private static final Map<String, CountryIcon> ICONS;
+
 	static
 	{
 		ImmutableMap.Builder<String, CountryIcon> iconBuilder = new ImmutableMap.Builder<>();
