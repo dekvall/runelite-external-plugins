@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +76,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 @Slf4j
 @PluginDependency(XpUpdaterPlugin.class)
@@ -296,122 +298,129 @@ public class WomUtilsPlugin extends Plugin
 
 	private void sendRequest(Request request)
 	{
-		okHttpClient.newCall(request).enqueue(new Callback()
-		{
-			@Override
-			public void onFailure(Call call, IOException e)
-			{
-				log.warn("Error submitting request, caused by {}.", e.getMessage());
-			}
-
-			@Override
-			public void onResponse(Call call, Response response)
-			{
-				response.close();
-			}
-		});
+		sendRequest(request, r -> {});
 	}
 
-	private void sendPlayerRequest(Request request, String username)
+	private void sendRequest(Request request, Consumer<Response> consumer)
 	{
-		okHttpClient.newCall(request).enqueue(
-			new Callback()
-			{
-				@Override
-				public void onFailure(Call call, IOException e)
-				{
-					log.warn("Error submitting request, caused by {}.", e.getMessage());
-				}
-
-				@Override
-				public void onResponse(Call call, Response response) throws IOException
-				{
-					final String message;
-					String body = response.body().string();
-
-					if (response.isSuccessful())
-					{
-						// A success here gives a weird response of the entire group,
-						// so we don't care about it
-						if (groupMembers.remove(username.toLowerCase()))
-						{
-							message = "Player removed: " + username;
-						}
-						else
-						{
-							message = "New player added: " + username;
-							groupMembers.add(username.toLowerCase());
-						}
-
-						rebuildLists();
-					}
-					else
-					{
-						WomStatus status = gson.fromJson(body, WomStatus.class);
-						message = "Error: " + status.getMessage();
-					}
-
-					Color color = response.isSuccessful() ? SUCCESS : ERROR;
-					ChatMessageBuilder cmb = new ChatMessageBuilder();
-					cmb.append(color, message);
-
-					chatMessageManager.queue(QueuedMessage.builder()
-						.type(ChatMessageType.CONSOLE)
-						.runeLiteFormattedMessage(cmb.build())
-						.build());
-					response.close();
-
-				}
-			}
-		);
+		sendRequest(request, new WomCallback(consumer));
 	}
 
-	private void sendMembersRequest(Request request)
+	private void sendRequest(Request request, Callback callback)
 	{
-		okHttpClient.newCall(request).enqueue(new Callback()
+		okHttpClient.newCall(request).enqueue(callback);
+	}
+
+	private void removeCallback(Response response, String username)
+	{
+		final String message;
+		final String body = readResponse(response.body());
+
+		if (body == null)
 		{
-			@Override
-			public void onFailure(Call call, IOException e)
-			{
-				log.warn("Error while fetching members list {}.", e.getMessage());
-			}
+			return;
+		}
 
-			@Override
-			public void onResponse(Call call, Response response)
-			{
-				if (!response.isSuccessful())
-				{
-					response.close();
-					return;
-				}
+		if (response.isSuccessful())
+		{
+			groupMembers.remove(username.toLowerCase());
+			message = "Player removed: " + username;
+			rebuildLists();
+		}
+		else
+		{
+			WomStatus status = gson.fromJson(body, WomStatus.class);
+			message = "Error: " + status.getMessage();
+		}
 
-				MemberInfo[] members = new MemberInfo[0];
+		Color color = response.isSuccessful() ? SUCCESS : ERROR;
+		sendResponseToChat(message, color);
+	}
 
-				try
-				{
-					members = gson.fromJson(response.body().string(), MemberInfo[].class);
-				}
-				catch(IOException e)
-				{
-					log.error("Error when reading response {}", e.getMessage());
-				}
-				finally
-				{
-					response.close();
-				}
+	private void addCallback(Response response, String username)
+	{
+		final String message;
+		final String body = readResponse(response.body());
 
-				groupMembers.clear();
-				for (MemberInfo m : members)
-				{
-					groupMembers.add(m.getUsername());
-				}
+		if (body == null)
+		{
+			return;
+		}
 
-				if (client.getGameState() == GameState.LOGGED_IN)
-				{
-					rebuildLists();
-				}
-			}
-		});
+		if (response.isSuccessful())
+		{
+			message = "New player added: " + username;
+			groupMembers.add(username.toLowerCase());
+			rebuildLists();
+		}
+		else
+		{
+			WomStatus status = gson.fromJson(body, WomStatus.class);
+			message = "Error: " + status.getMessage();
+		}
+
+		Color color = response.isSuccessful() ? SUCCESS : ERROR;
+		sendResponseToChat(message, color);
+	}
+
+	private String readResponse(ResponseBody body)
+	{
+		try
+		{
+			return body.string();
+		}
+		catch (IOException e)
+		{
+			log.error("Could not read response {}", e.getMessage());
+			return null;
+		}
+	}
+
+	private void sendResponseToChat(String message, Color color)
+	{
+
+		ChatMessageBuilder cmb = new ChatMessageBuilder();
+		cmb.append(color, message);
+
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(cmb.build())
+			.build());
+	}
+
+	private void memberCallback(Response response)
+	{
+		if (!response.isSuccessful())
+		{
+			response.close();
+			return;
+		}
+
+		MemberInfo[] members = new MemberInfo[0];
+
+		try
+		{
+			members = gson.fromJson(response.body().string(), MemberInfo[].class);
+		}
+		catch(IOException e)
+		{
+			log.error("Error when reading response {}", e.getMessage());
+		}
+		finally
+		{
+			response.close();
+		}
+
+		groupMembers.clear();
+		for (MemberInfo m : members)
+		{
+			groupMembers.add(m.getUsername());
+		}
+
+		if (client.getGameState() == GameState.LOGGED_IN)
+		{
+			rebuildLists();
+		}
 	}
 
 	@Subscribe
@@ -767,27 +776,31 @@ public class WomUtilsPlugin extends Plugin
 	{
 		final String endpoint;
 		final Object payload;
+		final Callback callback;
+
 		String usernameLower = username.toLowerCase();
 
 		if (remove)
 		{
 			endpoint = "remove-members";
 			payload = new GroupMemberRemoval(config.verificationCode(), new String[] {usernameLower});
+			callback = new WomCallback(r -> removeCallback(r, username));
 		}
 		else
 		{
 			endpoint = "add-members";
 			payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(usernameLower)});
+			callback = new WomCallback(r -> addCallback(r, username));
 		}
 
 		Request request = createRequest(payload, "groups", "" + config.groupId(), endpoint);
-		sendPlayerRequest(request, username);
+		sendRequest(request, callback);
 	}
 
 	private void importGroupMembers()
 	{
 		Request request = createRequest("groups", "" + config.groupId(), "members");
-		sendMembersRequest(request);
+		sendRequest(request, this::memberCallback);
 	}
 
 	private void update(String username)
