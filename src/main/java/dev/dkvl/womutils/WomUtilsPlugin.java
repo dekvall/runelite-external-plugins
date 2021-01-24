@@ -434,35 +434,21 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		int groupId = WidgetInfo.TO_GROUP(event.getActionParam1());
-		String option = event.getOption();
-		String target = event.getTarget();
 
 		if (groupId != WidgetInfo.FRIENDS_CHAT.getGroupId()
 			&& groupId != WidgetInfo.FRIENDS_LIST.getGroupId()
-			|| !AFTER_OPTIONS.contains(option))
+			|| !AFTER_OPTIONS.contains(event.getOption()))
 		{
 			return;
 		}
 
 		MenuEntry[] entries = client.getMenuEntries();
 		entries = Arrays.copyOf(entries, entries.length + 1);
-		MenuEntry addMember = entries[entries.length - 1] = new MenuEntry();
-		String name = Text.toJagexName(Text.removeTags(target).toLowerCase());
+		MenuEntry modifyMember = entries[entries.length - 1] = ModifiedMenuEntry.of(event);
 
-		if (groupMembers.contains(name))
-		{
-			addMember.setOption(REMOVE_MEMBER);
-		}
-		else
-		{
-			addMember.setOption(ADD_MEMBER);
-		}
-		addMember.setTarget(target);
-		addMember.setType(MenuAction.RUNELITE.getId());
-		addMember.setParam0(event.getActionParam0());
-		addMember.setParam1(event.getActionParam1());
-		addMember.setIdentifier(event.getIdentifier());
-
+		String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
+		modifyMember.setOption(groupMembers.contains(name) ? REMOVE_MEMBER : ADD_MEMBER);
+		modifyMember.setType(MenuAction.RUNELITE.getId());
 		client.setMenuEntries(entries);
 	}
 
