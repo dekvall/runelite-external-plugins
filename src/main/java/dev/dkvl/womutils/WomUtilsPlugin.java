@@ -17,6 +17,7 @@ import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
 import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -70,6 +71,9 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.xpupdater.XpUpdaterConfig;
 import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 import okhttp3.Callback;
@@ -100,6 +104,7 @@ public class WomUtilsPlugin extends Plugin
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String BROWSE_GROUP = "Browse";
 	private static final String MENU_TARGET = "WOM Group";
+	private static final String LOOKUP = "WOM Lookup";
 
 	private static final Color SUCCESS = new Color(170, 255, 40);
 	private static final Color ERROR = new Color(204, 66, 66);
@@ -158,6 +163,12 @@ public class WomUtilsPlugin extends Plugin
 	@Inject
 	XpUpdaterConfig xpUpdaterConfig;
 
+	@Inject
+	WomPanel womPanel;
+
+	@Inject
+	ClientToolbar clientToolbar;
+
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private final HashSet<String> groupMembers = new HashSet<>();
@@ -165,6 +176,8 @@ public class WomUtilsPlugin extends Plugin
 	private String lastUsername;
 	private boolean fetchXp;
 	private long lastXp;
+
+	private NavigationButton navButton;
 
 	static
 	{
@@ -203,6 +216,18 @@ public class WomUtilsPlugin extends Plugin
 		{
 			chatCommandManager.registerCommandAsync(c.getCommand(), this::commandHandler);
 		}
+
+		final BufferedImage icon = ImageUtil.getResourceStreamFromClass(getClass(), "wom-icon.png");
+
+		navButton = NavigationButton.builder()
+			.tooltip("Wise Old Man")
+			.icon(icon)
+			.priority(5)
+			.panel(womPanel)
+			.build();
+
+		clientToolbar.addNavigation(navButton);
+		menuManager.addPlayerMenuItem(LOOKUP);
 	}
 
 	@Override
@@ -773,5 +798,7 @@ public class WomUtilsPlugin extends Plugin
 	public void configure(Binder binder)
 	{
 		binder.bind(WomIconHandler.class);
+		binder.bind(WomPanel.class);
+		binder.bind(NameAutocompleter.class);
 	}
 }

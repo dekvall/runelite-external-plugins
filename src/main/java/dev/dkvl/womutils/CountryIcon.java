@@ -290,7 +290,7 @@ enum CountryIcon
 
 	BufferedImage loadImage()
 	{
-		return ImageUtil.getResourceStreamFromClass(getClass(), codepoint + ".png");
+		return ImageUtil.getResourceStreamFromClass(getClass(), "flags/" + codepoint + ".png");
 	}
 
 	static CountryIcon getIcon(String countryCode)
