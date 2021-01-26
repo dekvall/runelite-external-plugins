@@ -533,7 +533,7 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (event.getScriptId() == ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD)
 		{
-			iconHandler.rebuildFriendsChatList(config.showicons(), groupMembers);
+			iconHandler.rebuildFriendsChatList(!config.showicons(), groupMembers);
 		}
 	}
 
