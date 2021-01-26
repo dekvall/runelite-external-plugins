@@ -116,21 +116,19 @@ class WomIconHandler
 		for (int i = 0; i < children.length; i+=3)
 		{
 			String name = children[i].getName();
-			String sanitized = Text.toJagexName(Text.removeTags(name));
+			String sanitized = Text.removeTags(name);
 
-			String newName;
-			if (disable || !groupMembers.contains(sanitized.toLowerCase()))
-			{
-				newName = sanitized;
-			}
-			else
+			if (!disable && groupMembers.contains(sanitized.toLowerCase()))
 			{
 				CountryIcon icon = CountryIcon.getIcon("default");
 				int iconIdx = modIconsStart + icon.ordinal();
-				newName = sanitized + " <img=" + iconIdx + ">";
+				String newName = sanitized + " <img=" + iconIdx + ">";
+				children[i].setText(newName);
 			}
-
-			children[i].setText(newName);
+			else
+			{
+				children[i].setText(sanitized);
+			}
 		}
 	}
 

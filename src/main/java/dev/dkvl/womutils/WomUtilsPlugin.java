@@ -41,8 +41,8 @@ import net.runelite.api.ScriptID;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NameableNameChanged;
-import net.runelite.api.events.PlayerMenuOptionClicked;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.WidgetMenuOptionClicked;
@@ -442,10 +442,18 @@ public class WomUtilsPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onPlayerMenuOptionClicked(PlayerMenuOptionClicked event)
+	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		String username = Text.toJagexName(event.getMenuTarget());
+		if (event.getMenuAction() != MenuAction.RUNELITE
+			&& event.getWidgetId() != WidgetInfo.FRIENDS_CHAT.getId()
+			&& event.getWidgetId() != WidgetInfo.FRIENDS_LIST.getId())
+		{
+			return;
+		}
+
+		String username = Text.toJagexName(Text.removeTags(event.getMenuTarget()));
 		String usernameLower = username.toLowerCase();
+
 		final String endpoint;
 		final Object payload;
 		final Callback callback;
