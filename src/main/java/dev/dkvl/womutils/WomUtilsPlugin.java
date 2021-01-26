@@ -541,8 +541,8 @@ public class WomUtilsPlugin extends Plugin
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
 		if (event.getMenuAction() != MenuAction.RUNELITE
-			&& event.getWidgetId() != WidgetInfo.FRIENDS_CHAT.getId()
-			&& event.getWidgetId() != WidgetInfo.FRIENDS_LIST.getId())
+			|| WidgetInfo.TO_GROUP(event.getWidgetId()) != WidgetInfo.FRIENDS_CHAT.getGroupId()
+			&& WidgetInfo.TO_GROUP(event.getWidgetId()) != WidgetInfo.FRIENDS_LIST.getGroupId())
 		{
 			return;
 		}
