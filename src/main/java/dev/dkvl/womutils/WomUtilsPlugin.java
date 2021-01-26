@@ -13,12 +13,15 @@ import dev.dkvl.womutils.beans.GroupMemberRemoval;
 import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
+import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.text.DecimalFormat;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,9 +38,11 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.MessageNode;
 import net.runelite.api.Nameable;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
@@ -49,6 +54,8 @@ import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatCommandManager;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -119,6 +126,8 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final int XP_THRESHOLD = 10000;
 
+	private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.##");
+
 	@Inject
 	private Client client;
 
@@ -142,6 +151,9 @@ public class WomUtilsPlugin extends Plugin
 
 	@Inject
 	private WomIconHandler iconHandler;
+
+	@Inject
+	private ChatCommandManager chatCommandManager;
 
 	@Inject
 	XpUpdaterConfig xpUpdaterConfig;
@@ -186,6 +198,11 @@ public class WomUtilsPlugin extends Plugin
 		{
 			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
+
+		for (WomCommand c : WomCommand.values())
+		{
+			chatCommandManager.registerCommandAsync(c.getCommand(), this::commandHandler);
+		}
 	}
 
 	@Override
@@ -198,7 +215,86 @@ public class WomUtilsPlugin extends Plugin
 			iconHandler.rebuildLists(groupMembers, false);
 		}
 
+		for (WomCommand c : WomCommand.values())
+		{
+			chatCommandManager.unregisterCommand(c.getCommand());
+		}
+
 		log.info("Wise Old Man stopped!");
+	}
+
+	private void commandHandler(ChatMessage chatMessage, String s)
+	{
+		// TODO: Handle individual ehp/ehbs.
+
+		WomCommand cmd = WomCommand.fromCommand(s);
+
+		if (cmd == null)
+		{
+			return;
+		}
+
+		commandLookup(cmd, chatMessage);
+	}
+
+	private void commandLookup(WomCommand command, ChatMessage chatMessage)
+	{
+		ChatMessageType type = chatMessage.getType();
+
+		String player;
+
+		if (type == ChatMessageType.PRIVATECHATOUT)
+		{
+			player = client.getLocalPlayer().getName();
+		}
+		else
+		{
+			player = Text.sanitize(chatMessage.getName());
+		}
+
+		Request request = createRequest("players", "username", player);
+		sendRequest(request, r -> commandCallback(r, command, chatMessage));
+	}
+
+	private void commandCallback(Response response, WomCommand command, ChatMessage chatMessage)
+	{
+		if (!response.isSuccessful())
+		{
+			return;
+		}
+
+		final String body = readResponse(response.body());
+
+		PlayerInfo info = gson.fromJson(body, PlayerInfo.class);
+		final double time;
+
+		// TODO: Write something proper that doesn't use reflection
+		try
+		{
+			Field field = info.getClass().getDeclaredField(command.getField());
+			field.setAccessible(true);
+			time = (double) field.get(info);
+		}
+		catch (Throwable e)
+		{
+			log.warn("{}", e.getMessage());
+			return;
+		}
+
+		String value = NUMBER_FORMAT.format(time);
+
+		String message = new ChatMessageBuilder()
+			.append(ChatColorType.NORMAL)
+			.append(command.getMessage())
+			.append(ChatColorType.HIGHLIGHT)
+			.append(value)
+			.append(".")
+			.build();
+
+		final MessageNode messageNode = chatMessage.getMessageNode();
+		messageNode.setRuneLiteFormatMessage(message);
+		chatMessageManager.update(messageNode);
+		client.refreshChat();
 	}
 
 	@Subscribe
