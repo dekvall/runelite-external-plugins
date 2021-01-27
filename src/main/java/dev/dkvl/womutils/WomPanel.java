@@ -34,6 +34,7 @@ import dev.dkvl.womutils.beans.Minigame;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Skill;
 import dev.dkvl.womutils.beans.Snapshot;
+import java.awt.Button;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -50,6 +51,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -117,6 +119,7 @@ public class WomPanel extends PluginPanel
 	private final WomClient womClient;
 
 	private final IconTextField searchBar;
+//	private final JButton updateBtn;
 
 	// Not an enummap because we need null keys for combat
 	private final Map<HiscoreSkill, JLabel> skillLabels = new HashMap<>();
@@ -126,7 +129,6 @@ public class WomPanel extends PluginPanel
 
 	/* Used to prevent users from switching endpoint tabs while the results are loading */
 	private boolean loading = false;
-	private boolean virtualLevels = false;
 
 	@Inject
 	public WomPanel(@Nullable Client client, NameAutocompleter nameAutocompleter, WomClient womClient)
@@ -188,6 +190,12 @@ public class WomPanel extends PluginPanel
 		});
 
 		add(searchBar, c);
+//		c.gridy++;
+//
+//		updateBtn = new JButton("Update");
+//		updateBtn.addActionListener(ev -> updateAndLookup());
+//		add(updateBtn);
+
 		c.gridy++;
 
 		// Panel that holds skill icons
@@ -301,6 +309,11 @@ public class WomPanel extends PluginPanel
 		skillPanel.add(label);
 
 		return skillPanel;
+	}
+
+	private void updateAndLookup()
+	{
+		String player = sanitize(searchBar.getText());
 	}
 
 	public void lookup(String username)

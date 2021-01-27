@@ -213,6 +213,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			chatCommandManager.unregisterCommand(c.getCommand());
 		}
+		clientToolbar.removeNavigation(navButton);
 		womPanel.shutdown();
 
 		log.info("Wise Old Man stopped!");
