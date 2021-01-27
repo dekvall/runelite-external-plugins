@@ -30,7 +30,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -78,10 +77,8 @@ import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
@@ -159,6 +156,9 @@ public class WomUtilsPlugin extends Plugin
 
 	@Inject
 	private ChatCommandManager chatCommandManager;
+
+	@Inject
+	private WomClient womClient;
 
 	@Inject
 	XpUpdaterConfig xpUpdaterConfig;
@@ -277,8 +277,8 @@ public class WomUtilsPlugin extends Plugin
 			player = Text.sanitize(chatMessage.getName());
 		}
 
-		Request request = createRequest("players", "username", player);
-		sendRequest(request, r -> commandCallback(r, command, chatMessage));
+		Request request = womClient.createRequest("players", "username", player);
+		womClient.sendRequest(request, r -> commandCallback(r, command, chatMessage));
 	}
 
 	private void commandCallback(Response response, WomCommand command, ChatMessage chatMessage)
@@ -369,7 +369,7 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		sendNameChanges(queue.toArray(new NameChangeEntry[0]));
+		womClient.sendNameChanges(queue.toArray(new NameChangeEntry[0]));
 		clientThread.invoke(queue::clear);
 
 		try
@@ -398,28 +398,6 @@ public class WomUtilsPlugin extends Plugin
 		String changes = gson.toJson(this.nameChanges);
 		File file = new File(WORKING_DIR, NAME_CHANGES);
 		Files.asCharSink(file, Charsets.UTF_8).write(changes);
-	}
-
-	private void sendNameChanges(NameChangeEntry[] changes)
-	{
-		Request request = createRequest(changes, "names", "bulk");
-		sendRequest(request);
-		log.info("Submitted {} name changes to WOM", changes.length);
-	}
-
-	private void sendRequest(Request request)
-	{
-		sendRequest(request, r -> {});
-	}
-
-	private void sendRequest(Request request, Consumer<Response> consumer)
-	{
-		sendRequest(request, new WomCallback(consumer));
-	}
-
-	private void sendRequest(Request request, Callback callback)
-	{
-		okHttpClient.newCall(request).enqueue(callback);
 	}
 
 	private void removeMemberCallback(Response response, String username)
@@ -594,8 +572,8 @@ public class WomUtilsPlugin extends Plugin
 			default:
 				return;
 		}
-		Request request = createRequest(payload, "groups", "" + config.groupId(), endpoint);
-		sendRequest(request, callback);
+		Request request = womClient.createRequest(payload, "groups", "" + config.groupId(), endpoint);
+		womClient.sendRequest(request, callback);
 	}
 
 	@Subscribe
@@ -734,48 +712,10 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private Request createRequest(Object payload, String... pathSegments)
-	{
-		HttpUrl url = buildUrl(pathSegments);
-		RequestBody body = RequestBody.create(
-			MediaType.parse("application/json; charset=utf-8"),
-			gson.toJson(payload)
-		);
-
-		return new Request.Builder()
-			.header("User-Agent", "RuneLite")
-			.url(url)
-			.post(body)
-			.build();
-	}
-
-	private Request createRequest(String... pathSegments)
-	{
-		HttpUrl url = buildUrl(pathSegments);
-		return new Request.Builder()
-			.header("User-Agent", "RuneLite")
-			.url(url)
-			.build();
-	}
-
-	private HttpUrl buildUrl(String[] pathSegments)
-	{
-		HttpUrl.Builder urlBuilder = new HttpUrl.Builder()
-			.scheme("https")
-			.host("api.wiseoldman.net");
-
-		for (String pathSegment : pathSegments)
-		{
-			urlBuilder.addPathSegment(pathSegment);
-		}
-
-		return urlBuilder.build();
-	}
-
 	private void importGroupMembers()
 	{
-		Request request = createRequest("groups", "" + config.groupId(), "members");
-		sendRequest(request, this::importMembersCallback);
+		Request request = womClient.createRequest("groups", "" + config.groupId(), "members");
+		womClient.sendRequest(request, this::importMembersCallback);
 	}
 
 	private void update(String username)
@@ -783,8 +723,8 @@ public class WomUtilsPlugin extends Plugin
 		if (!xpUpdaterConfig.wiseoldman())
 		{
 			// Send update requests even if the user has forgot to enable player updates in the core plugin
-			Request request = createRequest(new WomPlayer(username), "players", "track");
-			sendRequest(request);
+			Request request = womClient.createRequest(new WomPlayer(username), "players", "track");
+			womClient.sendRequest(request);
 		}
 	}
 
@@ -800,5 +740,6 @@ public class WomUtilsPlugin extends Plugin
 		binder.bind(WomIconHandler.class);
 		binder.bind(WomPanel.class);
 		binder.bind(NameAutocompleter.class);
+		binder.bind(WomClient.class);
 	}
 }

@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class Skill
+public class Skill implements WomResult
 {
 	int rank;
 	long experience;
