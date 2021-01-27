@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class MemberInfo implements WomResult
+public class MemberInfo
 {
     long exp;
     int id;

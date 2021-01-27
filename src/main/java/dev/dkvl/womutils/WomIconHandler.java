@@ -2,6 +2,7 @@ package dev.dkvl.womutils;
 
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Set;
 import javax.inject.Inject;
 import lombok.Getter;
@@ -99,7 +100,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildFriendsChatList(boolean disable, Set<String> groupMembers)
+	void rebuildFriendsChatList(boolean disable, Collection<String> groupMembers)
 	{
 		Widget containerWidget = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
 		if (containerWidget == null)
@@ -132,7 +133,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildLists(Set<String> members, boolean showIcons)
+	void rebuildLists(Collection<String> members, boolean showIcons)
 	{
 		clientThread.invokeLater(() ->
 		{

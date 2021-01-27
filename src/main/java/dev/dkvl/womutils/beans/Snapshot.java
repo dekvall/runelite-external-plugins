@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;;
 import lombok.Value;
 
 @Value
-public class Snapshot implements WomResult
+public class Snapshot
 {
 	String createdAt;
 	String importedAt;

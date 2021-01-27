@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class NameChangeEntry implements WomResult
+public class NameChangeEntry
 {
 	String oldName;
 	String newName;

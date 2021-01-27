@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class Boss implements WomResult
+public class Boss
 {
 	int rank;
 	int kills;

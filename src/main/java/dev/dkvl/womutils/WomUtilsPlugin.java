@@ -8,21 +8,11 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
-import dev.dkvl.womutils.beans.GroupMemberAddition;
-import dev.dkvl.womutils.beans.GroupMemberRemoval;
-import dev.dkvl.womutils.beans.Member;
-import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
-import dev.dkvl.womutils.beans.PlayerInfo;
-import dev.dkvl.womutils.beans.WomPlayer;
-import dev.dkvl.womutils.beans.WomStatus;
-import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.text.DecimalFormat;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,7 +28,6 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
-import net.runelite.api.MessageNode;
 import net.runelite.api.Nameable;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
@@ -54,11 +43,7 @@ import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
-import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatCommandManager;
-import net.runelite.client.chat.ChatMessageBuilder;
-import net.runelite.client.chat.ChatMessageManager;
-import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -75,12 +60,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
-import okhttp3.Callback;
 import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 @Slf4j
 @PluginDependency(XpUpdaterPlugin.class)
@@ -102,9 +82,6 @@ public class WomUtilsPlugin extends Plugin
 	private static final String BROWSE_GROUP = "Browse";
 	private static final String MENU_TARGET = "WOM Group";
 	private static final String LOOKUP = "WOM Lookup";
-
-	private static final Color SUCCESS = new Color(170, 255, 40);
-	private static final Color ERROR = new Color(204, 66, 66);
 
 	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete");
 
@@ -128,8 +105,6 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final int XP_THRESHOLD = 10000;
 
-	private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.##");
-
 	@Inject
 	private Client client;
 
@@ -137,13 +112,7 @@ public class WomUtilsPlugin extends Plugin
 	private WomUtilsConfig config;
 
 	@Inject
-	private OkHttpClient okHttpClient;
-
-	@Inject
 	private MenuManager menuManager;
-
-	@Inject
-	private ChatMessageManager chatMessageManager;
 
 	@Inject
 	private ClientThread clientThread;
@@ -200,7 +169,7 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		iconHandler.loadIcons();
-		importGroupMembers();
+		womClient.importGroupMembersTo(groupMembers);
 
 		if (config.menuOptions())
 		{
@@ -277,49 +246,7 @@ public class WomUtilsPlugin extends Plugin
 			player = Text.sanitize(chatMessage.getName());
 		}
 
-		Request request = womClient.createRequest("players", "username", player);
-		womClient.sendRequest(request, r -> commandCallback(r, command, chatMessage));
-	}
-
-	private void commandCallback(Response response, WomCommand command, ChatMessage chatMessage)
-	{
-		if (!response.isSuccessful())
-		{
-			return;
-		}
-
-		final String body = readResponse(response.body());
-
-		PlayerInfo info = gson.fromJson(body, PlayerInfo.class);
-		final double time;
-
-		// TODO: Write something proper that doesn't use reflection
-		try
-		{
-			Field field = info.getClass().getDeclaredField(command.getField());
-			field.setAccessible(true);
-			time = (double) field.get(info);
-		}
-		catch (Throwable e)
-		{
-			log.warn("{}", e.getMessage());
-			return;
-		}
-
-		String value = NUMBER_FORMAT.format(time);
-
-		String message = new ChatMessageBuilder()
-			.append(ChatColorType.NORMAL)
-			.append(command.getMessage())
-			.append(ChatColorType.HIGHLIGHT)
-			.append(value)
-			.append(".")
-			.build();
-
-		final MessageNode messageNode = chatMessage.getMessageNode();
-		messageNode.setRuneLiteFormatMessage(message);
-		chatMessageManager.update(messageNode);
-		client.refreshChat();
+		womClient.commandLookup(player, command, chatMessage);
 	}
 
 	@Subscribe
@@ -369,7 +296,7 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		womClient.sendNameChanges(queue.toArray(new NameChangeEntry[0]));
+		womClient.submitNameChanges(queue.toArray(new NameChangeEntry[0]));
 		clientThread.invoke(queue::clear);
 
 		try
@@ -398,117 +325,6 @@ public class WomUtilsPlugin extends Plugin
 		String changes = gson.toJson(this.nameChanges);
 		File file = new File(WORKING_DIR, NAME_CHANGES);
 		Files.asCharSink(file, Charsets.UTF_8).write(changes);
-	}
-
-	private void removeMemberCallback(Response response, String username)
-	{
-		final String message;
-		final String body = readResponse(response.body());
-
-		if (body == null)
-		{
-			return;
-		}
-
-		if (response.isSuccessful())
-		{
-			groupMembers.remove(username.toLowerCase());
-			message = "Player removed: " + username;
-			iconHandler.rebuildLists(groupMembers, config.showicons());
-		}
-		else
-		{
-			WomStatus status = gson.fromJson(body, WomStatus.class);
-			message = "Error: " + status.getMessage();
-		}
-
-		Color color = response.isSuccessful() ? SUCCESS : ERROR;
-		sendResponseToChat(message, color);
-	}
-
-	private void addMemberCallback(Response response, String username)
-	{
-		final String message;
-		final String body = readResponse(response.body());
-
-		if (body == null)
-		{
-			return;
-		}
-
-		if (response.isSuccessful())
-		{
-			message = "New player added: " + username;
-			groupMembers.add(username.toLowerCase());
-			iconHandler.rebuildLists(groupMembers, config.showicons());
-		}
-		else
-		{
-			WomStatus status = gson.fromJson(body, WomStatus.class);
-			message = "Error: " + status.getMessage();
-		}
-
-		Color color = response.isSuccessful() ? SUCCESS : ERROR;
-		sendResponseToChat(message, color);
-	}
-
-	private String readResponse(ResponseBody body)
-	{
-		try
-		{
-			return body.string();
-		}
-		catch (IOException e)
-		{
-			log.error("Could not read response {}", e.getMessage());
-			return null;
-		}
-	}
-
-	private void sendResponseToChat(String message, Color color)
-	{
-		ChatMessageBuilder cmb = new ChatMessageBuilder();
-		cmb.append(color, message);
-
-		chatMessageManager.queue(QueuedMessage.builder()
-			.type(ChatMessageType.CONSOLE)
-			.runeLiteFormattedMessage(cmb.build())
-			.build());
-	}
-
-	private void importMembersCallback(Response response)
-	{
-		if (!response.isSuccessful())
-		{
-			response.close();
-			return;
-		}
-
-		MemberInfo[] members = new MemberInfo[0];
-
-		try
-		{
-			members = gson.fromJson(response.body().string(), MemberInfo[].class);
-		}
-		catch(IOException e)
-		{
-			log.error("Error when reading response {}", e.getMessage());
-		}
-		finally
-		{
-			response.close();
-		}
-
-		groupMembers.clear();
-		for (MemberInfo m : members)
-		{
-			groupMembers.add(m.getUsername());
-		}
-
-		if (client.getGameState() == GameState.LOGGED_IN)
-		{
-			iconHandler.rebuildLists(groupMembers, config.showicons());
-		}
 	}
 
 	@Subscribe
@@ -551,29 +367,16 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		String username = Text.toJagexName(Text.removeTags(event.getMenuTarget()));
-		String usernameLower = username.toLowerCase();
-
-		final String endpoint;
-		final Object payload;
-		final Callback callback;
 
 		switch (event.getMenuOption())
 		{
 			case ADD_MEMBER:
-				endpoint = "add-members";
-				payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(usernameLower)});
-				callback = new WomCallback(r -> addMemberCallback(r, username));
+				womClient.addGroupMember(username, groupMembers);
 				break;
 			case REMOVE_MEMBER:
-				endpoint = "remove-members";
-				payload = new GroupMemberRemoval(config.verificationCode(), new String[] {usernameLower});
-				callback = new WomCallback(r -> removeMemberCallback(r, username));
+				womClient.removeGroupMember(username, groupMembers);
 				break;
-			default:
-				return;
 		}
-		Request request = womClient.createRequest(payload, "groups", "" + config.groupId(), endpoint);
-		womClient.sendRequest(request, callback);
 	}
 
 	@Subscribe
@@ -591,7 +394,7 @@ public class WomUtilsPlugin extends Plugin
 		switch (event.getMenuOption())
 		{
 			case IMPORT_MEMBERS:
-				importGroupMembers();
+				womClient.importGroupMembersTo(groupMembers);
 				break;
 			case BROWSE_GROUP:
 				openGroupInBrowser();
@@ -712,19 +515,12 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void importGroupMembers()
-	{
-		Request request = womClient.createRequest("groups", "" + config.groupId(), "members");
-		womClient.sendRequest(request, this::importMembersCallback);
-	}
-
 	private void update(String username)
 	{
 		if (!xpUpdaterConfig.wiseoldman())
 		{
 			// Send update requests even if the user has forgot to enable player updates in the core plugin
-			Request request = womClient.createRequest(new WomPlayer(username), "players", "track");
-			womClient.sendRequest(request);
+			womClient.updatePlayer(username);
 		}
 	}
 

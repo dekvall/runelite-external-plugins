@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class WomStatus implements WomResult
+public class WomStatus
 {
     String message;
 }
