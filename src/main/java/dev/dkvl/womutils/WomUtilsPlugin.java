@@ -213,6 +213,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			chatCommandManager.unregisterCommand(c.getCommand());
 		}
+		womPanel.shutdown();
 
 		log.info("Wise Old Man stopped!");
 	}
@@ -522,6 +523,18 @@ public class WomUtilsPlugin extends Plugin
 			// Send update requests even if the user has forgot to enable player updates in the core plugin
 			womClient.updatePlayer(username);
 		}
+	}
+
+	private void lookupPlayer(String playerName)
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			if (!navButton.isSelected())
+			{
+				navButton.getOnSelect().run();
+			}
+			womPanel.lookup(playerName);
+		});
 	}
 
 	@Provides

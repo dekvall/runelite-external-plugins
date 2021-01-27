@@ -8,6 +8,7 @@ import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.PlayerInfo;
+import dev.dkvl.womutils.beans.Snapshot;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
 import java.awt.Color;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,8 @@ import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
+import net.runelite.http.api.hiscore.HiscoreResult;
+import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -284,4 +288,11 @@ class WomClient
 		sendRequest(request);
 	}
 
+	CompletableFuture<PlayerInfo> lookupAsync(String username)
+	{
+		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
+		Request request = createRequest("players", "username", username);
+		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class)));
+		return future;
+	}
 }

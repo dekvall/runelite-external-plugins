@@ -29,6 +29,11 @@ package dev.dkvl.womutils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import dev.dkvl.womutils.beans.Boss;
+import dev.dkvl.womutils.beans.Minigame;
+import dev.dkvl.womutils.beans.PlayerInfo;
+import dev.dkvl.womutils.beans.Skill;
+import dev.dkvl.womutils.beans.Snapshot;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -58,19 +63,12 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.IconTextField;
-import net.runelite.client.ui.components.materialtabs.MaterialTab;
-import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
-import net.runelite.http.api.hiscore.HiscoreClient;
 import net.runelite.http.api.hiscore.HiscoreEndpoint;
-import net.runelite.http.api.hiscore.HiscoreResult;
 import net.runelite.http.api.hiscore.HiscoreSkill;
 import static net.runelite.http.api.hiscore.HiscoreSkill.*;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
-import net.runelite.http.api.hiscore.Skill;
-import okhttp3.OkHttpClient;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
@@ -114,21 +112,14 @@ public class WomPanel extends PluginPanel
 		ZALCANO, ZULRAH
 	);
 
-	private static final HiscoreEndpoint[] ENDPOINTS = {
-		HiscoreEndpoint.NORMAL, HiscoreEndpoint.IRONMAN, HiscoreEndpoint.HARDCORE_IRONMAN, HiscoreEndpoint.ULTIMATE_IRONMAN, HiscoreEndpoint.DEADMAN, HiscoreEndpoint.LEAGUE
-	};
-
 	private final Client client;
 	private final NameAutocompleter nameAutocompleter;
-	private final HiscoreClient hiscoreClient;
+	private final WomClient womClient;
 
 	private final IconTextField searchBar;
 
 	// Not an enummap because we need null keys for combat
 	private final Map<HiscoreSkill, JLabel> skillLabels = new HashMap<>();
-
-	/* Container of all the selectable endpoints (ironman, deadman, etc) */
-	private final MaterialTabGroup tabGroup;
 
 	/* The currently selected endpoint */
 	private HiscoreEndpoint selectedEndPoint;
@@ -138,11 +129,11 @@ public class WomPanel extends PluginPanel
 	private boolean virtualLevels = false;
 
 	@Inject
-	public WomPanel(@Nullable Client client, NameAutocompleter nameAutocompleter, OkHttpClient okHttpClient)
+	public WomPanel(@Nullable Client client, NameAutocompleter nameAutocompleter, WomClient womClient)
 	{
 		this.client = client;
 		this.nameAutocompleter = nameAutocompleter;
-		this.hiscoreClient = new HiscoreClient(okHttpClient);
+		this.womClient = womClient;
 
 		// The layout seems to be ignoring the top margin and only gives it
 		// a 2-3 pixel margin, so I set the value to 18 to compensate
@@ -197,52 +188,6 @@ public class WomPanel extends PluginPanel
 		});
 
 		add(searchBar, c);
-		c.gridy++;
-
-		tabGroup = new MaterialTabGroup();
-		tabGroup.setLayout(new GridLayout(1, 5, 7, 7));
-
-		for (HiscoreEndpoint endpoint : ENDPOINTS)
-		{
-			final BufferedImage iconImage = ImageUtil.getResourceStreamFromClass(getClass(), endpoint.name().toLowerCase() + ".png");
-
-			MaterialTab tab = new MaterialTab(new ImageIcon(iconImage), tabGroup, null);
-			tab.setToolTipText(endpoint.getName() + " Hiscores");
-			tab.setOnSelectEvent(() ->
-			{
-				if (loading)
-				{
-					return false;
-				}
-
-				selectedEndPoint = endpoint;
-				return true;
-			});
-
-			// Adding the lookup method to a mouseListener instead of the above onSelectedEvent
-			// Because sometimes you might want to switch the tab, without calling for lookup
-			// Ex: selecting the normal hiscores as default
-			tab.addMouseListener(new MouseAdapter()
-			{
-				@Override
-				public void mousePressed(MouseEvent mouseEvent)
-				{
-					if (loading)
-					{
-						return;
-					}
-
-					lookup();
-				}
-			});
-
-			tabGroup.addTab(tab);
-		}
-
-		// Default selected tab is normal hiscores
-		resetEndpoints();
-
-		add(tabGroup, c);
 		c.gridy++;
 
 		// Panel that holds skill icons
@@ -361,7 +306,6 @@ public class WomPanel extends PluginPanel
 	public void lookup(String username)
 	{
 		searchBar.setText(username);
-		resetEndpoints();
 		lookup();
 	}
 
@@ -402,7 +346,7 @@ public class WomPanel extends PluginPanel
 			selectedEndPoint = HiscoreEndpoint.NORMAL;
 		}
 
-		hiscoreClient.lookupAsync(lookup, selectedEndPoint).whenCompleteAsync((result, ex) ->
+		womClient.lookupAsync(lookup).whenCompleteAsync((result, ex) ->
 			SwingUtilities.invokeLater(() ->
 			{
 				if (!sanitize(searchBar.getText()).equals(lookup))
@@ -415,7 +359,7 @@ public class WomPanel extends PluginPanel
 				{
 					if (ex != null)
 					{
-						log.warn("Error fetching Hiscore data " + ex.getMessage());
+						log.warn("Error fetching Wise Old Man data " + ex.getMessage());
 					}
 
 					searchBar.setIcon(IconTextField.Icon.ERROR);
@@ -429,61 +373,45 @@ public class WomPanel extends PluginPanel
 				searchBar.setEditable(true);
 				loading = false;
 
-				applyHiscoreResult(result);
+				applyResult(result);
 			}));
 	}
 
-	private void applyHiscoreResult(HiscoreResult result)
+	private void applyResult(PlayerInfo result)
 	{
 		assert SwingUtilities.isEventDispatchThread();
 
-		nameAutocompleter.addToSearchHistory(result.getPlayer().toLowerCase());
+		nameAutocompleter.addToSearchHistory(result.getUsername());
 
 		for (Map.Entry<HiscoreSkill, JLabel> entry : skillLabels.entrySet())
 		{
 			HiscoreSkill skill = entry.getKey();
 			JLabel label = entry.getValue();
-			Skill s;
 
 			if (skill == null)
 			{
-				if (result.getPlayer() != null)
-				{
-					int combatLevel = Experience.getCombatLevel(
-						result.getAttack().getLevel(),
-						result.getStrength().getLevel(),
-						result.getDefence().getLevel(),
-						result.getHitpoints().getLevel(),
-						result.getMagic().getLevel(),
-						result.getRanged().getLevel(),
-						result.getPrayer().getLevel()
-					);
-					label.setText(Integer.toString(combatLevel));
-				}
+				label.setText(Integer.toString(result.getCombatLevel()));
 			}
-			else if ((s = result.getSkill(skill)) != null)
+			else if (skill.getType() == HiscoreSkillType.SKILL)
 			{
-				final long exp = s.getExperience();
-				final boolean isSkill = skill.getType() == HiscoreSkillType.SKILL;
-				int level = -1;
-				if (virtualLevels && isSkill && exp > -1L)
-				{
-					level = Experience.getLevelForXp((int) exp);
-				}
-				else if (!isSkill || exp != -1L)
-				{
-					// for skills, level is only valid if exp is not -1
-					// otherwise level is always valid
-					level = s.getLevel();
-				}
-
-				if (level != -1)
-				{
-					label.setText(pad(formatLevel(level), skill.getType()));
-				}
+				dev.dkvl.womutils.beans.Skill s = result.getLatestSnapshot().getSkill(skill);
+				label.setText(pad(formatHours(s.getEhp()), skill.getType()));
+			}
+			else if (skill.getType() == HiscoreSkillType.ACTIVITY)
+			{
+				Minigame m = result.getLatestSnapshot().getMinigame(skill);
+				label.setText(pad(formatHours(m.getScore()), skill.getType()));
+			}
+			else if (skill.getType() == HiscoreSkillType.BOSS)
+			{
+				Boss b = result.getLatestSnapshot().getBoss(skill);
+				label.setText(pad(formatHours(b.getEhb()), skill.getType()));
 			}
 
-			label.setToolTipText(detailsHtml(result, skill));
+			if (skill != null)
+			{
+				label.setToolTipText(detailsHtml(result.getLatestSnapshot(), skill));
+			}
 		}
 	}
 
@@ -500,227 +428,169 @@ public class WomPanel extends PluginPanel
 	/*
 		Builds a html string to display on tooltip (when hovering a skill).
 	 */
-	private String detailsHtml(HiscoreResult result, HiscoreSkill skill)
+	private String detailsHtml(Snapshot snapshot, HiscoreSkill skill)
 	{
 		String openingTags = "<html><body style = 'padding: 5px;color:#989898'>";
 		String closingTags = "</html><body>";
 
 		String content = "";
 
-		if (skill == null)
+		switch (skill)
 		{
-			double combatLevel = Experience.getCombatLevelPrecise(
-				result.getAttack().getLevel(),
-				result.getStrength().getLevel(),
-				result.getDefence().getLevel(),
-				result.getHitpoints().getLevel(),
-				result.getMagic().getLevel(),
-				result.getRanged().getLevel(),
-				result.getPrayer().getLevel()
-			);
-
-			double combatExperience = result.getAttack().getExperience()
-				+ result.getStrength().getExperience() + result.getDefence().getExperience()
-				+ result.getHitpoints().getExperience() + result.getMagic().getExperience()
-				+ result.getRanged().getExperience() + result.getPrayer().getExperience();
-
-			content += "<p><span style = 'color:white'>Combat</span></p>";
-			content += "<p><span style = 'color:white'>Exact Combat Level:</span> " + QuantityFormatter.formatNumber(combatLevel) + "</p>";
-			content += "<p><span style = 'color:white'>Experience:</span> " + QuantityFormatter.formatNumber(combatExperience) + "</p>";
-		}
-		else
-		{
-			switch (skill)
+			case CLUE_SCROLL_ALL:
 			{
-				case CLUE_SCROLL_ALL:
+				String allRank = (snapshot.getClue_scrolls_all().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_all().getRank());
+				String beginnerRank = (snapshot.getClue_scrolls_beginner().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_beginner().getRank());
+				String easyRank = (snapshot.getClue_scrolls_easy().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_easy().getRank());
+				String mediumRank = (snapshot.getClue_scrolls_medium().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_medium().getRank());
+				String hardRank = (snapshot.getClue_scrolls_hard().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_hard().getRank());
+				String eliteRank = (snapshot.getClue_scrolls_elite().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_elite().getRank());
+				String masterRank = (snapshot.getClue_scrolls_master().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_master().getRank());
+				String all = (snapshot.getClue_scrolls_all().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_all().getScore()));
+				String beginner = (snapshot.getClue_scrolls_beginner().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_beginner().getScore()));
+				String easy = (snapshot.getClue_scrolls_easy().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_easy().getScore()));
+				String medium = (snapshot.getClue_scrolls_medium().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_medium().getScore()));
+				String hard = (snapshot.getClue_scrolls_hard().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_hard().getScore()));
+				String elite = (snapshot.getClue_scrolls_elite().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_elite().getScore()));
+				String master = (snapshot.getClue_scrolls_master().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_master().getScore()));
+				content += "<p><span style = 'color:white'>Clues</span></p>";
+				content += "<p><span style = 'color:white'>All:</span> " + all + " <span style = 'color:white'>Rank:</span> " + allRank + "</p>";
+				content += "<p><span style = 'color:white'>Beginner:</span> " + beginner + " <span style = 'color:white'>Rank:</span> " + beginnerRank + "</p>";
+				content += "<p><span style = 'color:white'>Easy:</span> " + easy + " <span style = 'color:white'>Rank:</span> " + easyRank + "</p>";
+				content += "<p><span style = 'color:white'>Medium:</span> " + medium + " <span style = 'color:white'>Rank:</span> " + mediumRank + "</p>";
+				content += "<p><span style = 'color:white'>Hard:</span> " + hard + " <span style = 'color:white'>Rank:</span> " + hardRank + "</p>";
+				content += "<p><span style = 'color:white'>Elite:</span> " + elite + " <span style = 'color:white'>Rank:</span> " + eliteRank + "</p>";
+				content += "<p><span style = 'color:white'>Master:</span> " + master + " <span style = 'color:white'>Rank:</span> " + masterRank + "</p>";
+				break;
+			}
+			case BOUNTY_HUNTER_ROGUE:
+			{
+				Minigame bountyHunterRogue = snapshot.getBounty_hunter_rogue();
+				String rank = (bountyHunterRogue.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(bountyHunterRogue.getRank());
+				content += "<p><span style = 'color:white'>Bounty Hunter - Rogue</span></p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				if (bountyHunterRogue.getScore() > -1)
 				{
-					String allRank = (result.getClueScrollAll().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollAll().getRank());
-					String beginnerRank = (result.getClueScrollBeginner().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollBeginner().getRank());
-					String easyRank = (result.getClueScrollEasy().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollEasy().getRank());
-					String mediumRank = (result.getClueScrollMedium().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollMedium().getRank());
-					String hardRank = (result.getClueScrollHard().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollHard().getRank());
-					String eliteRank = (result.getClueScrollElite().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollElite().getRank());
-					String masterRank = (result.getClueScrollMaster().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(result.getClueScrollMaster().getRank());
-					String all = (result.getClueScrollAll().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollAll().getLevel()));
-					String beginner = (result.getClueScrollBeginner().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollBeginner().getLevel()));
-					String easy = (result.getClueScrollEasy().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollEasy().getLevel()));
-					String medium = (result.getClueScrollMedium().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollMedium().getLevel()));
-					String hard = (result.getClueScrollHard().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollHard().getLevel()));
-					String elite = (result.getClueScrollElite().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollElite().getLevel()));
-					String master = (result.getClueScrollMaster().getLevel() == -1 ? "0" : QuantityFormatter.formatNumber(result.getClueScrollMaster().getLevel()));
-					content += "<p><span style = 'color:white'>Clues</span></p>";
-					content += "<p><span style = 'color:white'>All:</span> " + all + " <span style = 'color:white'>Rank:</span> " + allRank + "</p>";
-					content += "<p><span style = 'color:white'>Beginner:</span> " + beginner + " <span style = 'color:white'>Rank:</span> " + beginnerRank + "</p>";
-					content += "<p><span style = 'color:white'>Easy:</span> " + easy + " <span style = 'color:white'>Rank:</span> " + easyRank + "</p>";
-					content += "<p><span style = 'color:white'>Medium:</span> " + medium + " <span style = 'color:white'>Rank:</span> " + mediumRank + "</p>";
-					content += "<p><span style = 'color:white'>Hard:</span> " + hard + " <span style = 'color:white'>Rank:</span> " + hardRank + "</p>";
-					content += "<p><span style = 'color:white'>Elite:</span> " + elite + " <span style = 'color:white'>Rank:</span> " + eliteRank + "</p>";
-					content += "<p><span style = 'color:white'>Master:</span> " + master + " <span style = 'color:white'>Rank:</span> " + masterRank + "</p>";
-					break;
+					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(bountyHunterRogue.getScore()) + "</p>";
 				}
-				case BOUNTY_HUNTER_ROGUE:
+				break;
+			}
+			case BOUNTY_HUNTER_HUNTER:
+			{
+				Minigame bountyHunterHunter = snapshot.getBounty_hunter_hunter();
+				String rank = (bountyHunterHunter.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(bountyHunterHunter.getRank());
+				content += "<p><span style = 'color:white'>Bounty Hunter - Hunter</span></p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				if (bountyHunterHunter.getScore() > -1)
 				{
-					Skill bountyHunterRogue = result.getBountyHunterRogue();
-					String rank = (bountyHunterRogue.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(bountyHunterRogue.getRank());
-					content += "<p><span style = 'color:white'>Bounty Hunter - Rogue</span></p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					if (bountyHunterRogue.getLevel() > -1)
+					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(bountyHunterHunter.getScore()) + "</p>";
+				}
+				break;
+			}
+			case LAST_MAN_STANDING:
+			{
+				Minigame lastManStanding = snapshot.getLast_man_standing();
+				String rank = (lastManStanding.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(lastManStanding.getRank());
+				content += "<p><span style = 'color:white'>Last Man Standing</span></p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				if (lastManStanding.getScore() > -1)
+				{
+					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(lastManStanding.getScore()) + "</p>";
+				}
+				break;
+			}
+			case SOUL_WARS_ZEAL:
+			{
+				Minigame soulWarsZeal = snapshot.getSoul_wars_zeal();
+				String rank = (soulWarsZeal.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(soulWarsZeal.getRank());
+				content += "<p><span style = 'color:white'>Soul Wars Zeal</span></p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				if (soulWarsZeal.getScore() > -1)
+				{
+					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(soulWarsZeal.getScore()) + "</p>";
+				}
+				break;
+			}
+			case LEAGUE_POINTS:
+			{
+				Minigame leaguePoints = snapshot.getLeague_points();
+				String rank = (leaguePoints.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(leaguePoints.getRank());
+				content += "<p><span style = 'color:white'>League Points</span></p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				if (leaguePoints.getScore() > -1)
+				{
+					content += "<p><span style = 'color:white'>Points:</span> " + QuantityFormatter.formatNumber(leaguePoints.getScore()) + "</p>";
+				}
+				break;
+			}
+			case OVERALL:
+			{
+				dev.dkvl.womutils.beans.Skill requestedSkill = snapshot.getSkill(skill);
+				String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
+				String exp = (requestedSkill.getExperience() == -1L) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getExperience());
+				content += "<p><span style = 'color:white'>" + skill.getName() + "</span></p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
+				break;
+			}
+			default:
+			{
+				if (skill.getType() == HiscoreSkillType.BOSS)
+				{
+					String rank = "Unranked";
+					String lvl = null;
+					Boss requestedSkill = snapshot.getBoss(skill);
+					if (requestedSkill != null)
 					{
-						content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(bountyHunterRogue.getLevel()) + "</p>";
-					}
-					break;
-				}
-				case BOUNTY_HUNTER_HUNTER:
-				{
-					Skill bountyHunterHunter = result.getBountyHunterHunter();
-					String rank = (bountyHunterHunter.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(bountyHunterHunter.getRank());
-					content += "<p><span style = 'color:white'>Bounty Hunter - Hunter</span></p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					if (bountyHunterHunter.getLevel() > -1)
-					{
-						content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(bountyHunterHunter.getLevel()) + "</p>";
-					}
-					break;
-				}
-				case LAST_MAN_STANDING:
-				{
-					Skill lastManStanding = result.getLastManStanding();
-					String rank = (lastManStanding.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(lastManStanding.getRank());
-					content += "<p><span style = 'color:white'>Last Man Standing</span></p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					if (lastManStanding.getLevel() > -1)
-					{
-						content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(lastManStanding.getLevel()) + "</p>";
-					}
-					break;
-				}
-				case SOUL_WARS_ZEAL:
-				{
-					Skill soulWarsZeal = result.getSoulWarsZeal();
-					String rank = (soulWarsZeal.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(soulWarsZeal.getRank());
-					content += "<p><span style = 'color:white'>Soul Wars Zeal</span></p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					if (soulWarsZeal.getLevel() > -1)
-					{
-						content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(soulWarsZeal.getLevel()) + "</p>";
-					}
-					break;
-				}
-				case LEAGUE_POINTS:
-				{
-					Skill leaguePoints = result.getLeaguePoints();
-					String rank = (leaguePoints.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(leaguePoints.getRank());
-					content += "<p><span style = 'color:white'>League Points</span></p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					if (leaguePoints.getLevel() > -1)
-					{
-						content += "<p><span style = 'color:white'>Points:</span> " + QuantityFormatter.formatNumber(leaguePoints.getLevel()) + "</p>";
-					}
-					break;
-				}
-				case OVERALL:
-				{
-					Skill requestedSkill = result.getSkill(skill);
-					String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
-					String exp = (requestedSkill.getExperience() == -1L) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getExperience());
-					content += "<p><span style = 'color:white'>" + skill.getName() + "</span></p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
-					break;
-				}
-				default:
-				{
-					if (skill.getType() == HiscoreSkillType.BOSS)
-					{
-						String rank = "Unranked";
-						String lvl = null;
-						Skill requestedSkill = result.getSkill(skill);
-						if (requestedSkill != null)
+						if (requestedSkill.getRank() > -1)
 						{
-							if (requestedSkill.getRank() > -1)
-							{
-								rank = QuantityFormatter.formatNumber(requestedSkill.getRank());
-							}
-							if (requestedSkill.getLevel() > -1)
-							{
-								lvl = QuantityFormatter.formatNumber(requestedSkill.getLevel());
-							}
+							rank = QuantityFormatter.formatNumber(requestedSkill.getRank());
 						}
+						if (requestedSkill.getKills() > -1)
+						{
+							lvl = QuantityFormatter.formatNumber(requestedSkill.getKills());
+						}
+					}
 
-						content += "<p><span style = 'color:white'>Boss:</span> " + skill.getName() + "</p>";
-						content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-						if (lvl != null)
-						{
-							content += "<p><span style = 'color:white'>KC:</span> " + lvl + "</p>";
-						}
+					content += "<p><span style = 'color:white'>Boss:</span> " + skill.getName() + "</p>";
+					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+					if (lvl != null)
+					{
+						content += "<p><span style = 'color:white'>KC:</span> " + lvl + "</p>";
+					}
+				}
+				else
+				{
+					Skill requestedSkill = snapshot.getSkill(skill);
+					final long experience = requestedSkill.getExperience();
+
+					String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
+					String exp = (experience == -1L) ? "Unranked" : QuantityFormatter.formatNumber(experience);
+					String remainingXp;
+					if (experience == -1L)
+					{
+						remainingXp = "Unranked";
 					}
 					else
 					{
-						Skill requestedSkill = result.getSkill(skill);
-						final long experience = requestedSkill.getExperience();
-
-						String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
-						String exp = (experience == -1L) ? "Unranked" : QuantityFormatter.formatNumber(experience);
-						String remainingXp;
-						if (experience == -1L)
-						{
-							remainingXp = "Unranked";
-						}
-						else
-						{
-							int currentLevel = Experience.getLevelForXp((int) experience);
-							remainingXp = (currentLevel + 1 <= Experience.MAX_VIRT_LEVEL) ? QuantityFormatter.formatNumber(Experience.getXpForLevel(currentLevel + 1) - experience) : "0";
-						}
-
-						content += "<p><span style = 'color:white'>Skill:</span> " + skill.getName() + "</p>";
-						content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-						content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
-						content += "<p><span style = 'color:white'>Remaining XP:</span> " + remainingXp + "</p>";
+						int currentLevel = Experience.getLevelForXp((int) experience);
+						remainingXp = (currentLevel + 1 <= Experience.MAX_VIRT_LEVEL) ? QuantityFormatter.formatNumber(Experience.getXpForLevel(currentLevel + 1) - experience) : "0";
 					}
-					break;
+
+					content += "<p><span style = 'color:white'>Skill:</span> " + skill.getName() + "</p>";
+					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+					content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
+					content += "<p><span style = 'color:white'>Remaining XP:</span> " + remainingXp + "</p>";
 				}
+				break;
 			}
 		}
-
-		// Add a html progress bar to the hover information
-		if (skill != null && skill.getType() == HiscoreSkillType.SKILL)
-		{
-			long experience = result.getSkill(skill).getExperience();
-			if (experience >= 0)
-			{
-				int currentXp = (int) experience;
-				int currentLevel = Experience.getLevelForXp(currentXp);
-				int xpForCurrentLevel = Experience.getXpForLevel(currentLevel);
-				int xpForNextLevel = currentLevel + 1 <= Experience.MAX_VIRT_LEVEL ? Experience.getXpForLevel(currentLevel + 1) : -1;
-
-				double xpGained = currentXp - xpForCurrentLevel;
-				double xpGoal = xpForNextLevel != -1 ? xpForNextLevel - xpForCurrentLevel : 100;
-				int progress = (int) ((xpGained / xpGoal) * 100f);
-
-				// had to wrap the bar with an empty div, if i added the margin directly to the bar, it would mess up
-				content += "<div style = 'margin-top:3px'>"
-					+ "<div style = 'background: #070707; border: 1px solid #070707; height: 6px; width: 100%;'>"
-					+ "<div style = 'height: 6px; width: " + progress + "%; background: #dc8a00;'>"
-					+ "</div>"
-					+ "</div>"
-					+ "</div>";
-			}
-		}
-
 		return openingTags + content + closingTags;
 	}
 
 	private static String sanitize(String lookup)
 	{
 		return lookup.replace('\u00A0', ' ');
-	}
-
-	private void resetEndpoints()
-	{
-		// Select the correct tab based on the world type.
-		HiscoreEndpoint endpoint = selectWorldEndpoint();
-		int idx = ArrayUtils.indexOf(ENDPOINTS, endpoint);
-		tabGroup.select(tabGroup.getTab(idx));
 	}
 
 	private HiscoreEndpoint selectWorldEndpoint()
@@ -746,15 +616,16 @@ public class WomPanel extends PluginPanel
 	}
 
 	@VisibleForTesting
-	static String formatLevel(int level)
+	static String formatHours(double hours)
 	{
-		if (level < 10000)
+		int h = (int) hours;
+		if (h < 10000)
 		{
-			return Integer.toString(level);
+			return Integer.toString(h);
 		}
 		else
 		{
-			return (level / 1000) + "k";
+			return (h / 1000) + "k";
 		}
 	}
 
