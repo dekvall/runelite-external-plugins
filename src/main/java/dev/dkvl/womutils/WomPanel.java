@@ -30,11 +30,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import dev.dkvl.womutils.beans.Boss;
-import dev.dkvl.womutils.beans.Minigame;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Skill;
 import dev.dkvl.womutils.beans.Snapshot;
-import java.awt.Button;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -43,7 +42,6 @@ import java.awt.Insets;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +49,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.ImageIcon;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -131,7 +128,7 @@ public class WomPanel extends PluginPanel
 	private boolean loading = false;
 
 	@Inject
-	public WomPanel(@Nullable Client client, NameAutocompleter nameAutocompleter, WomClient womClient)
+	public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient)
 	{
 		this.client = client;
 		this.nameAutocompleter = nameAutocompleter;
@@ -198,6 +195,9 @@ public class WomPanel extends PluginPanel
 
 		c.gridy++;
 
+		// TODO: Add a tab/hover that displays the current rate for the selected player
+		// TODO: Could just do one request on startup, and then it could show in the hover maybe instead
+
 		// Panel that holds skill icons
 		JPanel statsPanel = new JPanel();
 		statsPanel.setLayout(new GridLayout(8, 3));
@@ -222,22 +222,6 @@ public class WomPanel extends PluginPanel
 		totalPanel.add(makeHiscorePanel(OVERALL));
 
 		add(totalPanel, c);
-		c.gridy++;
-
-		JPanel minigamePanel = new JPanel();
-		// These aren't all on one row because when there's a label with four or more digits it causes the details
-		// panel to change its size for some reason...
-		minigamePanel.setLayout(new GridLayout(2, 3));
-		minigamePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-		minigamePanel.add(makeHiscorePanel(CLUE_SCROLL_ALL));
-		minigamePanel.add(makeHiscorePanel(LEAGUE_POINTS));
-		minigamePanel.add(makeHiscorePanel(LAST_MAN_STANDING));
-		minigamePanel.add(makeHiscorePanel(SOUL_WARS_ZEAL));
-		minigamePanel.add(makeHiscorePanel(BOUNTY_HUNTER_ROGUE));
-		minigamePanel.add(makeHiscorePanel(BOUNTY_HUNTER_HUNTER));
-
-		add(minigamePanel, c);
 		c.gridy++;
 
 		JPanel bossPanel = new JPanel();
@@ -278,6 +262,7 @@ public class WomPanel extends PluginPanel
 		label.setToolTipText(skill == null ? "Combat" : skill.getName());
 		label.setFont(FontManager.getRunescapeSmallFont());
 		label.setText(pad("--", skillType));
+		label.setForeground(Color.WHITE);
 
 		String directory;
 		if (skill == null || skill == OVERALL)
@@ -297,7 +282,7 @@ public class WomPanel extends PluginPanel
 		String skillIcon = directory + skillName + ".png";
 		log.debug("Loading skill icon from {}", skillIcon);
 
-		label.setIcon(new ImageIcon(ImageUtil.getResourceStreamFromClass(getClass(), skillIcon)));
+		label.setIcon(new ImageIcon(ImageUtil.loadImageResource(getClass(), skillIcon)));
 
 		boolean totalLabel = skill == OVERALL || skill == null; //overall or combat
 		label.setIconTextGap(totalLabel ? 10 : 4);
@@ -385,6 +370,7 @@ public class WomPanel extends PluginPanel
 				searchBar.setIcon(IconTextField.Icon.SEARCH);
 				searchBar.setEditable(true);
 				loading = false;
+				log.info("{}", searchBar.getFont());
 
 				applyResult(result);
 			}));
@@ -405,15 +391,10 @@ public class WomPanel extends PluginPanel
 			{
 				label.setText(Integer.toString(result.getCombatLevel()));
 			}
-			else if (skill.getType() == HiscoreSkillType.SKILL)
+			else if (skill.getType() == HiscoreSkillType.SKILL || skill.getType() == HiscoreSkillType.OVERALL)
 			{
 				dev.dkvl.womutils.beans.Skill s = result.getLatestSnapshot().getSkill(skill);
 				label.setText(pad(formatHours(s.getEhp()), skill.getType()));
-			}
-			else if (skill.getType() == HiscoreSkillType.ACTIVITY)
-			{
-				Minigame m = result.getLatestSnapshot().getMinigame(skill);
-				label.setText(pad(formatHours(m.getScore()), skill.getType()));
 			}
 			else if (skill.getType() == HiscoreSkillType.BOSS)
 			{
@@ -448,154 +429,63 @@ public class WomPanel extends PluginPanel
 
 		String content = "";
 
-		switch (skill)
+		if (skill == OVERALL)
 		{
-			case CLUE_SCROLL_ALL:
-			{
-				String allRank = (snapshot.getClue_scrolls_all().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_all().getRank());
-				String beginnerRank = (snapshot.getClue_scrolls_beginner().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_beginner().getRank());
-				String easyRank = (snapshot.getClue_scrolls_easy().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_easy().getRank());
-				String mediumRank = (snapshot.getClue_scrolls_medium().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_medium().getRank());
-				String hardRank = (snapshot.getClue_scrolls_hard().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_hard().getRank());
-				String eliteRank = (snapshot.getClue_scrolls_elite().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_elite().getRank());
-				String masterRank = (snapshot.getClue_scrolls_master().getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_master().getRank());
-				String all = (snapshot.getClue_scrolls_all().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_all().getScore()));
-				String beginner = (snapshot.getClue_scrolls_beginner().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_beginner().getScore()));
-				String easy = (snapshot.getClue_scrolls_easy().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_easy().getScore()));
-				String medium = (snapshot.getClue_scrolls_medium().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_medium().getScore()));
-				String hard = (snapshot.getClue_scrolls_hard().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_hard().getScore()));
-				String elite = (snapshot.getClue_scrolls_elite().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_elite().getScore()));
-				String master = (snapshot.getClue_scrolls_master().getScore() == -1 ? "0" : QuantityFormatter.formatNumber(snapshot.getClue_scrolls_master().getScore()));
-				content += "<p><span style = 'color:white'>Clues</span></p>";
-				content += "<p><span style = 'color:white'>All:</span> " + all + " <span style = 'color:white'>Rank:</span> " + allRank + "</p>";
-				content += "<p><span style = 'color:white'>Beginner:</span> " + beginner + " <span style = 'color:white'>Rank:</span> " + beginnerRank + "</p>";
-				content += "<p><span style = 'color:white'>Easy:</span> " + easy + " <span style = 'color:white'>Rank:</span> " + easyRank + "</p>";
-				content += "<p><span style = 'color:white'>Medium:</span> " + medium + " <span style = 'color:white'>Rank:</span> " + mediumRank + "</p>";
-				content += "<p><span style = 'color:white'>Hard:</span> " + hard + " <span style = 'color:white'>Rank:</span> " + hardRank + "</p>";
-				content += "<p><span style = 'color:white'>Elite:</span> " + elite + " <span style = 'color:white'>Rank:</span> " + eliteRank + "</p>";
-				content += "<p><span style = 'color:white'>Master:</span> " + master + " <span style = 'color:white'>Rank:</span> " + masterRank + "</p>";
-				break;
-			}
-			case BOUNTY_HUNTER_ROGUE:
-			{
-				Minigame bountyHunterRogue = snapshot.getBounty_hunter_rogue();
-				String rank = (bountyHunterRogue.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(bountyHunterRogue.getRank());
-				content += "<p><span style = 'color:white'>Bounty Hunter - Rogue</span></p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				if (bountyHunterRogue.getScore() > -1)
-				{
-					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(bountyHunterRogue.getScore()) + "</p>";
-				}
-				break;
-			}
-			case BOUNTY_HUNTER_HUNTER:
-			{
-				Minigame bountyHunterHunter = snapshot.getBounty_hunter_hunter();
-				String rank = (bountyHunterHunter.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(bountyHunterHunter.getRank());
-				content += "<p><span style = 'color:white'>Bounty Hunter - Hunter</span></p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				if (bountyHunterHunter.getScore() > -1)
-				{
-					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(bountyHunterHunter.getScore()) + "</p>";
-				}
-				break;
-			}
-			case LAST_MAN_STANDING:
-			{
-				Minigame lastManStanding = snapshot.getLast_man_standing();
-				String rank = (lastManStanding.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(lastManStanding.getRank());
-				content += "<p><span style = 'color:white'>Last Man Standing</span></p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				if (lastManStanding.getScore() > -1)
-				{
-					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(lastManStanding.getScore()) + "</p>";
-				}
-				break;
-			}
-			case SOUL_WARS_ZEAL:
-			{
-				Minigame soulWarsZeal = snapshot.getSoul_wars_zeal();
-				String rank = (soulWarsZeal.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(soulWarsZeal.getRank());
-				content += "<p><span style = 'color:white'>Soul Wars Zeal</span></p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				if (soulWarsZeal.getScore() > -1)
-				{
-					content += "<p><span style = 'color:white'>Score:</span> " + QuantityFormatter.formatNumber(soulWarsZeal.getScore()) + "</p>";
-				}
-				break;
-			}
-			case LEAGUE_POINTS:
-			{
-				Minigame leaguePoints = snapshot.getLeague_points();
-				String rank = (leaguePoints.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(leaguePoints.getRank());
-				content += "<p><span style = 'color:white'>League Points</span></p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				if (leaguePoints.getScore() > -1)
-				{
-					content += "<p><span style = 'color:white'>Points:</span> " + QuantityFormatter.formatNumber(leaguePoints.getScore()) + "</p>";
-				}
-				break;
-			}
-			case OVERALL:
-			{
 				dev.dkvl.womutils.beans.Skill requestedSkill = snapshot.getSkill(skill);
 				String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
 				String exp = (requestedSkill.getExperience() == -1L) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getExperience());
 				content += "<p><span style = 'color:white'>" + skill.getName() + "</span></p>";
 				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
 				content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
-				break;
-			}
-			default:
+		}
+		else
+		{
+			if (skill.getType() == HiscoreSkillType.BOSS)
 			{
-				if (skill.getType() == HiscoreSkillType.BOSS)
+				String rank = "Unranked";
+				String lvl = null;
+				Boss requestedSkill = snapshot.getBoss(skill);
+				if (requestedSkill != null)
 				{
-					String rank = "Unranked";
-					String lvl = null;
-					Boss requestedSkill = snapshot.getBoss(skill);
-					if (requestedSkill != null)
+					if (requestedSkill.getRank() > -1)
 					{
-						if (requestedSkill.getRank() > -1)
-						{
-							rank = QuantityFormatter.formatNumber(requestedSkill.getRank());
-						}
-						if (requestedSkill.getKills() > -1)
-						{
-							lvl = QuantityFormatter.formatNumber(requestedSkill.getKills());
-						}
+						rank = QuantityFormatter.formatNumber(requestedSkill.getRank());
 					}
+					if (requestedSkill.getKills() > -1)
+					{
+						lvl = QuantityFormatter.formatNumber(requestedSkill.getKills());
+					}
+				}
 
-					content += "<p><span style = 'color:white'>Boss:</span> " + skill.getName() + "</p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					if (lvl != null)
-					{
-						content += "<p><span style = 'color:white'>KC:</span> " + lvl + "</p>";
-					}
+				content += "<p><span style = 'color:white'>Boss:</span> " + skill.getName() + "</p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				if (lvl != null)
+				{
+					content += "<p><span style = 'color:white'>KC:</span> " + lvl + "</p>";
+				}
+			}
+			else
+			{
+				Skill requestedSkill = snapshot.getSkill(skill);
+				final long experience = requestedSkill.getExperience();
+
+				String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
+				String exp = (experience == -1L) ? "Unranked" : QuantityFormatter.formatNumber(experience);
+				String remainingXp;
+				if (experience == -1L)
+				{
+					remainingXp = "Unranked";
 				}
 				else
 				{
-					Skill requestedSkill = snapshot.getSkill(skill);
-					final long experience = requestedSkill.getExperience();
-
-					String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
-					String exp = (experience == -1L) ? "Unranked" : QuantityFormatter.formatNumber(experience);
-					String remainingXp;
-					if (experience == -1L)
-					{
-						remainingXp = "Unranked";
-					}
-					else
-					{
-						int currentLevel = Experience.getLevelForXp((int) experience);
-						remainingXp = (currentLevel + 1 <= Experience.MAX_VIRT_LEVEL) ? QuantityFormatter.formatNumber(Experience.getXpForLevel(currentLevel + 1) - experience) : "0";
-					}
-
-					content += "<p><span style = 'color:white'>Skill:</span> " + skill.getName() + "</p>";
-					content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-					content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
-					content += "<p><span style = 'color:white'>Remaining XP:</span> " + remainingXp + "</p>";
+					int currentLevel = Experience.getLevelForXp((int) experience);
+					remainingXp = (currentLevel + 1 <= Experience.MAX_VIRT_LEVEL) ? QuantityFormatter.formatNumber(Experience.getXpForLevel(currentLevel + 1) - experience) : "0";
 				}
-				break;
+
+				content += "<p><span style = 'color:white'>Skill:</span> " + skill.getName() + "</p>";
+				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
+				content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
+				content += "<p><span style = 'color:white'>Remaining XP:</span> " + remainingXp + "</p>";
 			}
 		}
 		return openingTags + content + closingTags;
@@ -632,13 +522,17 @@ public class WomPanel extends PluginPanel
 	static String formatHours(double hours)
 	{
 		int h = (int) hours;
-		if (h < 10000)
+		if (h < 1)
 		{
-			return Integer.toString(h);
+			return "--";
+		}
+		else if (h < 10000)
+		{
+			return h + "h";
 		}
 		else
 		{
-			return (h / 1000) + "k";
+			return (h / 1000) + "kh";
 		}
 	}
 

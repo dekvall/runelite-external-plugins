@@ -83,7 +83,9 @@ public class WomUtilsPlugin extends Plugin
 	private static final String MENU_TARGET = "WOM Group";
 	private static final String LOOKUP = "WOM Lookup";
 
-	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete");
+	private static final String KICK_OPTION = "Kick";
+
+	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete", KICK_OPTION);
 
 	private static final ImmutableList<WidgetMenuOption> WIDGET_MENU_OPTIONS =
 		new ImmutableList.Builder<WidgetMenuOption>()
@@ -186,7 +188,7 @@ public class WomUtilsPlugin extends Plugin
 			chatCommandManager.registerCommandAsync(c.getCommand(), this::commandHandler);
 		}
 
-		final BufferedImage icon = ImageUtil.getResourceStreamFromClass(getClass(), "wom-icon.png");
+		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "wom-icon.png");
 
 		navButton = NavigationButton.builder()
 			.tooltip("Wise Old Man")
@@ -196,7 +198,6 @@ public class WomUtilsPlugin extends Plugin
 			.build();
 
 		clientToolbar.addNavigation(navButton);
-		menuManager.addPlayerMenuItem(LOOKUP);
 	}
 
 	@Override
@@ -332,38 +333,60 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
-		if (!config.menuOptions()
-			|| config.groupId() < 1
-			|| Strings.isNullOrEmpty(config.verificationCode()))
+		if (!config.menuOptions() || !AFTER_OPTIONS.contains(event.getOption()))
 		{
 			return;
 		}
-
 		int groupId = WidgetInfo.TO_GROUP(event.getActionParam1());
+		String option = event.getOption();
 
-		if (groupId != WidgetInfo.FRIENDS_CHAT.getGroupId()
-			&& groupId != WidgetInfo.FRIENDS_LIST.getGroupId()
-			|| !AFTER_OPTIONS.contains(event.getOption()))
+		boolean addModifyMember = config.groupId() > 0
+			&& !Strings.isNullOrEmpty(config.verificationCode())
+			&& (groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
+				|| groupId == WidgetInfo.FRIENDS_LIST.getGroupId());
+
+		boolean addLookup = groupId == WidgetInfo.FRIENDS_LIST.getGroupId()
+			|| groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
+			// prevent from adding for Kick option (interferes with the raiding party one)
+			|| groupId == WidgetInfo.CHATBOX.getGroupId() && !KICK_OPTION.equals(option)
+			|| groupId == WidgetInfo.RAIDING_PARTY.getGroupId()
+			|| groupId == WidgetInfo.PRIVATE_CHAT_MESSAGE.getGroupId()
+			|| groupId == WidgetInfo.IGNORE_LIST.getGroupId();
+
+		int offset = (addModifyMember ? 1:0) + (addLookup ? 1:0);
+
+		if (offset == 0)
 		{
 			return;
 		}
 
 		MenuEntry[] entries = client.getMenuEntries();
-		entries = Arrays.copyOf(entries, entries.length + 1);
-		MenuEntry modifyMember = entries[entries.length - 1] = ModifiedMenuEntry.of(event);
+		entries = Arrays.copyOf(entries, entries.length + offset);
 
-		String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
-		modifyMember.setOption(groupMembers.contains(name) ? REMOVE_MEMBER : ADD_MEMBER);
-		modifyMember.setType(MenuAction.RUNELITE.getId());
+		if (addModifyMember)
+		{
+			MenuEntry modifyMember = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
+			String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
+			modifyMember.setOption(groupMembers.contains(name) ? REMOVE_MEMBER : ADD_MEMBER);
+			modifyMember.setType(MenuAction.RUNELITE.getId());
+			offset--;
+		}
+
+		if (addLookup)
+		{
+			MenuEntry womLookup = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
+			womLookup.setOption(LOOKUP);
+			womLookup.setType(MenuAction.RUNELITE.getId());
+			womLookup.setIdentifier(event.getIdentifier() + offset);
+		}
+
 		client.setMenuEntries(entries);
 	}
 
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		if (event.getMenuAction() != MenuAction.RUNELITE
-			|| WidgetInfo.TO_GROUP(event.getWidgetId()) != WidgetInfo.FRIENDS_CHAT.getGroupId()
-			&& WidgetInfo.TO_GROUP(event.getWidgetId()) != WidgetInfo.FRIENDS_LIST.getGroupId())
+		if (event.getMenuAction() != MenuAction.RUNELITE && event.getMenuAction() != MenuAction.RUNELITE_PLAYER)
 		{
 			return;
 		}
@@ -378,6 +401,26 @@ public class WomUtilsPlugin extends Plugin
 			case REMOVE_MEMBER:
 				womClient.removeGroupMember(username, groupMembers);
 				break;
+			case LOOKUP:
+			{
+				final String target;
+				if (event.getMenuAction() == MenuAction.RUNELITE_PLAYER)
+				{
+					log.info("player lookup");
+					Player player = client.getCachedPlayers()[event.getId()];
+					if (player == null)
+					{
+						return;
+					}
+					target = player.getName();
+				}
+				else
+				{
+					log.info("widget lookup");
+					target = Text.removeTags(event.getMenuTarget());
+				}
+				lookupPlayer(target);
+			}
 		}
 	}
 
@@ -507,6 +550,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			menuManager.addManagedCustomMenu(option);
 		}
+		menuManager.addPlayerMenuItem(LOOKUP);
 	}
 
 	private void removeCustomOptions()
@@ -515,6 +559,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			menuManager.removeManagedCustomMenu(option);
 		}
+		menuManager.removePlayerMenuItem(LOOKUP);
 	}
 
 	private void update(String username)
@@ -528,6 +573,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private void lookupPlayer(String playerName)
 	{
+		log.info("Looking up {}", playerName);
 		SwingUtilities.invokeLater(() ->
 		{
 			if (!navButton.isSelected())
