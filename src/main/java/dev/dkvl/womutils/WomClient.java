@@ -83,6 +83,11 @@ class WomClient
 		sendRequest(request, new WomCallback(consumer));
 	}
 
+	void sendRequest(Request request, Consumer<Response> consumer, Consumer<Exception> exceptionConsumer)
+	{
+		sendRequest(request, new WomCallback(consumer, exceptionConsumer));
+	}
+
 	void sendRequest(Request request, Callback callback)
 	{
 		okHttpClient.newCall(request).enqueue(callback);
@@ -197,6 +202,16 @@ class WomClient
 
 	private <T> T parseResponse(Response r, Class<T> clazz)
 	{
+		return parseResponse(r, clazz, false);
+	}
+
+	private <T> T parseResponse(Response r, Class<T> clazz, boolean nullIferror)
+	{
+		if (nullIferror && !r.isSuccessful())
+		{
+			return null;
+		}
+
 		String body;
 		try
 		{
@@ -292,7 +307,7 @@ class WomClient
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
 		Request request = createRequest("players", "username", username);
-		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class)));
+		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}
 }

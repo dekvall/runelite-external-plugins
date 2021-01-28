@@ -33,7 +33,6 @@ import dev.dkvl.womutils.beans.Boss;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Skill;
 import dev.dkvl.womutils.beans.Snapshot;
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -46,7 +45,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -116,7 +114,6 @@ public class WomPanel extends PluginPanel
 	private final WomClient womClient;
 
 	private final IconTextField searchBar;
-//	private final JButton updateBtn;
 
 	// Not an enummap because we need null keys for combat
 	private final Map<HiscoreSkill, JLabel> skillLabels = new HashMap<>();
@@ -187,11 +184,8 @@ public class WomPanel extends PluginPanel
 		});
 
 		add(searchBar, c);
-//		c.gridy++;
-//
-//		updateBtn = new JButton("Update");
-//		updateBtn.addActionListener(ev -> updateAndLookup());
-//		add(updateBtn);
+
+		// TODO: add an update button if the player isn't tracked
 
 		c.gridy++;
 
@@ -362,6 +356,19 @@ public class WomPanel extends PluginPanel
 					searchBar.setIcon(IconTextField.Icon.ERROR);
 					searchBar.setEditable(true);
 					loading = false;
+
+					// Track option
+					return;
+				}
+
+				if (result.getLatestSnapshot() == null)
+				{
+					log.warn("Player on WOM without snapshot {}.", lookup);
+					searchBar.setIcon(IconTextField.Icon.ERROR);
+					searchBar.setEditable(true);
+					loading = false;
+
+					// Update option
 					return;
 				}
 
