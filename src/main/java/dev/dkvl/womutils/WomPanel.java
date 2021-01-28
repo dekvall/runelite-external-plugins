@@ -262,7 +262,6 @@ public class WomPanel extends PluginPanel
 		label.setToolTipText(skill == null ? "Combat" : skill.getName());
 		label.setFont(FontManager.getRunescapeSmallFont());
 		label.setText(pad("--", skillType));
-		label.setForeground(Color.WHITE);
 
 		String directory;
 		if (skill == null || skill == OVERALL)
@@ -370,7 +369,6 @@ public class WomPanel extends PluginPanel
 				searchBar.setIcon(IconTextField.Icon.SEARCH);
 				searchBar.setEditable(true);
 				loading = false;
-				log.info("{}", searchBar.getFont());
 
 				applyResult(result);
 			}));

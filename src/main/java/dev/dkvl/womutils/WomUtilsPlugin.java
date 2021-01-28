@@ -134,7 +134,6 @@ public class WomUtilsPlugin extends Plugin
 	@Inject
 	XpUpdaterConfig xpUpdaterConfig;
 
-	@Inject
 	WomPanel womPanel;
 
 	@Inject
@@ -160,6 +159,9 @@ public class WomUtilsPlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		log.info("Wise Old Man started!");
+
+		// This will work, idk why really, but ok
+		womPanel = injector.getInstance(WomPanel.class);
 		try
 		{
 			loadFile();
@@ -406,7 +408,6 @@ public class WomUtilsPlugin extends Plugin
 				final String target;
 				if (event.getMenuAction() == MenuAction.RUNELITE_PLAYER)
 				{
-					log.info("player lookup");
 					Player player = client.getCachedPlayers()[event.getId()];
 					if (player == null)
 					{
@@ -416,7 +417,6 @@ public class WomUtilsPlugin extends Plugin
 				}
 				else
 				{
-					log.info("widget lookup");
 					target = Text.removeTags(event.getMenuTarget());
 				}
 				lookupPlayer(target);
@@ -573,7 +573,6 @@ public class WomUtilsPlugin extends Plugin
 
 	private void lookupPlayer(String playerName)
 	{
-		log.info("Looking up {}", playerName);
 		SwingUtilities.invokeLater(() ->
 		{
 			if (!navButton.isSelected())
@@ -594,7 +593,6 @@ public class WomUtilsPlugin extends Plugin
 	public void configure(Binder binder)
 	{
 		binder.bind(WomIconHandler.class);
-		binder.bind(WomPanel.class);
 		binder.bind(NameAutocompleter.class);
 		binder.bind(WomClient.class);
 	}
