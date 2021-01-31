@@ -85,7 +85,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final String KICK_OPTION = "Kick";
 
-	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete", KICK_OPTION);
+	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Message", "Add ignore", "Remove friend", "Delete", KICK_OPTION);
 
 	private static final ImmutableList<WidgetMenuOption> WIDGET_MENU_OPTIONS =
 		new ImmutableList.Builder<WidgetMenuOption>()
