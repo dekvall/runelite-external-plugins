@@ -30,10 +30,22 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName= "showFlags",
+		name = "Show Flags",
+		description = "Show flags instead of the group icon where possible for your group members, requires icons to be enabled.",
+		position = 1,
+		section = groupConfig
+	)
+	default boolean showFlags()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "menuOptions",
 		name = "Menu options",
 		description = "Show member and import options in menus",
-		position = 1,
+		position = 2,
 		section = groupConfig
 	)
 	default boolean menuOptions()
@@ -45,7 +57,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "groupId",
 		name = "Group Id",
 		description = "The group id in WOM",
-		position = 2,
+		position = 3,
 		section = groupConfig
 	)
 	default int groupId()
@@ -58,7 +70,7 @@ public interface WomUtilsConfig extends Config
 		name = "Verification code",
 		description = "Verification code for the WOM group",
 		secret = true,
-		position = 3,
+		position = 4,
 		section = groupConfig
 	)
 	default String verificationCode()

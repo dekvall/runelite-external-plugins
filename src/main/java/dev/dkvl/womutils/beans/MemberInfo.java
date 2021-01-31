@@ -11,6 +11,7 @@ public class MemberInfo
     String displayName;
     String type;
     String build;
+    String country;
     boolean flagged;
     double ehp;
     double ehb;

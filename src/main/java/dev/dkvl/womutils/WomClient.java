@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import javax.inject.Inject;
@@ -131,13 +132,13 @@ class WomClient
 		return urlBuilder.build();
 	}
 
-	void importGroupMembersTo(Collection<String> group)
+	void importGroupMembersTo(Map<String, MemberInfo> group)
 	{
 		Request request = createRequest("groups", "" + config.groupId(), "members");
 		sendRequest(request, r -> importMembersCallback(r, group));
 	}
 
-	private void importMembersCallback(Response response, Collection<String> groupMembers)
+	private void importMembersCallback(Response response, Map<String, MemberInfo> groupMembers)
 	{
 		if (!response.isSuccessful())
 		{
@@ -149,7 +150,7 @@ class WomClient
 		groupMembers.clear();
 		for (MemberInfo m : members)
 		{
-			groupMembers.add(m.getUsername());
+			groupMembers.put(m.getUsername(), m);
 		}
 
 		if (client.getGameState() == GameState.LOGGED_IN)
@@ -158,7 +159,7 @@ class WomClient
 		}
 	}
 
-	private void removeMemberCallback(Response response, String username, Collection<String> groupMembers)
+	private void removeMemberCallback(Response response, String username, Map<String, MemberInfo> groupMembers)
 	{
 		final String message;
 		final WomStatus data = parseResponse(response, WomStatus.class);
@@ -179,15 +180,30 @@ class WomClient
 		sendResponseToChat(message, color);
 	}
 
-	private void addMemberCallback(Response response, String username,  Collection<String> groupMembers)
+	private void addMemberCallback(Response response, String username,  Map<String, MemberInfo> groupMembers)
 	{
 		final String message;
 
 		if (response.isSuccessful())
 		{
 			AddedMembersInfo data = parseResponse(response, AddedMembersInfo.class);
+			MemberInfo memberInfo = null;
+			for (MemberInfo m : data.getMembers())
+			{
+				if (username.toLowerCase().equals(m.getUsername()))
+				{
+					memberInfo = m;
+					break;
+				}
+			}
+
+			if (memberInfo == null)
+			{
+				log.warn("Info for {} could not be added because there is none in the group", username);
+			}
+
 			message = "New player added: " + username;
-			groupMembers.add(username.toLowerCase());
+			groupMembers.put(username.toLowerCase(), memberInfo);
 			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 		else
@@ -237,14 +253,14 @@ class WomClient
 			.build());
 	}
 
-	void addGroupMember(String username, Collection<String> group)
+	void addGroupMember(String username, Map<String, MemberInfo> group)
 	{
 		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(username.toLowerCase())});
 		Request request = createRequest(payload, "groups", "" + config.groupId(), "add-members");
 		sendRequest(request, r -> addMemberCallback(r, username, group));
 	}
 
-	void removeGroupMember(String username, Collection<String> group)
+	void removeGroupMember(String username, Map<String, MemberInfo> group)
 	{
 		GroupMemberRemoval payload = new GroupMemberRemoval(config.verificationCode(), new String[] {username.toLowerCase()});
 		Request request = createRequest(payload, "groups", "" + config.groupId(), "remove-members");

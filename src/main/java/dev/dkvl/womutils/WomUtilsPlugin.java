@@ -8,6 +8,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
+import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -16,7 +17,6 @@ import java.lang.reflect.Type;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -141,7 +141,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
-	private final HashSet<String> groupMembers = new HashSet<>();
+	private final Map<String, MemberInfo> groupMembers = new HashMap<>();
 
 	private String lastUsername;
 	private boolean fetchXp;
@@ -369,7 +369,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			MenuEntry modifyMember = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
 			String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
-			modifyMember.setOption(groupMembers.contains(name) ? REMOVE_MEMBER : ADD_MEMBER);
+			modifyMember.setOption(groupMembers.containsKey(name) ? REMOVE_MEMBER : ADD_MEMBER);
 			modifyMember.setType(MenuAction.RUNELITE.getId());
 			offset--;
 		}

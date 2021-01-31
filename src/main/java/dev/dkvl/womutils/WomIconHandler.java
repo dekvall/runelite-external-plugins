@@ -1,11 +1,11 @@
 package dev.dkvl.womutils;
 
+import dev.dkvl.womutils.beans.MemberInfo;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Set;
+import java.util.Map;
 import javax.inject.Inject;
-import lombok.Getter;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.IndexedSprite;
@@ -18,20 +18,23 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
 @Slf4j
+@Singleton
 class WomIconHandler
 {
 	private final Client client;
 	private final ClientThread clientThread;
+	private final WomUtilsConfig config;
 
 	private int modIconsStart = -1;
 
 	private String currentLayouting;
 
 	@Inject
-	WomIconHandler(Client client, ClientThread clientThread)
+	WomIconHandler(Client client, ClientThread clientThread, WomUtilsConfig config)
 	{
 		this.client = client;
 		this.clientThread = clientThread;
+		this.config = config;
 	}
 
 	private boolean loadCountryIcons()
@@ -68,7 +71,7 @@ class WomIconHandler
 		clientThread.invokeLater(this::loadCountryIcons);
 	}
 
-	void handleScriptEvent(ScriptCallbackEvent event, Set<String> groupMembers)
+	void handleScriptEvent(ScriptCallbackEvent event, Map<String, MemberInfo> groupMembers)
 	{
 		switch (event.getEventName())
 		{
@@ -78,15 +81,17 @@ class WomIconHandler
 				final String rsn = stringStack[stringStackSize - 1];
 				final String sanitized = Text.toJagexName(Text.removeTags(rsn).toLowerCase());
 				currentLayouting = sanitized;
-				if (groupMembers.contains(sanitized))
+				MemberInfo m = groupMembers.get(sanitized);
+				if (m != null)
 				{
-					CountryIcon icon = CountryIcon.getIcon("default");
+					String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
+					CountryIcon icon = CountryIcon.getIcon(country);
 					int iconIdx = modIconsStart + icon.ordinal();
 					stringStack[stringStackSize - 1] = rsn + " <img=" + iconIdx + ">";
 				}
 				break;
 			case "friend_cc_setposition":
-				if (currentLayouting == null || !groupMembers.contains(currentLayouting))
+				if (currentLayouting == null || !groupMembers.containsKey(currentLayouting))
 				{
 					return;
 				}
@@ -100,7 +105,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildFriendsChatList(boolean disable, Collection<String> groupMembers)
+	void rebuildFriendsChatList(boolean disable, Map<String, MemberInfo> groupMembers)
 	{
 		Widget containerWidget = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
 		if (containerWidget == null)
@@ -118,10 +123,12 @@ class WomIconHandler
 		{
 			String name = children[i].getName();
 			String sanitized = Text.removeTags(name);
+			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
 
-			if (!disable && groupMembers.contains(sanitized.toLowerCase()))
+			if (!disable && m != null)
 			{
-				CountryIcon icon = CountryIcon.getIcon("default");
+				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
+				CountryIcon icon = CountryIcon.getIcon(country);
 				int iconIdx = modIconsStart + icon.ordinal();
 				String newName = sanitized + " <img=" + iconIdx + ">";
 				children[i].setText(newName);
@@ -133,7 +140,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildLists(Collection<String> members, boolean showIcons)
+	void rebuildLists(Map<String, MemberInfo> members, boolean showIcons)
 	{
 		clientThread.invokeLater(() ->
 		{
