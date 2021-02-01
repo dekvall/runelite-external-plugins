@@ -21,12 +21,26 @@ Right click menu options, on the Clan Chat tab, to import group members and go t
 Adds an icon next to the names of people, in the clan chat, friends list and ignore list, who are in the configured group.
 
 ![Group member indicator](img/group_member_indicator.png)
+![Group member indicator with flags](img/show_flags.png)
+
+#### WOM Lookup
+Adds a WOM lookup option that lets you look up a player's stats. This only works for people who are tracked on Wise Old Man.
+
+![WOM Lookup](img/wom_lookup.png)
 
 ### Configuration
+##### Group
 - Show icons: Adds the group icon next to players names who are in the group.
-- Menu options: Adds the Add, Remove, Browse and Import options to the right click menus of players and clan chat tab.
+- Show flags: Changes the default blue crown to a country flag.
+- Import Group option: Adds the Import Group option to the clan chat tab.
+- Browse Group option: Adds the Browse Group option to the clan chat tab.
+- Add/Remove Member option: Adds Add and Remove member options to the player menu in clan chat and friends list.
 - Group id: This is the group id that can be found on the group page on WOM. [Example.](https://wiseoldman.net/groups/139)
 - Verification code: This is the verification code you get when you create the group, which is used to edit the group.
+
+##### Lookup
+- Player option: Adds the WOM Lookup option when right clicking a player.
+- Menu option: Adds the WOM Lookup option in the right click menu.
 
 ![Group configurations](img/configuration.png)
 
