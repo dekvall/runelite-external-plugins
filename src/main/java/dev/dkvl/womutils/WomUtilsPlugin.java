@@ -178,23 +178,21 @@ public class WomUtilsPlugin extends Plugin
 		iconHandler.loadIcons();
 		womClient.importGroupMembersTo(groupMembers);
 
-		if (client != null)
+		if (config.playerLookupOption())
 		{
-			if (config.playerLookupOption())
-			{
-				menuManager.addPlayerMenuItem(LOOKUP);
-			}
-
-			if (config.importGroup())
-			{
-				addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS);
-			}
-
-			if (config.browseGroup())
-			{
-				addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
-			}
+			menuManager.addPlayerMenuItem(LOOKUP);
 		}
+
+		if (config.importGroup())
+		{
+			addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS);
+		}
+
+		if (config.browseGroup())
+		{
+			addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
+		}
+
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -223,10 +221,7 @@ public class WomUtilsPlugin extends Plugin
 	{
 
 		removeGroupMenuOptions();
-		if (client != null)
-		{
-			menuManager.removePlayerMenuItem(LOOKUP);
-		}
+		menuManager.removePlayerMenuItem(LOOKUP);
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -494,7 +489,7 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!event.getGroup().equals(CONFIG_GROUP) || client == null)
+		if (!event.getGroup().equals(CONFIG_GROUP))
 		{
 			return;
 		}
