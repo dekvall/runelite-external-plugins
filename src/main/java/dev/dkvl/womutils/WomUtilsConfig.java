@@ -81,7 +81,7 @@ public interface WomUtilsConfig extends Config
 	@ConfigItem(
 		keyName = "browseGroup",
 		name = "Browse Group option",
-		description = "Add Browse WOM Group menu option to th eclan chat tab",
+		description = "Add Browse WOM Group menu option to the clan chat tab",
 		position = 3,
 		section = groupConfig
 	)
