@@ -583,7 +583,7 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void addGroupMenuOptions(ImmutableList<WidgetMenuOption> menuOptions)
+	private void addGroupMenuOptions(List<WidgetMenuOption> menuOptions)
 	{
 		for (WidgetMenuOption option : menuOptions)
 		{
