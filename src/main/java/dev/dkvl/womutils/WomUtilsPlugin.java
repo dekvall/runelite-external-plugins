@@ -501,7 +501,8 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		removeGroupMenuOptions();
-		if (config.groupId() > 0) {
+		if (config.groupId() > 0)
+		{
 			if (config.browseGroup())
 			{
 				addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
