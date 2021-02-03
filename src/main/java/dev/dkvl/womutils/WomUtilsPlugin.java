@@ -351,7 +351,7 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
-		if ((!config.addRemoveMember() && !config.menuLookupOption()))
+		if (!config.addRemoveMember() && !config.menuLookupOption())
 		{
 			return;
 		}
