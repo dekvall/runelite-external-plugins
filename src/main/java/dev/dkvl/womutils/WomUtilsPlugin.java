@@ -85,9 +85,9 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final String KICK_OPTION = "Kick";
 
-	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Add ignore", "Remove friend", "Delete", KICK_OPTION);
+	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Message", "Add ignore", "Remove friend", "Delete", KICK_OPTION);
 
-	private static final ImmutableList<WidgetMenuOption> WIDGET_MENU_OPTIONS =
+	private static final ImmutableList<WidgetMenuOption> WIDGET_IMPORT_MENU_OPTIONS =
 		new ImmutableList.Builder<WidgetMenuOption>()
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
 			MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB))
@@ -95,13 +95,17 @@ public class WomUtilsPlugin extends Plugin
 			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
 			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
-		.add(new WidgetMenuOption(BROWSE_GROUP,
-			MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB))
-		.add(new WidgetMenuOption(BROWSE_GROUP,
-			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
-		.add(new WidgetMenuOption(BROWSE_GROUP,
-			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
 		.build();
+
+	private static final ImmutableList<WidgetMenuOption> WIDGET_BROWSE_MENU_OPTIONS =
+		new ImmutableList.Builder<WidgetMenuOption>()
+			.add(new WidgetMenuOption(BROWSE_GROUP,
+				MENU_TARGET, WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB))
+			.add(new WidgetMenuOption(BROWSE_GROUP,
+				MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
+			.add(new WidgetMenuOption(BROWSE_GROUP,
+				MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+			.build();
 	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
 	// I think the one we want is 164.38, but it needs to be added to core to use.
 
@@ -165,7 +169,6 @@ public class WomUtilsPlugin extends Plugin
 		try
 		{
 			loadFile();
-
 		}
 		catch (IOException e)
 		{
@@ -175,10 +178,21 @@ public class WomUtilsPlugin extends Plugin
 		iconHandler.loadIcons();
 		womClient.importGroupMembersTo(groupMembers);
 
-		if (config.menuOptions())
+		if (config.playerLookupOption())
 		{
-			addCustomOptions();
+			menuManager.addPlayerMenuItem(LOOKUP);
 		}
+
+		if (config.importGroup())
+		{
+			addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS);
+		}
+
+		if (config.browseGroup())
+		{
+			addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
+		}
+
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -205,7 +219,9 @@ public class WomUtilsPlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		removeCustomOptions();
+
+		removeGroupMenuOptions();
+		menuManager.removePlayerMenuItem(LOOKUP);
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -335,27 +351,37 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
-		if (!config.menuOptions() || !AFTER_OPTIONS.contains(event.getOption()))
+		if (!config.addRemoveMember() && !config.menuLookupOption())
 		{
 			return;
 		}
+
 		int groupId = WidgetInfo.TO_GROUP(event.getActionParam1());
 		String option = event.getOption();
 
-		boolean addModifyMember = config.groupId() > 0
+		if (!AFTER_OPTIONS.contains(option)
+			// prevent duplicate menu options in friends list
+			|| (option.equals("Delete") && groupId != WidgetInfo.IGNORE_LIST.getGroupId()))
+		{
+			return;
+		}
+
+		boolean addModifyMember = config.addRemoveMember()
+			&& config.groupId() > 0
 			&& !Strings.isNullOrEmpty(config.verificationCode())
 			&& (groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
 				|| groupId == WidgetInfo.FRIENDS_LIST.getGroupId());
 
-		boolean addLookup = groupId == WidgetInfo.FRIENDS_LIST.getGroupId()
+		boolean addMenuLookup = config.menuLookupOption()
+			&& (groupId == WidgetInfo.FRIENDS_LIST.getGroupId()
 			|| groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
 			// prevent from adding for Kick option (interferes with the raiding party one)
 			|| groupId == WidgetInfo.CHATBOX.getGroupId() && !KICK_OPTION.equals(option)
 			|| groupId == WidgetInfo.RAIDING_PARTY.getGroupId()
 			|| groupId == WidgetInfo.PRIVATE_CHAT_MESSAGE.getGroupId()
-			|| groupId == WidgetInfo.IGNORE_LIST.getGroupId();
+			|| groupId == WidgetInfo.IGNORE_LIST.getGroupId());
 
-		int offset = (addModifyMember ? 1:0) + (addLookup ? 1:0);
+		int offset = (addModifyMember ? 1:0) + (addMenuLookup ? 1:0);
 
 		if (offset == 0)
 		{
@@ -374,7 +400,7 @@ public class WomUtilsPlugin extends Plugin
 			offset--;
 		}
 
-		if (addLookup)
+		if (addMenuLookup)
 		{
 			MenuEntry womLookup = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
 			womLookup.setOption(LOOKUP);
@@ -468,19 +494,32 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		if (config.menuOptions() && config.groupId() > 0)
+		menuManager.removePlayerMenuItem(LOOKUP);
+		if (config.playerLookupOption())
 		{
-			addCustomOptions();
-		}
-		else
-		{
-			removeCustomOptions();
+			menuManager.addPlayerMenuItem(LOOKUP);
 		}
 
-		if (event.getKey().equals("showIcons") && client.getGameState() == GameState.LOGGED_IN)
+		removeGroupMenuOptions();
+		if (config.groupId() > 0)
+		{
+			if (config.browseGroup())
+			{
+				addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
+			}
+
+			if (config.importGroup())
+			{
+				addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS);
+			}
+		}
+
+		if ((event.getKey().equals("showIcons") || event.getKey().equals("showFlags"))
+			&& client.getGameState() == GameState.LOGGED_IN)
 		{
 			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
+
 	}
 
 	@Subscribe
@@ -544,22 +583,25 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void addCustomOptions()
+	private void addGroupMenuOptions(List<WidgetMenuOption> menuOptions)
 	{
-		for (WidgetMenuOption option : WIDGET_MENU_OPTIONS)
+		for (WidgetMenuOption option : menuOptions)
 		{
 			menuManager.addManagedCustomMenu(option);
 		}
-		menuManager.addPlayerMenuItem(LOOKUP);
 	}
 
-	private void removeCustomOptions()
+	private void removeGroupMenuOptions()
 	{
-		for (WidgetMenuOption option : WIDGET_MENU_OPTIONS)
+		for (WidgetMenuOption option : WIDGET_BROWSE_MENU_OPTIONS)
 		{
 			menuManager.removeManagedCustomMenu(option);
 		}
-		menuManager.removePlayerMenuItem(LOOKUP);
+
+		for (WidgetMenuOption option : WIDGET_IMPORT_MENU_OPTIONS)
+		{
+			menuManager.removeManagedCustomMenu(option);
+		}
 	}
 
 	private void update(String username)

@@ -17,6 +17,31 @@ public interface WomUtilsConfig extends Config
 	)
 	String groupConfig = "groupConfig";
 
+	@ConfigSection(
+		name = "Lookup",
+		description = "Lookup menu option configurations",
+		position = 2
+	)
+	String lookupConfig = "lookupConfig";
+
+	@ConfigItem(
+		keyName = "playerLookupOption",
+		name = "Player option",
+		description = "Add WOM Lookup option to players",
+		position = 0,
+		section = lookupConfig
+	)
+	default boolean playerLookupOption() { return true; }
+
+	@ConfigItem(
+		keyName = "menuLookupOption",
+		name = "Menu option",
+		description = "Add WOM Lookup option to menus",
+		position = 1,
+		section = lookupConfig
+	)
+	default boolean menuLookupOption() { return true; }
+
 	@ConfigItem(
 		keyName = "showIcons",
 		name = "Show icons",
@@ -31,7 +56,7 @@ public interface WomUtilsConfig extends Config
 
 	@ConfigItem(
 		keyName= "showFlags",
-		name = "Show Flags",
+		name = "Show flags",
 		description = "Show flags instead of the group icon where possible for your group members, requires icons to be enabled.",
 		position = 1,
 		section = groupConfig
@@ -42,13 +67,37 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "menuOptions",
-		name = "Menu options",
-		description = "Show member and import options in menus",
+		keyName = "importGroup",
+		name = "Import Group option",
+		description = "Add Import WOM Group menu option to the clan chat tab",
 		position = 2,
 		section = groupConfig
 	)
-	default boolean menuOptions()
+	default boolean importGroup()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "browseGroup",
+		name = "Browse Group option",
+		description = "Add Browse WOM Group menu option to the clan chat tab",
+		position = 3,
+		section = groupConfig
+	)
+	default boolean browseGroup()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "addRemoveMember",
+		name = "Add/Remove Member option",
+		description = "Add options to add & remove players from group, to clan chat and friend list",
+		position = 4,
+		section = groupConfig
+	)
+	default boolean addRemoveMember()
 	{
 		return true;
 	}
@@ -57,7 +106,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "groupId",
 		name = "Group Id",
 		description = "The group id in WOM",
-		position = 3,
+		position = 5,
 		section = groupConfig
 	)
 	default int groupId()
@@ -70,7 +119,7 @@ public interface WomUtilsConfig extends Config
 		name = "Verification code",
 		description = "Verification code for the WOM group",
 		secret = true,
-		position = 4,
+		position = 6,
 		section = groupConfig
 	)
 	default String verificationCode()
