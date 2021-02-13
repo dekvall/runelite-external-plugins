@@ -82,6 +82,7 @@ class WomIconHandler
 				final String sanitized = Text.toJagexName(Text.removeTags(rsn).toLowerCase());
 				currentLayouting = sanitized;
 				MemberInfo m = groupMembers.get(sanitized);
+
 				if (m != null)
 				{
 					String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
@@ -121,8 +122,8 @@ class WomIconHandler
 
 		for (int i = 0; i < children.length; i+=3)
 		{
-			String name = children[i].getName();
-			String sanitized = Text.removeTags(name);
+			String name = Text.removeTags(children[i].getName());
+			String sanitized = Text.toJagexName(name);
 			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
 
 			if (!disable && m != null)
@@ -130,12 +131,12 @@ class WomIconHandler
 				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
 				CountryIcon icon = CountryIcon.getIcon(country);
 				int iconIdx = modIconsStart + icon.ordinal();
-				String newName = sanitized + " <img=" + iconIdx + ">";
+				String newName = name + " <img=" + iconIdx + ">";
 				children[i].setText(newName);
 			}
 			else
 			{
-				children[i].setText(sanitized);
+				children[i].setText(name);
 			}
 		}
 	}
