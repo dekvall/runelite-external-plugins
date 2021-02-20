@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import net.runelite.api.MenuEntry;
 import net.runelite.api.Nameable;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
+import net.runelite.api.Skill;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
@@ -40,6 +42,7 @@ import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NameableNameChanged;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
@@ -110,7 +113,9 @@ public class WomUtilsPlugin extends Plugin
 	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
 	// I think the one we want is 164.38, but it needs to be added to core to use.
 
-	private static final int XP_THRESHOLD = 10000;
+	private static final int XP_THRESHOLD = 10_000;
+
+	private boolean levelupThisSession = false;
 
 	@Inject
 	private Client client;
@@ -153,6 +158,8 @@ public class WomUtilsPlugin extends Plugin
 	private long lastXp;
 
 	private NavigationButton navButton;
+
+	private final Map<Skill, Integer> previousSkillLevels = new EnumMap<>(Skill.class);
 
 	static
 	{
@@ -215,6 +222,8 @@ public class WomUtilsPlugin extends Plugin
 			.build();
 
 		clientToolbar.addNavigation(navButton);
+
+		clientThread.invoke(this::saveCurrentLevels);
 	}
 
 	@Override
@@ -235,8 +244,23 @@ public class WomUtilsPlugin extends Plugin
 		}
 		clientToolbar.removeNavigation(navButton);
 		womPanel.shutdown();
+		previousSkillLevels.clear();
+		levelupThisSession = false;
 
 		log.info("Wise Old Man stopped!");
+	}
+
+	private void saveCurrentLevels()
+	{
+		if (client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		for (Skill s : Skill.values())
+		{
+			previousSkillLevels.put(s, client.getRealSkillLevel(s));
+		}
 	}
 
 	private void commandHandler(ChatMessage chatMessage, String s)
@@ -452,6 +476,20 @@ public class WomUtilsPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onStatChanged(StatChanged event)
+	{
+		Skill s = event.getSkill();
+		int levelAfter = client.getRealSkillLevel(s);
+		int levelBefore = previousSkillLevels.getOrDefault(s, -1);
+
+		if (levelBefore != -1 && levelAfter > levelBefore)
+		{
+			levelupThisSession = true;
+		}
+		previousSkillLevels.put(s, levelAfter);
+	}
+
+	@Subscribe
 	public void onWidgetMenuOptionClicked(final WidgetMenuOptionClicked event)
 	{
 		WidgetInfo widget = event.getWidget();
@@ -565,11 +603,12 @@ public class WomUtilsPlugin extends Plugin
 
 			long totalXp = client.getOverallExperience();
 			// Don't submit update unless xp threshold is reached
-			if (Math.abs(totalXp - lastXp) > XP_THRESHOLD)
+			if (Math.abs(totalXp - lastXp) > XP_THRESHOLD || levelupThisSession)
 			{
 				log.debug("Submitting update for {}", local.getName());
 				update(local.getName());
 				lastXp = totalXp;
+				levelupThisSession = false;
 			}
 		}
 	}
