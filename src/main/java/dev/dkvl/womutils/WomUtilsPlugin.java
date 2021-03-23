@@ -44,6 +44,7 @@ import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetMenuOptionClicked;
+import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
@@ -91,6 +92,9 @@ public class WomUtilsPlugin extends Plugin
 
 	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Message", "Add ignore", "Remove friend", "Delete", KICK_OPTION);
 
+	// 164.38 is the Friend_Chat_TAB in resizable-modern
+	private static final int RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_TAB_ID = WidgetInfo.PACK(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, 38);
+
 	private static final ImmutableList<WidgetMenuOption> WIDGET_IMPORT_MENU_OPTIONS =
 		new ImmutableList.Builder<WidgetMenuOption>()
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
@@ -98,7 +102,7 @@ public class WomUtilsPlugin extends Plugin
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
 			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
-			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+			MENU_TARGET, RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_TAB_ID))
 		.build();
 
 	private static final ImmutableList<WidgetMenuOption> WIDGET_BROWSE_MENU_OPTIONS =
@@ -108,10 +112,8 @@ public class WomUtilsPlugin extends Plugin
 			.add(new WidgetMenuOption(BROWSE_GROUP,
 				MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
 			.add(new WidgetMenuOption(BROWSE_GROUP,
-				MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+				MENU_TARGET, RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_TAB_ID))
 			.build();
-	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
-	// I think the one we want is 164.38, but it needs to be added to core to use.
 
 	private static final int XP_THRESHOLD = 10_000;
 
@@ -492,10 +494,12 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onWidgetMenuOptionClicked(final WidgetMenuOptionClicked event)
 	{
-		WidgetInfo widget = event.getWidget();
-		if (widget != WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB
-			&& widget != WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB
-			&& widget != WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON
+		// Using widgetId since getWidget is nullable
+		int widgetId = event.getWidgetId();
+		if (widgetId != WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB.getPackedId()
+			&& widgetId != WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB.getPackedId()
+			&& widgetId != WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON.getPackedId()
+			&& widgetId != RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_TAB_ID
 			|| config.groupId() < 1)
 		{
 			return;
