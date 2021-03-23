@@ -44,6 +44,7 @@ import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetMenuOptionClicked;
+import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
@@ -98,7 +99,7 @@ public class WomUtilsPlugin extends Plugin
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
 			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
 		.add(new WidgetMenuOption(IMPORT_MEMBERS,
-			MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+			MENU_TARGET, WidgetInfo.PACK(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, 35))) // WidgetID.ResizableViewportBottomLine.FC_TAB is private, value is 35
 		.build();
 
 	private static final ImmutableList<WidgetMenuOption> WIDGET_BROWSE_MENU_OPTIONS =
@@ -108,10 +109,8 @@ public class WomUtilsPlugin extends Plugin
 			.add(new WidgetMenuOption(BROWSE_GROUP,
 				MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB))
 			.add(new WidgetMenuOption(BROWSE_GROUP,
-				MENU_TARGET, WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON))
+				MENU_TARGET, WidgetInfo.PACK(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, 35))) // WidgetID.ResizableViewportBottomLine.FC_TAB is private, value is 35
 			.build();
-	// RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON is actually wrong and will act as a placeholder for now.
-	// I think the one we want is 164.38, but it needs to be added to core to use.
 
 	private static final int XP_THRESHOLD = 10_000;
 
