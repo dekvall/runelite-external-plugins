@@ -76,6 +76,7 @@ public class Snapshot
 	Boss sarachnis;
 	Boss scorpia;
 	Boss skotizo;
+	Boss tempoross;
 	Boss the_gauntlet;
 	Boss the_corrupted_gauntlet;
 	Boss theatre_of_blood;
@@ -175,7 +176,7 @@ public class Snapshot
 			case SOUL_WARS_ZEAL:
 				return getSoul_wars_zeal();
 			default:
-				throw new IllegalArgumentException("Invalid hiscore skill");
+				throw new IllegalArgumentException("Invalid hiscore minigame");
 		}
 
 	}
@@ -248,6 +249,8 @@ public class Snapshot
 				return getScorpia();
 			case SKOTIZO:
 				return getSkotizo();
+			case TEMPOROSS:
+				return getTempoross();
 			case THE_GAUNTLET:
 				return getThe_gauntlet();
 			case THE_CORRUPTED_GAUNTLET:
@@ -273,7 +276,7 @@ public class Snapshot
 			case ZULRAH:
 				return getZulrah();
 			default:
-				throw new IllegalArgumentException("Invalid hiscore skill");
+				throw new IllegalArgumentException("Invalid hiscore boss");
 		}
 	}
 }

@@ -2,6 +2,7 @@
  * Copyright (c) 2017, Adam <Adam@sigterm.info>
  * Copyright (c) 2018, Psikoi <https://github.com/psikoi>
  * Copyright (c) 2019, Bram91 <https://github.com/bram91>
+ * Copyright (c) 2021, Rorro <https://github.com/rorro>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,51 +27,40 @@
  */
 package dev.dkvl.womutils;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import dev.dkvl.womutils.beans.Boss;
-import dev.dkvl.womutils.beans.PlayerInfo;
-import dev.dkvl.womutils.beans.Skill;
-import dev.dkvl.womutils.beans.Snapshot;
-import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.EnumSet;
-import java.util.HashMap;
+import dev.dkvl.womutils.beans.*;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import javax.inject.Inject;
-import javax.swing.ImageIcon;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Experience;
 import net.runelite.api.Player;
-import net.runelite.api.WorldType;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.IconTextField;
-import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.QuantityFormatter;
 import net.runelite.http.api.hiscore.HiscoreEndpoint;
 import net.runelite.http.api.hiscore.HiscoreSkill;
 import static net.runelite.http.api.hiscore.HiscoreSkill.*;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
-import org.apache.commons.lang3.StringUtils;
+import okhttp3.HttpUrl;
 
 @Slf4j
 public class WomPanel extends PluginPanel
 {
+	@Inject
+	private WomUtilsConfig config;
+
 	/* The maximum allowed username length in RuneScape accounts */
 	private static final int MAX_USERNAME_LENGTH = 12;
 
@@ -102,11 +92,21 @@ public class WomPanel extends PluginPanel
 		KALPHITE_QUEEN, KING_BLACK_DRAGON, KRAKEN,
 		KREEARRA, KRIL_TSUTSAROTH, MIMIC,
 		NIGHTMARE, OBOR, SARACHNIS,
-		SCORPIA, SKOTIZO, THE_GAUNTLET,
+		SCORPIA, SKOTIZO, TEMPOROSS, THE_GAUNTLET,
 		THE_CORRUPTED_GAUNTLET, THEATRE_OF_BLOOD, THERMONUCLEAR_SMOKE_DEVIL,
 		TZKAL_ZUK, TZTOK_JAD, VENENATIS,
 		VETION, VORKATH, WINTERTODT,
 		ZALCANO, ZULRAH
+	);
+
+	/**
+	 * Activities, ordered in the way they should be displayed in the panel
+	 */
+	private static final List<HiscoreSkill> ACTIVITIES = ImmutableList.of(
+		LEAGUE_POINTS, BOUNTY_HUNTER_HUNTER, BOUNTY_HUNTER_ROGUE,
+		CLUE_SCROLL_ALL, CLUE_SCROLL_BEGINNER, CLUE_SCROLL_EASY,
+		CLUE_SCROLL_MEDIUM, CLUE_SCROLL_HARD, CLUE_SCROLL_ELITE,
+		CLUE_SCROLL_MASTER, LAST_MAN_STANDING, SOUL_WARS_ZEAL
 	);
 
 	private final Client client;
@@ -115,8 +115,12 @@ public class WomPanel extends PluginPanel
 
 	private final IconTextField searchBar;
 
-	// Not an enummap because we need null keys for combat
-	private final Map<HiscoreSkill, JLabel> skillLabels = new HashMap<>();
+	private final Map<String, JLabel> miscInfoLabels = new HashMap<>();
+	private final Map<String, JButton> buttons = new HashMap<>();
+	private final Map<HiscoreSkill, TableRow> tableRows = new HashMap<>();
+
+	PlayerInfo latestLookup = null;
+	TableRow overallRow;
 
 	/* The currently selected endpoint */
 	private HiscoreEndpoint selectedEndPoint;
@@ -189,48 +193,114 @@ public class WomPanel extends PluginPanel
 
 		c.gridy++;
 
-		// TODO: Add a tab/hover that displays the current rate for the selected player
-		// TODO: Could just do one request on startup, and then it could show in the hover maybe instead
+		JPanel buttonsPanel = new JPanel();
+		buttonsPanel.setLayout(new GridLayout(1, 2, 7, 7));
 
-		// Panel that holds skill icons
-		JPanel statsPanel = new JPanel();
-		statsPanel.setLayout(new GridLayout(8, 3));
-		statsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		statsPanel.setBorder(new EmptyBorder(5, 0, 5, 0));
+		JButton updateBtn = new JButton();
+		updateBtn.setFont(FontManager.getRunescapeSmallFont());
+		updateBtn.setEnabled(false);
+		updateBtn.addActionListener(e ->
+			womClient.updatePlayer(sanitize(searchBar.getText())));
+		updateBtn.setText("Update");
 
-		// For each skill on the ingame skill panel, create a Label and add it to the UI
+		JButton profileBtn = new JButton();
+		profileBtn.setFont(FontManager.getRunescapeSmallFont());
+		profileBtn.setEnabled(false);
+		profileBtn.addActionListener(e ->
+			openPlayerProfile(sanitize(searchBar.getText())));
+		profileBtn.setText("Open Profile");
+
+		buttons.put("update", updateBtn);
+		buttons.put("profile", profileBtn);
+
+		buttonsPanel.add(updateBtn);
+		buttonsPanel.add(profileBtn);
+
+		add(buttonsPanel, c);
+
+		c.gridy++;
+
+		JLabel overviewTitle = new JLabel("Overview");
+		overviewTitle.setFont(FontManager.getRunescapeBoldFont());
+		add(overviewTitle, c);
+		c.gridy++;
+
+		JLabel lastUpdated = new JLabel("Last updated: --");
+
+		JPanel miscInfoPanel = new JPanel();
+		miscInfoPanel.setLayout(new GridLayout(3, 2, 5, 5));
+
+		miscInfoLabels.put("Build", new JLabel("Build: --"));
+		miscInfoLabels.put("Country", new JLabel("Country: --"));
+		miscInfoLabels.put("TTM", new JLabel("TTM: --"));
+		miscInfoLabels.put("EHP", new JLabel("EHP: --"));
+		miscInfoLabels.put("EHB", new JLabel("EHB: --"));
+		miscInfoLabels.put("Exp", new JLabel("Exp: --"));
+		miscInfoLabels.put("Last updated", lastUpdated);
+
+		for (Map.Entry<String, JLabel> entry : miscInfoLabels.entrySet()) {
+			JLabel label = entry.getValue();
+			if (entry.getKey().toLowerCase().equals("last updated"))
+			{
+				label.setFont(FontManager.getRunescapeSmallFont());
+				label.setHorizontalAlignment(JLabel.CENTER);
+				continue;
+			}
+
+			label.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+			label.setOpaque(true);
+			label.setFont(FontManager.getRunescapeFont());
+
+			miscInfoPanel.add(label);
+		}
+
+		add(miscInfoPanel, c);
+		c.gridy++;
+
+		add(lastUpdated, c);
+		c.gridy++;
+
+		JLabel statsTitle = new JLabel("Stats");
+		statsTitle.setFont(FontManager.getRunescapeBoldFont());
+
+		add(statsTitle, c);
+		c.gridy++;
+
+		StatsTableHeader skillingSth = new StatsTableHeader("skilling");
+		StatsTableHeader bossingSth = new StatsTableHeader("bossing");
+		StatsTableHeader activitiesSth = new StatsTableHeader("activities");
+
+		JPanel skillPanel = new JPanel(new GridLayout(0, 1));
+		// Handle overall separately because it's special
+		overallRow = new TableRow(OVERALL);
+		skillPanel.add(overallRow);
+
 		for (HiscoreSkill skill : SKILLS)
 		{
-			JPanel panel = makeHiscorePanel(skill);
-			statsPanel.add(panel);
+			TableRow row = new TableRow(skill);
+			tableRows.put(skill, row);
+			skillPanel.add(row);
 		}
 
-		add(statsPanel, c);
-		c.gridy++;
-
-		JPanel totalPanel = new JPanel();
-		totalPanel.setLayout(new GridLayout(1, 2));
-		totalPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-		totalPanel.add(makeHiscorePanel(null)); //combat has no hiscore skill, referred to as null
-		totalPanel.add(makeHiscorePanel(OVERALL));
-
-		add(totalPanel, c);
-		c.gridy++;
-
-		JPanel bossPanel = new JPanel();
-		bossPanel.setLayout(new GridLayout(0, 3));
-		bossPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-		// For each boss on the hi-scores, create a Label and add it to the UI
-		for (HiscoreSkill skill : BOSSES)
+		JPanel bossPanel = new JPanel(new GridLayout(0, 1));
+		for (HiscoreSkill boss : BOSSES)
 		{
-			JPanel panel = makeHiscorePanel(skill);
-			bossPanel.add(panel);
+			TableRow row = new TableRow(boss);
+			tableRows.put(boss, row);
+			bossPanel.add(row);
 		}
 
-		add(bossPanel, c);
-		c.gridy++;
+		JPanel activitiesPanel = new JPanel(new GridLayout(0, 1));
+		for (HiscoreSkill activity : ACTIVITIES)
+		{
+			TableRow row = new TableRow(activity);
+			tableRows.put(activity, row);
+			activitiesPanel.add(row);
+		}
+
+		addPanel(skillingSth, skillPanel, c);
+		addPanel(bossingSth, bossPanel, c);
+		addPanel(activitiesSth, activitiesPanel, c);
 
 		addInputKeyListener(nameAutocompleter);
 	}
@@ -247,51 +317,12 @@ public class WomPanel extends PluginPanel
 		searchBar.requestFocusInWindow();
 	}
 
-	/* Builds a JPanel displaying an icon and level/number associated with it */
-	private JPanel makeHiscorePanel(HiscoreSkill skill)
+	private void toggleButtons(boolean enabled)
 	{
-		HiscoreSkillType skillType = skill == null ? HiscoreSkillType.SKILL : skill.getType();
-
-		JLabel label = new JLabel();
-		label.setToolTipText(skill == null ? "Combat" : skill.getName());
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setText(pad("--", skillType));
-
-		String directory;
-		if (skill == null || skill == OVERALL)
+		for (Map.Entry<String, JButton> btn : buttons.entrySet())
 		{
-			directory = "/skill_icons/";
+			btn.getValue().setEnabled(enabled);
 		}
-		else if (skill.getType() == HiscoreSkillType.BOSS)
-		{
-			directory = "bosses/";
-		}
-		else
-		{
-			directory = "/skill_icons_small/";
-		}
-
-		String skillName = (skill == null ? "combat" : skill.name().toLowerCase());
-		String skillIcon = directory + skillName + ".png";
-		log.debug("Loading skill icon from {}", skillIcon);
-
-		label.setIcon(new ImageIcon(ImageUtil.loadImageResource(getClass(), skillIcon)));
-
-		boolean totalLabel = skill == OVERALL || skill == null; //overall or combat
-		label.setIconTextGap(totalLabel ? 10 : 4);
-
-		JPanel skillPanel = new JPanel();
-		skillPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		skillPanel.setBorder(new EmptyBorder(2, 0, 2, 0));
-		skillLabels.put(skill, label);
-		skillPanel.add(label);
-
-		return skillPanel;
-	}
-
-	private void updateAndLookup()
-	{
-		String player = sanitize(searchBar.getText());
 	}
 
 	public void lookup(String username)
@@ -303,6 +334,8 @@ public class WomPanel extends PluginPanel
 	private void lookup()
 	{
 		final String lookup = sanitize(searchBar.getText());
+		toggleButtons(false);
+		latestLookup = null;
 
 		if (Strings.isNullOrEmpty(lookup))
 		{
@@ -321,14 +354,24 @@ public class WomPanel extends PluginPanel
 		searchBar.setIcon(IconTextField.Icon.LOADING_DARKER);
 		loading = true;
 
-		for (Map.Entry<HiscoreSkill, JLabel> entry : skillLabels.entrySet())
+		for (Map.Entry<String, JLabel> entry : miscInfoLabels.entrySet())
 		{
-			HiscoreSkill skill = entry.getKey();
-			JLabel label = entry.getValue();
-			HiscoreSkillType skillType = skill == null ? HiscoreSkillType.SKILL : skill.getType();
+			entry.getValue().setText(entry.getKey() + ": --");
+		}
 
-			label.setText(pad("--", skillType));
-			label.setToolTipText(skill == null ? "Combat" : skill.getName());
+		for (Map.Entry<String, JLabel> entry : overallRow.labels.entrySet())
+		{
+			entry.getValue().setText("--");
+		}
+
+		for (Map.Entry<HiscoreSkill, TableRow> entry : tableRows.entrySet())
+		{
+			TableRow row = entry.getValue();
+
+			for (Map.Entry<String, JLabel> e : row.labels.entrySet())
+			{
+				e.getValue().setText("--");
+			}
 		}
 
 		// if for some reason no endpoint was selected, default to normal
@@ -377,8 +420,74 @@ public class WomPanel extends PluginPanel
 				searchBar.setEditable(true);
 				loading = false;
 
+				toggleButtons(true);
+				latestLookup = result;
 				applyResult(result);
 			}));
+	}
+
+	private void applyOverviewResult(PlayerInfo result)
+	{
+		for (Map.Entry<String, JLabel> entry : miscInfoLabels.entrySet())
+		{
+			JLabel label = entry.getValue();
+			switch (entry.getKey().toLowerCase())
+			{
+				case "country":
+					String cntry = result.getCountry();
+					String countryTxt = cntry == null ? "--" : cntry;
+					label.setText("Country: " + countryTxt);
+					break;
+				case "build":
+					label.setText("Build: " + Utils.formatBuild(result.getBuild()));
+					break;
+				case "ttm":
+					label.setText("TTM: " + Utils.formatNumber(result.getTtm()) + 'h');
+					break;
+				case "ehp":
+					label.setText("EHP: " + Utils.formatNumber(result.getEhp()));
+					break;
+				case "ehb":
+					label.setText("EHB: " + Utils.formatNumber(result.getEhb()));
+					break;
+				case "exp":
+					label.setText("Exp: " + Utils.formatNumber(result.getExp()));
+					break;
+				case "last updated":
+					label.setText("Last updated " + Utils.formatDate(result.getUpdatedAt(), config.relativeTime()));
+					break;
+			}
+		}
+	}
+
+	private void applyStatsResult(PlayerInfo result)
+	{
+		if (result == null)
+		{
+			return;
+		}
+
+		Snapshot latestSnapshot = result.getLatestSnapshot();
+
+		for (Map.Entry<HiscoreSkill, TableRow> entry : tableRows.entrySet())
+		{
+			HiscoreSkill skill = entry.getKey();
+			TableRow row = entry.getValue();
+
+			if (skill.getType() == HiscoreSkillType.SKILL)
+			{
+				row.update(latestSnapshot.getSkill(skill), config.virtualLevels());
+			}
+			else if (skill.getType() == HiscoreSkillType.ACTIVITY)
+			{
+				row.update(latestSnapshot.getMinigame(skill));
+			}
+			else
+			{
+				row.update(latestSnapshot.getBoss(skill), skill);
+			}
+		}
+		updateTotalLevel(latestSnapshot);
 	}
 
 	private void applyResult(PlayerInfo result)
@@ -387,31 +496,9 @@ public class WomPanel extends PluginPanel
 
 		nameAutocompleter.addToSearchHistory(result.getUsername());
 
-		for (Map.Entry<HiscoreSkill, JLabel> entry : skillLabels.entrySet())
-		{
-			HiscoreSkill skill = entry.getKey();
-			JLabel label = entry.getValue();
+		applyOverviewResult(result);
+		applyStatsResult(result);
 
-			if (skill == null)
-			{
-				label.setText(Integer.toString(result.getCombatLevel()));
-			}
-			else if (skill.getType() == HiscoreSkillType.SKILL || skill.getType() == HiscoreSkillType.OVERALL)
-			{
-				dev.dkvl.womutils.beans.Skill s = result.getLatestSnapshot().getSkill(skill);
-				label.setText(pad(formatHours(s.getEhp()), skill.getType()));
-			}
-			else if (skill.getType() == HiscoreSkillType.BOSS)
-			{
-				Boss b = result.getLatestSnapshot().getBoss(skill);
-				label.setText(pad(formatHours(b.getEhb()), skill.getType()));
-			}
-
-			if (skill != null)
-			{
-				label.setToolTipText(detailsHtml(result.getLatestSnapshot(), skill));
-			}
-		}
 	}
 
 	void addInputKeyListener(KeyListener l)
@@ -424,127 +511,60 @@ public class WomPanel extends PluginPanel
 		this.searchBar.removeKeyListener(l);
 	}
 
-	/*
-		Builds a html string to display on tooltip (when hovering a skill).
-	 */
-	private String detailsHtml(Snapshot snapshot, HiscoreSkill skill)
-	{
-		String openingTags = "<html><body style = 'padding: 5px;color:#989898'>";
-		String closingTags = "</html><body>";
-
-		String content = "";
-
-		if (skill == OVERALL)
-		{
-				dev.dkvl.womutils.beans.Skill requestedSkill = snapshot.getSkill(skill);
-				String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
-				String exp = (requestedSkill.getExperience() == -1L) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getExperience());
-				content += "<p><span style = 'color:white'>" + skill.getName() + "</span></p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
-		}
-		else
-		{
-			if (skill.getType() == HiscoreSkillType.BOSS)
-			{
-				String rank = "Unranked";
-				String lvl = null;
-				Boss requestedSkill = snapshot.getBoss(skill);
-				if (requestedSkill != null)
-				{
-					if (requestedSkill.getRank() > -1)
-					{
-						rank = QuantityFormatter.formatNumber(requestedSkill.getRank());
-					}
-					if (requestedSkill.getKills() > -1)
-					{
-						lvl = QuantityFormatter.formatNumber(requestedSkill.getKills());
-					}
-				}
-
-				content += "<p><span style = 'color:white'>Boss:</span> " + skill.getName() + "</p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				if (lvl != null)
-				{
-					content += "<p><span style = 'color:white'>KC:</span> " + lvl + "</p>";
-				}
-			}
-			else
-			{
-				Skill requestedSkill = snapshot.getSkill(skill);
-				final long experience = requestedSkill.getExperience();
-
-				String rank = (requestedSkill.getRank() == -1) ? "Unranked" : QuantityFormatter.formatNumber(requestedSkill.getRank());
-				String exp = (experience == -1L) ? "Unranked" : QuantityFormatter.formatNumber(experience);
-				String remainingXp;
-				if (experience == -1L)
-				{
-					remainingXp = "Unranked";
-				}
-				else
-				{
-					int currentLevel = Experience.getLevelForXp((int) experience);
-					remainingXp = (currentLevel + 1 <= Experience.MAX_VIRT_LEVEL) ? QuantityFormatter.formatNumber(Experience.getXpForLevel(currentLevel + 1) - experience) : "0";
-				}
-
-				content += "<p><span style = 'color:white'>Skill:</span> " + skill.getName() + "</p>";
-				content += "<p><span style = 'color:white'>Rank:</span> " + rank + "</p>";
-				content += "<p><span style = 'color:white'>Experience:</span> " + exp + "</p>";
-				content += "<p><span style = 'color:white'>Remaining XP:</span> " + remainingXp + "</p>";
-			}
-		}
-		return openingTags + content + closingTags;
-	}
-
 	private static String sanitize(String lookup)
 	{
 		return lookup.replace('\u00A0', ' ');
 	}
 
-	private HiscoreEndpoint selectWorldEndpoint()
+	private void openPlayerProfile(String username)
 	{
-		if (client != null)
-		{
-			EnumSet<WorldType> wTypes = client.getWorldType();
+		String url = new HttpUrl.Builder()
+			.scheme("https")
+			.host("wiseoldman.net")
+			.addPathSegment("players")
+			.addPathSegment(username)
+			.build()
+			.toString();
 
-			if (wTypes.contains(WorldType.DEADMAN_TOURNAMENT))
-			{
-				return HiscoreEndpoint.TOURNAMENT;
-			}
-			else if (wTypes.contains(WorldType.DEADMAN))
-			{
-				return HiscoreEndpoint.DEADMAN;
-			}
-			else if (wTypes.contains(WorldType.LEAGUE))
-			{
-				return HiscoreEndpoint.LEAGUE;
-			}
-		}
-		return HiscoreEndpoint.NORMAL;
+		SwingUtilities.invokeLater(() -> LinkBrowser.browse(url));
 	}
 
-	@VisibleForTesting
-	static String formatHours(double hours)
+	private void addPanel(StatsTableHeader sth, JPanel panel, GridBagConstraints c)
 	{
-		int h = (int) hours;
-		if (h < 1)
-		{
-			return "--";
-		}
-		else if (h < 10000)
-		{
-			return h + "h";
-		}
-		else
-		{
-			return (h / 1000) + "kh";
-		}
+		c.insets.bottom = 0;
+		add(sth, c);
+		c.gridy++;
+		c.insets.bottom = 10;
+		add(panel, c);
+		c.gridy++;
 	}
 
-	private static String pad(String str, HiscoreSkillType type)
+	private void updateTotalLevel(Snapshot snapshot)
 	{
-		// Left pad label text to keep labels aligned
-		int pad = type == HiscoreSkillType.BOSS ? 4 : 2;
-		return StringUtils.leftPad(str, pad);
+		int totalLevel = 0;
+		Skill overall = snapshot.getSkill(OVERALL);
+
+		for (HiscoreSkill skill : SKILLS)
+		{
+			int level = Experience.getLevelForXp((int) snapshot.getSkill(skill).getExperience());
+			totalLevel += !config.virtualLevels() && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
+		}
+
+		JLabel expLbl = overallRow.labels.get("experience");
+		JLabel levelLbl = overallRow.labels.get("level");
+		JLabel rankLbl = overallRow.labels.get("rank");
+		JLabel ehpLbl = overallRow.labels.get("ehp");
+
+		expLbl.setText(Utils.formatNumber(overall.getExperience()));
+		expLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getExperience()));
+
+		levelLbl.setText(String.valueOf(totalLevel));
+		levelLbl.setToolTipText(QuantityFormatter.formatNumber(totalLevel));
+
+		rankLbl.setText(Utils.formatNumber(overall.getRank()));
+		rankLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getRank()));
+
+		ehpLbl.setText(Utils.formatNumber(overall.getEhp()));
+		ehpLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getEhp()));
 	}
 }
