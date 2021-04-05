@@ -43,6 +43,15 @@ public interface WomUtilsConfig extends Config
 	default boolean menuLookupOption() { return true; }
 
 	@ConfigItem(
+		keyName = "virtualLevels",
+		name = "Virtual levels",
+		description = "Show virtual levels in the side bar on lookup",
+		position = 1,
+		section = lookupConfig
+	)
+	default boolean virtualLevels() { return false; }
+
+	@ConfigItem(
 		keyName = "showIcons",
 		name = "Show icons",
 		description = "Show icons in friend list and clan chat for people who are in the WOM group",
