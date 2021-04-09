@@ -516,19 +516,6 @@ public class WomPanel extends PluginPanel
 		return lookup.replace('\u00A0', ' ');
 	}
 
-	private void openPlayerProfile(String username)
-	{
-		String url = new HttpUrl.Builder()
-			.scheme("https")
-			.host("wiseoldman.net")
-			.addPathSegment("players")
-			.addPathSegment(username)
-			.build()
-			.toString();
-
-		SwingUtilities.invokeLater(() -> LinkBrowser.browse(url));
-	}
-
 	private void addPanel(StatsTableHeader sth, JPanel panel, GridBagConstraints c)
 	{
 		c.insets.bottom = 0;
@@ -566,5 +553,18 @@ public class WomPanel extends PluginPanel
 
 		ehpLbl.setText(Utils.formatNumber(overall.getEhp()));
 		ehpLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getEhp()));
+	}
+
+	private void openPlayerProfile(String username)
+	{
+		String url = new HttpUrl.Builder()
+			.scheme("https")
+			.host("wiseoldman.net")
+			.addPathSegment("players")
+			.addPathSegment(username)
+			.build()
+			.toString();
+
+		SwingUtilities.invokeLater(() -> LinkBrowser.browse(url));
 	}
 }
