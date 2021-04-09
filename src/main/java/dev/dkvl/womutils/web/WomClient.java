@@ -5,6 +5,7 @@ import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.beans.AddedMembersInfo;
 import dev.dkvl.womutils.beans.GroupInfo;
+import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.GroupMemberAddition;
 import dev.dkvl.womutils.beans.GroupMemberRemoval;
 import dev.dkvl.womutils.beans.Member;
@@ -16,12 +17,14 @@ import dev.dkvl.womutils.beans.WomStatus;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
+import dev.dkvl.womutils.util.ParsedCompetition;
 import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -231,6 +234,23 @@ public class WomClient
 		}
 	}
 
+	private void playerCompetitionsCallback(Response response)
+	{
+		if (response.isSuccessful())
+		{
+			Competition[] comps = parseResponse(response, Competition[].class);
+
+			for (Competition c : comps)
+			{
+				ParsedCompetition pc = ParsedCompetition.of(c);
+
+				sendResponseToChat(pc.getStartDate().toString(), Color.BLUE);
+				sendResponseToChat(pc.getEndDate().toString(), Color.RED);
+			}
+			Arrays.stream(comps).map(ParsedCompetition::of).toArray();
+		}
+	}
+
 	private <T> T parseResponse(Response r, Class<T> clazz)
 	{
 		return parseResponse(r, clazz, false);
@@ -336,6 +356,12 @@ public class WomClient
 		messageNode.setRuneLiteFormatMessage(message);
 		chatMessageManager.update(messageNode);
 		client.refreshChat();
+	}
+
+	public void fetchPlayerCompetitions(String username)
+	{
+		Request request = createRequest("players", "username", username, "competitions");
+		sendRequest(request, this::playerCompetitionsCallback);
 	}
 
 	public void updatePlayer(String username)

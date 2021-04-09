@@ -263,6 +263,7 @@ public class WomUtilsPlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 
 		clientThread.invoke(this::saveCurrentLevels);
+		womClient.fetchPlayerCompetitions("half off");
 	}
 
 	@Override
