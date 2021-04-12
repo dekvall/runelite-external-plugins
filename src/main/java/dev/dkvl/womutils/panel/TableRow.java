@@ -136,7 +136,7 @@ public class TableRow extends JPanel
     void update(Boss boss, HiscoreSkill b)
     {
         int kills = boss.getKills();
-        int minimumKc = Format.getMinimumKc(b.name().toLowerCase());
+        int minimumKc = Format.getMinimumKc(b);
         boolean ranked = kills >= minimumKc;
 
         int rank = boss.getRank();

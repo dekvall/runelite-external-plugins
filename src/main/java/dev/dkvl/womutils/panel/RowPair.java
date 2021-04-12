@@ -1,4 +1,4 @@
-package dev.dkvl.womutils.beans;
+package dev.dkvl.womutils.panel;
 
 import dev.dkvl.womutils.panel.TableRow;
 import lombok.Value;

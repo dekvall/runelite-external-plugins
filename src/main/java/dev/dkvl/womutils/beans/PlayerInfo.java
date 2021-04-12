@@ -10,7 +10,7 @@ public class PlayerInfo
     String username;
     String displayName;
     String type;
-    String build;
+    PlayerBuild build;
     String country;
     boolean flagged;
     double ehp;

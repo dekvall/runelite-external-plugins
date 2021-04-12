@@ -89,8 +89,8 @@ public class Snapshot
 	Boss wintertodt;
 	Boss zalcano;
 	Boss zulrah;
-	EffectiveHours ehp;
-	EffectiveHours ehb;
+	VirtualSkill ehp;
+	VirtualSkill ehb;
 
 	public Skill getSkill(HiscoreSkill skill)
 	{
@@ -280,15 +280,5 @@ public class Snapshot
 			default:
 				throw new IllegalArgumentException("Invalid hiscore boss");
 		}
-	}
-
-	public EffectiveHours ehp()
-	{
-		return getEhp();
-	}
-
-	public EffectiveHours ehb()
-	{
-		return getEhb();
 	}
 }

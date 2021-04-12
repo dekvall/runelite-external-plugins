@@ -24,6 +24,8 @@
  */
 package dev.dkvl.womutils;
 
+import net.runelite.http.api.hiscore.HiscoreSkill;
+
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -39,9 +41,9 @@ public class Format {
         }
 
         DecimalFormat df = new DecimalFormat();
+        df.setGroupingUsed(false);
         df.setRoundingMode(RoundingMode.FLOOR);
         DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols();
-        formatSymbols.setGroupingSeparator('\u200B');
         df.setDecimalFormatSymbols(formatSymbols);
         df.setMaximumFractionDigits(2);
 
@@ -107,24 +109,8 @@ public class Format {
         }
     }
 
-    public static String formatBuild(String build)
-    {
-        switch (build) {
-            case "1def":
-                return "1 Def Pure";
-            case "lvl3":
-                return "Level 3";
-            case "f2p":
-                return "F2P";
-            case "10hp":
-                return "10 HP Pure";
-            default:
-                return "Main";
-        }
-    }
-
-    public static int getMinimumKc(String boss) {
-        switch (boss) {
+    public static int getMinimumKc(HiscoreSkill boss) {
+        switch (boss.name().toLowerCase()) {
             case "mimic":
             case "tzkal_zuk":
                 return 2;

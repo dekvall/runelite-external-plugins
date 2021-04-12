@@ -40,6 +40,7 @@ import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Experience;
@@ -48,6 +49,8 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.IconTextField;
+import net.runelite.client.ui.components.materialtabs.MaterialTab;
+import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.QuantityFormatter;
 import net.runelite.http.api.hiscore.HiscoreEndpoint;
@@ -466,7 +469,7 @@ public class WomPanel extends PluginPanel
 					label.setText("Country: " + countryTxt);
 					break;
 				case "build":
-					label.setText("Build: " + Format.formatBuild(result.getBuild()));
+					label.setText("Build: " + result.getBuild().toString());
 					break;
 				case "ttm":
 					label.setText("TTM: " + Format.formatNumber(result.getTtm()) + 'h');
@@ -515,7 +518,7 @@ public class WomPanel extends PluginPanel
 			}
 		}
 		updateTotalLevel(latestSnapshot);
-		updateTotalEhb(latestSnapshot.ehb());
+		updateTotalEhb(latestSnapshot.getEhb());
 	}
 
 	private void applyResult(PlayerInfo result)
@@ -583,7 +586,7 @@ public class WomPanel extends PluginPanel
 		ehpLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getEhp()));
 	}
 
-	private void updateTotalEhb(EffectiveHours ehb)
+	private void updateTotalEhb(VirtualSkill ehb)
 	{
 		JLabel rankLabel = totalEhbRow.labels.get("rank");
 		JLabel ehbLabel = totalEhbRow.labels.get("ehb");
