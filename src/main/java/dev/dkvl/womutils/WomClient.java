@@ -103,7 +103,7 @@ class WomClient
 		);
 
 		return new Request.Builder()
-			.header("User-Agent", "WOM RuneLite Plugin")
+			.header("User-Agent", "WiseOldMan RuneLite Plugin")
 			.url(url)
 			.post(body)
 			.build();
@@ -113,7 +113,7 @@ class WomClient
 	{
 		HttpUrl url = buildUrl(pathSegments);
 		return new Request.Builder()
-			.header("User-Agent", "WOM RuneLite Plugin")
+			.header("User-Agent", "WiseOldMan RuneLite Plugin")
 			.url(url)
 			.build();
 	}
