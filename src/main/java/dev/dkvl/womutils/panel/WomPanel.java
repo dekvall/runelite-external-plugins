@@ -25,10 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.panel;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import dev.dkvl.womutils.*;
 import dev.dkvl.womutils.beans.*;
 
 import java.awt.*;
@@ -58,7 +59,6 @@ import okhttp3.HttpUrl;
 @Slf4j
 public class WomPanel extends PluginPanel
 {
-	@Inject
 	private WomUtilsConfig config;
 
 	/* The maximum allowed username length in RuneScape accounts */
@@ -115,12 +115,12 @@ public class WomPanel extends PluginPanel
 
 	private final IconTextField searchBar;
 
-	private final Map<String, JLabel> miscInfoLabels = new HashMap<>();
-	private final Map<String, JButton> buttons = new HashMap<>();
-	private final Map<HiscoreSkill, TableRow> tableRows = new HashMap<>();
+	private final List<InfoLabel> miscInfoLabels = new ArrayList<>();
+	private final List<JButton> buttons = new ArrayList<>();
+	private final List<RowPair> tableRows = new ArrayList<>();
 
-	PlayerInfo latestLookup = null;
 	TableRow overallRow;
+	TableRow totalEhbRow;
 
 	/* The currently selected endpoint */
 	private HiscoreEndpoint selectedEndPoint;
@@ -129,11 +129,12 @@ public class WomPanel extends PluginPanel
 	private boolean loading = false;
 
 	@Inject
-	public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient)
+	public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient, WomUtilsConfig config)
 	{
 		this.client = client;
 		this.nameAutocompleter = nameAutocompleter;
 		this.womClient = womClient;
+		this.config = config;
 
 		// The layout seems to be ignoring the top margin and only gives it
 		// a 2-3 pixel margin, so I set the value to 18 to compensate
@@ -210,8 +211,8 @@ public class WomPanel extends PluginPanel
 			openPlayerProfile(sanitize(searchBar.getText())));
 		profileBtn.setText("Open Profile");
 
-		buttons.put("update", updateBtn);
-		buttons.put("profile", profileBtn);
+		buttons.add(updateBtn);
+		buttons.add(profileBtn);
 
 		buttonsPanel.add(updateBtn);
 		buttonsPanel.add(profileBtn);
@@ -230,17 +231,18 @@ public class WomPanel extends PluginPanel
 		JPanel miscInfoPanel = new JPanel();
 		miscInfoPanel.setLayout(new GridLayout(3, 2, 5, 5));
 
-		miscInfoLabels.put("Build", new JLabel("Build: --"));
-		miscInfoLabels.put("Country", new JLabel("Country: --"));
-		miscInfoLabels.put("TTM", new JLabel("TTM: --"));
-		miscInfoLabels.put("EHP", new JLabel("EHP: --"));
-		miscInfoLabels.put("EHB", new JLabel("EHB: --"));
-		miscInfoLabels.put("Exp", new JLabel("Exp: --"));
-		miscInfoLabels.put("Last updated", lastUpdated);
+		miscInfoLabels.add(new InfoLabel("Build", new JLabel("Build: --")));
+		miscInfoLabels.add(new InfoLabel("Country", new JLabel("Country: --")));
+		miscInfoLabels.add(new InfoLabel("TTM", new JLabel("TTM: --")));
+		miscInfoLabels.add(new InfoLabel("EHP", new JLabel("EHP: --")));
+		miscInfoLabels.add(new InfoLabel("EHB", new JLabel("EHB: --")));
+		miscInfoLabels.add(new InfoLabel("Exp", new JLabel("Exp: --")));
+		miscInfoLabels.add(new InfoLabel("Last updated", lastUpdated));
 
-		for (Map.Entry<String, JLabel> entry : miscInfoLabels.entrySet()) {
-			JLabel label = entry.getValue();
-			if (entry.getKey().toLowerCase().equals("last updated"))
+		for (InfoLabel infoLabel : miscInfoLabels) {
+			JLabel label = infoLabel.getLabel();
+
+			if (infoLabel.getRawString().equalsIgnoreCase("last updated"))
 			{
 				label.setFont(FontManager.getRunescapeSmallFont());
 				label.setHorizontalAlignment(JLabel.CENTER);
@@ -272,29 +274,51 @@ public class WomPanel extends PluginPanel
 
 		JPanel skillPanel = new JPanel(new GridLayout(0, 1));
 		// Handle overall separately because it's special
-		overallRow = new TableRow(OVERALL);
+		overallRow = new TableRow(
+			OVERALL.name(), OVERALL.getName(), HiscoreSkillType.SKILL,
+			"experience", "level", "rank", "ehp"
+		);
 		skillPanel.add(overallRow);
 
 		for (HiscoreSkill skill : SKILLS)
 		{
-			TableRow row = new TableRow(skill);
-			tableRows.put(skill, row);
+			TableRow row = new TableRow(
+				skill.name(), skill.getName(), HiscoreSkillType.SKILL,
+				"experience", "level", "rank", "ehp"
+			);
+
+			tableRows.add(new RowPair(skill, row));
 			skillPanel.add(row);
 		}
 
 		JPanel bossPanel = new JPanel(new GridLayout(0, 1));
+		// Handle total ehb row separately because it's special
+		totalEhbRow = new TableRow(
+			"ehb", "EHB", HiscoreSkillType.BOSS,
+			"kills", "rank", "ehb"
+		);
+		bossPanel.add(totalEhbRow);
+
 		for (HiscoreSkill boss : BOSSES)
 		{
-			TableRow row = new TableRow(boss);
-			tableRows.put(boss, row);
+			TableRow row = new TableRow(
+				boss.name(), boss.getName(), HiscoreSkillType.BOSS,
+				"kills", "rank", "ehb"
+			);
+
+			tableRows.add(new RowPair(boss, row));
 			bossPanel.add(row);
 		}
 
 		JPanel activitiesPanel = new JPanel(new GridLayout(0, 1));
 		for (HiscoreSkill activity : ACTIVITIES)
 		{
-			TableRow row = new TableRow(activity);
-			tableRows.put(activity, row);
+			TableRow row = new TableRow(
+				activity.name(), activity.getName(), HiscoreSkillType.ACTIVITY,
+				"score", "rank"
+			);
+
+			tableRows.add(new RowPair(activity, row));
 			activitiesPanel.add(row);
 		}
 
@@ -305,7 +329,7 @@ public class WomPanel extends PluginPanel
 		addInputKeyListener(nameAutocompleter);
 	}
 
-	void shutdown()
+	public void shutdown()
 	{
 		removeInputKeyListener(nameAutocompleter);
 	}
@@ -319,9 +343,9 @@ public class WomPanel extends PluginPanel
 
 	private void toggleButtons(boolean enabled)
 	{
-		for (Map.Entry<String, JButton> btn : buttons.entrySet())
+		for (JButton button : buttons)
 		{
-			btn.getValue().setEnabled(enabled);
+			button.setEnabled(enabled);
 		}
 	}
 
@@ -335,7 +359,6 @@ public class WomPanel extends PluginPanel
 	{
 		final String lookup = sanitize(searchBar.getText());
 		toggleButtons(false);
-		latestLookup = null;
 
 		if (Strings.isNullOrEmpty(lookup))
 		{
@@ -354,9 +377,9 @@ public class WomPanel extends PluginPanel
 		searchBar.setIcon(IconTextField.Icon.LOADING_DARKER);
 		loading = true;
 
-		for (Map.Entry<String, JLabel> entry : miscInfoLabels.entrySet())
+		for (InfoLabel infoLabel : miscInfoLabels)
 		{
-			entry.getValue().setText(entry.getKey() + ": --");
+			infoLabel.getLabel().setText(infoLabel.getRawString() + ": --");
 		}
 
 		for (Map.Entry<String, JLabel> entry : overallRow.labels.entrySet())
@@ -364,9 +387,14 @@ public class WomPanel extends PluginPanel
 			entry.getValue().setText("--");
 		}
 
-		for (Map.Entry<HiscoreSkill, TableRow> entry : tableRows.entrySet())
+		for (Map.Entry<String, JLabel> entry : totalEhbRow.labels.entrySet())
 		{
-			TableRow row = entry.getValue();
+			entry.getValue().setText("--");
+		}
+
+		for (RowPair rp : tableRows)
+		{
+			TableRow row = rp.getRow();
 
 			for (Map.Entry<String, JLabel> e : row.labels.entrySet())
 			{
@@ -421,17 +449,16 @@ public class WomPanel extends PluginPanel
 				loading = false;
 
 				toggleButtons(true);
-				latestLookup = result;
 				applyResult(result);
 			}));
 	}
 
 	private void applyOverviewResult(PlayerInfo result)
 	{
-		for (Map.Entry<String, JLabel> entry : miscInfoLabels.entrySet())
+		for (InfoLabel infoLabel : miscInfoLabels)
 		{
-			JLabel label = entry.getValue();
-			switch (entry.getKey().toLowerCase())
+			JLabel label = infoLabel.getLabel();
+			switch (infoLabel.getRawString().toLowerCase())
 			{
 				case "country":
 					String cntry = result.getCountry();
@@ -439,22 +466,22 @@ public class WomPanel extends PluginPanel
 					label.setText("Country: " + countryTxt);
 					break;
 				case "build":
-					label.setText("Build: " + Utils.formatBuild(result.getBuild()));
+					label.setText("Build: " + Format.formatBuild(result.getBuild()));
 					break;
 				case "ttm":
-					label.setText("TTM: " + Utils.formatNumber(result.getTtm()) + 'h');
+					label.setText("TTM: " + Format.formatNumber(result.getTtm()) + 'h');
 					break;
 				case "ehp":
-					label.setText("EHP: " + Utils.formatNumber(result.getEhp()));
+					label.setText("EHP: " + Format.formatNumber(result.getEhp()));
 					break;
 				case "ehb":
-					label.setText("EHB: " + Utils.formatNumber(result.getEhb()));
+					label.setText("EHB: " + Format.formatNumber(result.getEhb()));
 					break;
 				case "exp":
-					label.setText("Exp: " + Utils.formatNumber(result.getExp()));
+					label.setText("Exp: " + Format.formatNumber(result.getExp()));
 					break;
 				case "last updated":
-					label.setText("Last updated " + Utils.formatDate(result.getUpdatedAt(), config.relativeTime()));
+					label.setText("Last updated " + Format.formatDate(result.getUpdatedAt(), config.relativeTime()));
 					break;
 			}
 		}
@@ -469,10 +496,10 @@ public class WomPanel extends PluginPanel
 
 		Snapshot latestSnapshot = result.getLatestSnapshot();
 
-		for (Map.Entry<HiscoreSkill, TableRow> entry : tableRows.entrySet())
+		for (RowPair rp : tableRows)
 		{
-			HiscoreSkill skill = entry.getKey();
-			TableRow row = entry.getValue();
+			HiscoreSkill skill = rp.getSkill();
+			TableRow row = rp.getRow();
 
 			if (skill.getType() == HiscoreSkillType.SKILL)
 			{
@@ -488,6 +515,7 @@ public class WomPanel extends PluginPanel
 			}
 		}
 		updateTotalLevel(latestSnapshot);
+		updateTotalEhb(latestSnapshot.ehb());
 	}
 
 	private void applyResult(PlayerInfo result)
@@ -537,22 +565,37 @@ public class WomPanel extends PluginPanel
 			totalLevel += !config.virtualLevels() && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
 		}
 
-		JLabel expLbl = overallRow.labels.get("experience");
-		JLabel levelLbl = overallRow.labels.get("level");
-		JLabel rankLbl = overallRow.labels.get("rank");
-		JLabel ehpLbl = overallRow.labels.get("ehp");
+		JLabel expLabel = overallRow.labels.get("experience");
+		JLabel levelLabel = overallRow.labels.get("level");
+		JLabel rankLabel = overallRow.labels.get("rank");
+		JLabel ehpLabel = overallRow.labels.get("ehp");
 
-		expLbl.setText(Utils.formatNumber(overall.getExperience()));
-		expLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getExperience()));
+		expLabel.setText(Format.formatNumber(overall.getExperience()));
+		expLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getExperience()));
 
-		levelLbl.setText(String.valueOf(totalLevel));
-		levelLbl.setToolTipText(QuantityFormatter.formatNumber(totalLevel));
+		levelLabel.setText(String.valueOf(totalLevel));
+		levelLabel.setToolTipText(QuantityFormatter.formatNumber(totalLevel));
 
-		rankLbl.setText(Utils.formatNumber(overall.getRank()));
-		rankLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getRank()));
+		rankLabel.setText(Format.formatNumber(overall.getRank()));
+		rankLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getRank()));
 
-		ehpLbl.setText(Utils.formatNumber(overall.getEhp()));
-		ehpLbl.setToolTipText(QuantityFormatter.formatNumber(overall.getEhp()));
+		ehpLabel.setText(Format.formatNumber(overall.getEhp()));
+		ehpLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getEhp()));
+	}
+
+	private void updateTotalEhb(EffectiveHours ehb)
+	{
+		JLabel rankLabel = totalEhbRow.labels.get("rank");
+		JLabel ehbLabel = totalEhbRow.labels.get("ehb");
+
+		int rank = ehb.getRank();
+		double value = ehb.getValue();
+
+		rankLabel.setText(Format.formatNumber(rank));
+		rankLabel.setToolTipText(QuantityFormatter.formatNumber(rank));
+
+		ehbLabel.setText(Format.formatNumber(value));
+		ehbLabel.setToolTipText(QuantityFormatter.formatNumber(value));
 	}
 
 	private void openPlayerProfile(String username)

@@ -22,8 +22,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.panel;
 
+import dev.dkvl.womutils.Format;
 import dev.dkvl.womutils.beans.Boss;
 import dev.dkvl.womutils.beans.Minigame;
 import dev.dkvl.womutils.beans.Skill;
@@ -49,7 +50,7 @@ public class TableRow extends JPanel
 
     Map<String, JLabel> labels = new HashMap<>();
 
-    TableRow(HiscoreSkill skill)
+    TableRow(String name, String formattedName, HiscoreSkillType type, String... labels)
     {
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(2, 0, 2, 0));
@@ -58,33 +59,27 @@ public class TableRow extends JPanel
         JPanel dataPanel = new JPanel(new GridLayout());
         dataPanel.setOpaque(false);
 
-        String directory;
-        if (skill.getType() == HiscoreSkillType.BOSS)
-        {
-            directory = "bosses/";
+        final String directory;
 
-            dataPanel.add(createCell("kills"));
-            dataPanel.add(createCell("rank"));
-            dataPanel.add(createCell("ehb"));
+        if (type == HiscoreSkillType.BOSS)
+        {
+            directory = "../bosses/";
         }
-        else if (skill.getType() == HiscoreSkillType.ACTIVITY)
+        else if (type == HiscoreSkillType.ACTIVITY)
         {
-            directory = "activities/";
-
-            dataPanel.add(createCell("score"));
-            dataPanel.add(createCell("rank"));
+            directory = "../activities/";
         }
         else
         {
             directory = "/skill_icons_small/";
-
-            dataPanel.add(createCell("experience"));
-            dataPanel.add(createCell("level"));
-            dataPanel.add(createCell("rank"));
-            dataPanel.add(createCell("ehp"));
         }
 
-        String iconDirectory = directory + skill.name().toLowerCase() + ".png";
+        for (String l : labels)
+        {
+            dataPanel.add(createCell(l));
+        }
+
+        String iconDirectory = directory + name.toLowerCase() + ".png";
         log.debug("Loading icon for {}", iconDirectory);
 
         JPanel iconPanel = new JPanel(new BorderLayout());
@@ -96,7 +91,7 @@ public class TableRow extends JPanel
         iconPanel.setPreferredSize(new Dimension(ICON_WIDTH, icon.getIconHeight()));
 
         iconLabel.setIcon(icon);
-        iconLabel.setToolTipText(skill.getName());
+        iconLabel.setToolTipText(formattedName);
 
         add(iconPanel, BorderLayout.WEST);
         add(dataPanel);
@@ -119,45 +114,45 @@ public class TableRow extends JPanel
         boolean ranked = rank != -1;
         double ehp = skill.getEhp();
 
-        JLabel experienceLbl = labels.get("experience");
-        experienceLbl.setText(Utils.formatNumber(experience));
-        experienceLbl.setToolTipText(QuantityFormatter.formatNumber(experience));
+        JLabel experienceLabel = labels.get("experience");
+        experienceLabel.setText(Format.formatNumber(experience));
+        experienceLabel.setToolTipText(QuantityFormatter.formatNumber(experience));
 
-        JLabel levelLbl = labels.get("level");
+        JLabel levelLabel = labels.get("level");
         int level = Experience.getLevelForXp((int) experience);
         int levelToDisplay = !virtualLevels && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
-        levelLbl.setText(String.valueOf(levelToDisplay));
-        levelLbl.setToolTipText(String.valueOf(levelToDisplay));
+        levelLabel.setText(String.valueOf(levelToDisplay));
+        levelLabel.setToolTipText(String.valueOf(levelToDisplay));
 
-        JLabel rankLbl = labels.get("rank");
-        rankLbl.setText(ranked ? Utils.formatNumber(rank) : "--");
-        rankLbl.setToolTipText(ranked ? QuantityFormatter.formatNumber(rank) : "Unranked");
+        JLabel rankLabel = labels.get("rank");
+        rankLabel.setText(ranked ? Format.formatNumber(rank) : "--");
+        rankLabel.setToolTipText(ranked ? QuantityFormatter.formatNumber(rank) : "Unranked");
 
-        JLabel ehpLbl = labels.get("ehp");
-        ehpLbl.setText(Utils.formatNumber(ehp));
-        ehpLbl.setToolTipText(QuantityFormatter.formatNumber(ehp));
+        JLabel ehpLabel = labels.get("ehp");
+        ehpLabel.setText(Format.formatNumber(ehp));
+        ehpLabel.setToolTipText(QuantityFormatter.formatNumber(ehp));
     }
 
     void update(Boss boss, HiscoreSkill b)
     {
         int kills = boss.getKills();
-        int minimumKc = Utils.getMinimumKc(b.name().toLowerCase());
+        int minimumKc = Format.getMinimumKc(b.name().toLowerCase());
         boolean ranked = kills >= minimumKc;
 
         int rank = boss.getRank();
         double ehb = boss.getEhb();
 
-        JLabel killsLbl = labels.get("kills");
-        killsLbl.setText(ranked ? Utils.formatNumber(kills) : "< " + minimumKc);
-        killsLbl.setToolTipText(ranked ? QuantityFormatter.formatNumber(kills) : "The Hiscores only start tracking " + b.getName() + " after " + minimumKc + " kc");
+        JLabel killsLabel = labels.get("kills");
+        killsLabel.setText(ranked ? Format.formatNumber(kills) : "< " + minimumKc);
+        killsLabel.setToolTipText(ranked ? QuantityFormatter.formatNumber(kills) : "The Hiscores only start tracking " + b.getName() + " after " + minimumKc + " kc");
 
-        JLabel rankLbl = labels.get("rank");
-        rankLbl.setText(ranked ? Utils.formatNumber(rank) : "--");
-        rankLbl.setToolTipText(ranked ? QuantityFormatter.formatNumber(rank) : "Unranked");
+        JLabel rankLabel = labels.get("rank");
+        rankLabel.setText(ranked ? Format.formatNumber(rank) : "--");
+        rankLabel.setToolTipText(ranked ? QuantityFormatter.formatNumber(rank) : "Unranked");
 
-        JLabel ehbLbl = labels.get("ehb");
-        ehbLbl.setText(Utils.formatNumber(ehb));
-        ehbLbl.setToolTipText(QuantityFormatter.formatNumber(ehb));
+        JLabel ehbLabel = labels.get("ehb");
+        ehbLabel.setText(Format.formatNumber(ehb));
+        ehbLabel.setToolTipText(QuantityFormatter.formatNumber(ehb));
     }
 
     void update(Minigame minigame)
@@ -166,12 +161,12 @@ public class TableRow extends JPanel
         int rank = minigame.getRank();
         boolean ranked = rank != -1;
 
-        JLabel killsLbl = labels.get("score");
-        killsLbl.setText(ranked ? Utils.formatNumber(score) : "--");
-        killsLbl.setToolTipText(ranked ? QuantityFormatter.formatNumber(score) : "");
+        JLabel killsLabel = labels.get("score");
+        killsLabel.setText(ranked ? Format.formatNumber(score) : "--");
+        killsLabel.setToolTipText(ranked ? QuantityFormatter.formatNumber(score) : "");
 
-        JLabel rankLbl = labels.get("rank");
-        rankLbl.setText(ranked ? Utils.formatNumber(rank) : "--");
-        rankLbl.setToolTipText(ranked ? QuantityFormatter.formatNumber(rank) : "Unranked");
+        JLabel rankLabel = labels.get("rank");
+        rankLabel.setText(ranked ? Format.formatNumber(rank) : "--");
+        rankLabel.setToolTipText(ranked ? QuantityFormatter.formatNumber(rank) : "Unranked");
     }
 }

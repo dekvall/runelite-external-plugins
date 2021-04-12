@@ -22,16 +22,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.panel;
 
+import com.google.common.collect.ImmutableMap;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.util.HashMap;
-import java.util.Map;
 
 public class StatsTableHeader extends JPanel
 {
@@ -39,12 +38,11 @@ public class StatsTableHeader extends JPanel
     private static final String[] BOSSING_LABELS = {"Kills", "Rank", "EHB"};
     private static final String[] ACTIVITIES_LABELS = {"Score", "Rank"};
 
-    private static final Map<String, String[]> HEADER_LABELS = new HashMap<String, String[]>()
-    {{
-        put("skilling", SKILLING_LABELS);
-        put("bossing", BOSSING_LABELS);
-        put("activities", ACTIVITIES_LABELS);
-    }};
+    private static final ImmutableMap<String, String[]> HEADER_LABELS = ImmutableMap.of(
+        "skilling", SKILLING_LABELS,
+        "bossing", BOSSING_LABELS,
+        "activities", ACTIVITIES_LABELS
+    );
 
     StatsTableHeader(String stats)
     {

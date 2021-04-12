@@ -1,4 +1,4 @@
-package dev.dkvl.womutils.beans;;
+package dev.dkvl.womutils.beans;
 
 import lombok.Value;
 import net.runelite.http.api.hiscore.HiscoreSkill;
@@ -89,6 +89,8 @@ public class Snapshot
 	Boss wintertodt;
 	Boss zalcano;
 	Boss zulrah;
+	EffectiveHours ehp;
+	EffectiveHours ehb;
 
 	public Skill getSkill(HiscoreSkill skill)
 	{
@@ -278,5 +280,15 @@ public class Snapshot
 			default:
 				throw new IllegalArgumentException("Invalid hiscore boss");
 		}
+	}
+
+	public EffectiveHours ehp()
+	{
+		return getEhp();
+	}
+
+	public EffectiveHours ehb()
+	{
+		return getEhb();
 	}
 }

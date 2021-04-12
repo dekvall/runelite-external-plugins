@@ -24,6 +24,8 @@ import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
+
+import dev.dkvl.womutils.panel.WomPanel;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;

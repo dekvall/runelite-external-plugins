@@ -46,11 +46,10 @@ import net.runelite.api.FriendsChatManager;
 import net.runelite.api.Nameable;
 import net.runelite.api.NameableContainer;
 import net.runelite.api.Player;
-import net.runelite.client.plugins.hiscore.HiscoreConfig;
 
 @Slf4j
 @Singleton
-class NameAutocompleter implements KeyListener
+public class NameAutocompleter implements KeyListener
 {
 	/**
 	 * Non-breaking space character.
@@ -255,7 +254,7 @@ class NameAutocompleter implements KeyListener
 		return autocompleteName.isPresent();
 	}
 
-	void addToSearchHistory(@NonNull String name)
+	public void addToSearchHistory(@NonNull String name)
 	{
 		if (!searchHistory.contains(name))
 		{

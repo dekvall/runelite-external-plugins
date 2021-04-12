@@ -30,8 +30,8 @@ import java.text.DecimalFormatSymbols;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 
-public class Utils {
-    static String formatNumber(long num)
+public class Format {
+    public static String formatNumber(long num)
     {
         if ((num < 10000 && num > -10000))
         {
@@ -59,7 +59,7 @@ public class Utils {
         return df.format(num / 1_000_000_000.0) + "b";
     }
 
-    static String formatNumber(double num)
+    public static String formatNumber(double num)
     {
         if ((num < 10000 && num > -10000))
         {
@@ -73,7 +73,7 @@ public class Utils {
         return df.format(num / 1000.0) + "k";
     }
 
-    static String formatDate(String date, boolean relative)
+    public static String formatDate(String date, boolean relative)
     {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
         ZoneId localZone = ZoneId.systemDefault();
@@ -107,7 +107,7 @@ public class Utils {
         }
     }
 
-    static String formatBuild(String build)
+    public static String formatBuild(String build)
     {
         switch (build) {
             case "1def":
@@ -123,7 +123,7 @@ public class Utils {
         }
     }
 
-    static int getMinimumKc(String boss) {
+    public static int getMinimumKc(String boss) {
         switch (boss) {
             case "mimic":
             case "tzkal_zuk":

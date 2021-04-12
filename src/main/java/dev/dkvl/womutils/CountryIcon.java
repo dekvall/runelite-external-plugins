@@ -1,11 +1,8 @@
 package dev.dkvl.womutils;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import java.awt.image.BufferedImage;
 import java.util.Map;
-import javax.swing.Icon;
 import lombok.AllArgsConstructor;
 import net.runelite.client.util.ImageUtil;
 
