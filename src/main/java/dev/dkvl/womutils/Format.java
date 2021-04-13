@@ -28,11 +28,11 @@ import net.runelite.http.api.hiscore.HiscoreSkill;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 
-public class Format {
+public class Format
+{
     public static String formatNumber(long num)
     {
         if ((num < 10000 && num > -10000))
@@ -43,18 +43,18 @@ public class Format {
         DecimalFormat df = new DecimalFormat();
         df.setGroupingUsed(false);
         df.setRoundingMode(RoundingMode.FLOOR);
-        DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols();
-        df.setDecimalFormatSymbols(formatSymbols);
         df.setMaximumFractionDigits(2);
 
         // < 10 million
-        if (num < 10_000_000 && num > -10_000_000) {
+        if (num < 10_000_000 && num > -10_000_000)
+        {
             df.setMaximumFractionDigits(0);
             return df.format(num / 1000.0) + "k";
         }
 
         // < 1 billion
-        if (num < 1_000_000_000 && num > -1_000_000_000) {
+        if (num < 1_000_000_000 && num > -1_000_000_000)
+        {
             return df.format( num / 1_000_000.0) + "m";
         }
 
@@ -89,7 +89,7 @@ public class Format {
 
             if (difference == 0)
             {
-                return "< 60 minutes ago";
+                return "less than 60 minutes ago";
             }
 
             long days = difference / 24;
@@ -109,18 +109,20 @@ public class Format {
         }
     }
 
-    public static int getMinimumKc(HiscoreSkill boss) {
-        switch (boss.name().toLowerCase()) {
-            case "mimic":
-            case "tzkal_zuk":
+    public static int getMinimumKc(HiscoreSkill boss)
+    {
+        switch (boss)
+        {
+            case MIMIC:
+            case TZKAL_ZUK:
                 return 2;
-            case "bryophyta":
-            case "chambers_of_xeric_challenge_mode":
-            case "hespori":
-            case "obor":
-            case "skotizo":
-            case "the_corrupted_gauntlet":
-            case "tztok_jad":
+            case BRYOPHYTA:
+            case CHAMBERS_OF_XERIC_CHALLENGE_MODE:
+            case HESPORI:
+            case OBOR:
+            case SKOTIZO:
+            case THE_CORRUPTED_GAUNTLET:
+            case TZTOK_JAD:
                 return 10;
             default:
                 return 50;

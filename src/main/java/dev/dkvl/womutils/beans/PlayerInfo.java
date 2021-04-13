@@ -9,7 +9,7 @@ public class PlayerInfo
     int id;
     String username;
     String displayName;
-    String type;
+    PlayerType type;
     PlayerBuild build;
     String country;
     boolean flagged;

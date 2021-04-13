@@ -2,9 +2,7 @@ package dev.dkvl.womutils.beans;
 
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 
-@Getter
 @AllArgsConstructor
 public enum PlayerBuild
 {
@@ -26,7 +24,8 @@ public enum PlayerBuild
     private final String build;
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return build;
     }
 }
