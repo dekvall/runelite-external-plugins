@@ -33,9 +33,6 @@ public class WomPanel extends PluginPanel
     /* The maximum allowed username length in RuneScape accounts */
     private static final int MAX_USERNAME_LENGTH = 12;
 
-    // Used to calculate the padding of icons in overview info
-    private static final int ICON_WIDTH = 25;
-
     private final SkillingPanel skillingPanel;
     private final BossingPanel bossingPanel;
     private final ActivitiesPanel activitiesPanel;
@@ -187,7 +184,7 @@ public class WomPanel extends PluginPanel
                     icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ttm.png"));
                     break;
                 case "exp":
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "/skill_icons_small/overall.png"));
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../overall.png"));
                     break;
                 case "ehb":
                     icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../bosses/ehb.png"));
@@ -199,7 +196,6 @@ public class WomPanel extends PluginPanel
                     icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../build.png"));
                     break;
                 default:
-                    label.setFont(FontManager.getRunescapeSmallFont());
                     label.setHorizontalAlignment(JLabel.CENTER);
                     continue;
             }
@@ -210,9 +206,6 @@ public class WomPanel extends PluginPanel
             label.setBorder(new EmptyBorder(5, 10, 5, 5));
             label.setToolTipText(rawString);
             label.setIcon(icon);
-
-            // Align the labels and icons
-            label.setIconTextGap(ICON_WIDTH - icon.getIconWidth());
 
             miscInfoPanel.add(label);
         }
