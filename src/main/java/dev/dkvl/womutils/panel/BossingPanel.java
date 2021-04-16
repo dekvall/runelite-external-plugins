@@ -5,6 +5,7 @@ import dev.dkvl.womutils.Format;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Snapshot;
 import dev.dkvl.womutils.beans.VirtualSkill;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.QuantityFormatter;
 import net.runelite.http.api.hiscore.HiscoreSkill;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
@@ -40,6 +41,7 @@ class BossingPanel extends JPanel
         VETION, VORKATH, WINTERTODT,
         ZALCANO, ZULRAH
     );
+    Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
 
     TableRow totalEhbRow;
     List<RowPair> tableRows = new ArrayList<>();
@@ -56,16 +58,19 @@ class BossingPanel extends JPanel
             "ehb", "EHB", HiscoreSkillType.BOSS,
             "kills", "rank", "ehb"
         );
+        totalEhbRow.setBackground(ROW_COLORS[1]);
 
         add(tableHeader);
         add(totalEhbRow);
 
-        for (HiscoreSkill boss : BOSSES)
+        for (int i = 0; i < BOSSES.size(); i++)
         {
+            HiscoreSkill boss = BOSSES.get(i);
             TableRow row = new TableRow(
                 boss.name(), boss.getName(), HiscoreSkillType.BOSS,
                 "kills", "rank", "ehb"
             );
+            row.setBackground(ROW_COLORS[i%2]);
 
             tableRows.add(new RowPair(boss, row));
             add(row);
@@ -111,7 +116,9 @@ class BossingPanel extends JPanel
     {
         for (Map.Entry<String, JLabel> entry : totalEhbRow.labels.entrySet())
         {
-            entry.getValue().setText("--");
+            JLabel label = entry.getValue();
+            label.setText("--");
+            label.setToolTipText("");
         }
 
         for (RowPair rp : tableRows)
@@ -120,7 +127,9 @@ class BossingPanel extends JPanel
 
             for (Map.Entry<String, JLabel> e : row.labels.entrySet())
             {
-                e.getValue().setText("--");
+                JLabel label = e.getValue();
+                label.setText("--");
+                label.setToolTipText("");
             }
         }
     }

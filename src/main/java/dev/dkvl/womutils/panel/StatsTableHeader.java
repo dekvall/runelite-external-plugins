@@ -34,6 +34,8 @@ import java.awt.*;
 
 public class StatsTableHeader extends JPanel
 {
+    private static final int ICON_WIDTH = 35;
+
     private static final String[] SKILLING_LABELS = {"Exp", "Level", "Rank", "EHP"};
     private static final String[] BOSSING_LABELS = {"Kills", "Rank", "EHB"};
     private static final String[] ACTIVITIES_LABELS = {"Score", "Rank"};
@@ -52,7 +54,7 @@ public class StatsTableHeader extends JPanel
 
         JPanel iconPnl = new JPanel(new BorderLayout());
         iconPnl.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        iconPnl.setPreferredSize(new Dimension(30, 0));
+        iconPnl.setPreferredSize(new Dimension(ICON_WIDTH, 0));
         iconPnl.add(new JLabel("", SwingConstants.CENTER));
 
         JPanel headersPanel = new JPanel(new GridLayout());
@@ -62,6 +64,7 @@ public class StatsTableHeader extends JPanel
         {
             JLabel lbl = new JLabel(label, SwingConstants.CENTER);
             lbl.setFont(FontManager.getRunescapeSmallFont());
+            lbl.setForeground(Color.WHITE);
             headersPanel.add(lbl);
         }
 

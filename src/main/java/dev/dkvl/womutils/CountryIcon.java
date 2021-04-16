@@ -6,8 +6,10 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import net.runelite.client.util.ImageUtil;
 
+import javax.swing.*;
+
 @AllArgsConstructor
-enum CountryIcon
+public enum CountryIcon
 {
 	AFGHANISTAN("af", "1f1e6-1f1eb"),
 	ALBANIA("al", "1f1e6-1f1f1"),
@@ -287,7 +289,12 @@ enum CountryIcon
 
 	BufferedImage loadImage()
 	{
-		return ImageUtil.getResourceStreamFromClass(getClass(), "flags/" + codepoint + ".png");
+		return ImageUtil.loadImageResource(getClass(), "flags/" + codepoint + ".png");
+	}
+
+	public static ImageIcon loadSquareImage(String languageCode)
+	{
+		return new ImageIcon(ImageUtil.loadImageResource(CountryIcon.class, "flags_square/" + ICONS.get(languageCode).codepoint + ".png"));
 	}
 
 	static CountryIcon getIcon(String countryCode)

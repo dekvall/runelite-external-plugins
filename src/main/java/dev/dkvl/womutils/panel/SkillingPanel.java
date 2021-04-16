@@ -7,6 +7,7 @@ import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Skill;
 import dev.dkvl.womutils.beans.Snapshot;
 import net.runelite.api.Experience;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.QuantityFormatter;
 import net.runelite.http.api.hiscore.HiscoreSkill;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
@@ -35,6 +36,7 @@ class SkillingPanel extends JPanel
         SLAYER, FARMING, RUNECRAFT,
         HUNTER, CONSTRUCTION
     );
+    Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
 
     TableRow overallRow;
     List<RowPair> tableRows = new ArrayList<>();
@@ -55,16 +57,19 @@ class SkillingPanel extends JPanel
             OVERALL.name(), OVERALL.getName(), HiscoreSkillType.SKILL,
             "experience", "level", "rank", "ehp"
         );
+        overallRow.setBackground(ROW_COLORS[1]);
 
         add(tableHeader);
         add(overallRow);
 
-        for (HiscoreSkill skill : SKILLS)
+        for (int i = 0; i < SKILLS.size(); i++)
         {
+            HiscoreSkill skill = SKILLS.get(i);
             TableRow row = new TableRow(
                 skill.name(), skill.getName(), HiscoreSkillType.SKILL,
                 "experience", "level", "rank", "ehp"
             );
+            row.setBackground(ROW_COLORS[i%2]);
 
             tableRows.add(new RowPair(skill, row));
             add(row);
@@ -124,7 +129,9 @@ class SkillingPanel extends JPanel
     {
         for (Map.Entry<String, JLabel> entry : overallRow.labels.entrySet())
         {
-            entry.getValue().setText("--");
+            JLabel label = entry.getValue();
+            label.setText("--");
+            label.setToolTipText("");
         }
 
         for (RowPair rp : tableRows)
@@ -133,7 +140,9 @@ class SkillingPanel extends JPanel
 
             for (Map.Entry<String, JLabel> e : row.labels.entrySet())
             {
-                e.getValue().setText("--");
+                JLabel label = e.getValue();
+                label.setText("--");
+                label.setToolTipText("");
             }
         }
     }

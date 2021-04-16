@@ -3,6 +3,7 @@ package dev.dkvl.womutils.panel;
 import com.google.common.collect.ImmutableList;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Snapshot;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.http.api.hiscore.HiscoreSkill;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
 
@@ -14,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 
 import static net.runelite.http.api.hiscore.HiscoreSkill.*;
-import static net.runelite.http.api.hiscore.HiscoreSkill.SOUL_WARS_ZEAL;
 
 public class ActivitiesPanel extends JPanel
 {
@@ -27,6 +27,7 @@ public class ActivitiesPanel extends JPanel
         CLUE_SCROLL_MEDIUM, CLUE_SCROLL_HARD, CLUE_SCROLL_ELITE,
         CLUE_SCROLL_MASTER, LAST_MAN_STANDING, SOUL_WARS_ZEAL
     );
+    Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
 
     List<RowPair> tableRows = new ArrayList<>();
 
@@ -39,12 +40,14 @@ public class ActivitiesPanel extends JPanel
 
         add(tableHeader);
 
-        for (HiscoreSkill activity : ACTIVITIES)
+        for (int i = 0; i < ACTIVITIES.size(); i++)
         {
+            HiscoreSkill activity = ACTIVITIES.get(i);
             TableRow row = new TableRow(
                 activity.name(), activity.getName(), HiscoreSkillType.ACTIVITY,
                 "score", "rank"
             );
+            row.setBackground(ROW_COLORS[1-i%2]);
 
             tableRows.add(new RowPair(activity, row));
             add(row);
@@ -77,7 +80,9 @@ public class ActivitiesPanel extends JPanel
 
             for (Map.Entry<String, JLabel> e : row.labels.entrySet())
             {
-                e.getValue().setText("--");
+                JLabel label = e.getValue();
+                label.setText("--");
+                label.setToolTipText("");
             }
         }
     }

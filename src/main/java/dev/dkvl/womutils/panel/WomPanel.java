@@ -1,10 +1,7 @@
 package dev.dkvl.womutils.panel;
 
 import com.google.common.base.Strings;
-import dev.dkvl.womutils.Format;
-import dev.dkvl.womutils.NameAutocompleter;
-import dev.dkvl.womutils.WomClient;
-import dev.dkvl.womutils.WomUtilsConfig;
+import dev.dkvl.womutils.*;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -15,6 +12,7 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.ui.components.materialtabs.MaterialTab;
 import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.http.api.hiscore.HiscoreEndpoint;
 import okhttp3.HttpUrl;
@@ -35,11 +33,14 @@ public class WomPanel extends PluginPanel
     /* The maximum allowed username length in RuneScape accounts */
     private static final int MAX_USERNAME_LENGTH = 12;
 
+    // Used to calculate the padding of icons in overview info
+    private static final int ICON_WIDTH = 25;
+
     private final SkillingPanel skillingPanel;
     private final BossingPanel bossingPanel;
     private final ActivitiesPanel activitiesPanel;
 
-    private final NameAutocompleter nameAutoCompleter;
+    private final NameAutocompleter nameAutocompleter;
     private final WomClient womClient;
     private final WomUtilsConfig config;
 
@@ -57,7 +58,7 @@ public class WomPanel extends PluginPanel
     @Inject
     public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient, WomUtilsConfig config, SkillingPanel skillingPanel, BossingPanel bossingPanel, ActivitiesPanel activitiesPanel)
     {
-        this.nameAutoCompleter = nameAutocompleter;
+        this.nameAutocompleter = nameAutocompleter;
         this.womClient = womClient;
         this.config = config;
 
@@ -118,27 +119,36 @@ public class WomPanel extends PluginPanel
         c.gridy++;
 
         JPanel buttonsPanel = new JPanel();
-        buttonsPanel.setLayout(new GridLayout(1, 2, 7, 7));
+        buttonsPanel.setLayout(new GridBagLayout());
+        buttonsPanel.setBorder(new EmptyBorder(0, 0, 10, 0));
 
-        JButton updateBtn = new JButton();
-        updateBtn.setFont(FontManager.getRunescapeSmallFont());
-        updateBtn.setEnabled(false);
-        updateBtn.addActionListener(e ->
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.weightx = 1;
+        gbc.ipady = 10;
+
+        JButton updateButton = new JButton();
+        updateButton.setFont(FontManager.getRunescapeSmallFont());
+        updateButton.setEnabled(false);
+        updateButton.addActionListener(e ->
             womClient.updatePlayer(sanitize(searchBar.getText())));
-        updateBtn.setText("Update");
+        updateButton.setText("Update");
 
-        JButton profileBtn = new JButton();
-        profileBtn.setFont(FontManager.getRunescapeSmallFont());
-        profileBtn.setEnabled(false);
-        profileBtn.addActionListener(e ->
+        JButton profileButton = new JButton();
+        profileButton.setFont(FontManager.getRunescapeSmallFont());
+        profileButton.setEnabled(false);
+        profileButton.addActionListener(e ->
             openPlayerProfile(sanitize(searchBar.getText())));
-        profileBtn.setText("Open Profile");
+        profileButton.setText("Open Profile");
 
-        buttons.add(updateBtn);
-        buttons.add(profileBtn);
+        buttons.add(updateButton);
+        buttons.add(profileButton);
 
-        buttonsPanel.add(updateBtn);
-        buttonsPanel.add(profileBtn);
+        buttonsPanel.add(updateButton, gbc);
+        gbc.gridx++;
+        gbc.insets.left = 7;
+        buttonsPanel.add(profileButton, gbc);
 
         add(buttonsPanel, c);
 
@@ -149,33 +159,60 @@ public class WomPanel extends PluginPanel
         add(overviewTitle, c);
         c.gridy++;
 
-        JLabel lastUpdated = new JLabel("Last updated: --");
+        JLabel lastUpdated = new JLabel("Last updated --");
 
         JPanel miscInfoPanel = new JPanel();
         miscInfoPanel.setLayout(new GridLayout(3, 2, 5, 5));
 
-        miscInfoLabels.add(new InfoLabel("Build", new JLabel("Build: --")));
-        miscInfoLabels.add(new InfoLabel("Country", new JLabel("Country: --")));
-        miscInfoLabels.add(new InfoLabel("TTM", new JLabel("TTM: --")));
-        miscInfoLabels.add(new InfoLabel("EHP", new JLabel("EHP: --")));
-        miscInfoLabels.add(new InfoLabel("EHB", new JLabel("EHB: --")));
-        miscInfoLabels.add(new InfoLabel("Exp", new JLabel("Exp: --")));
+        miscInfoLabels.add(new InfoLabel("Build", new JLabel("--")));
+        miscInfoLabels.add(new InfoLabel("Country", new JLabel("--")));
+        miscInfoLabels.add(new InfoLabel("TTM", new JLabel("--")));
+        miscInfoLabels.add(new InfoLabel("EHP", new JLabel("--")));
+        miscInfoLabels.add(new InfoLabel("EHB", new JLabel("--")));
+        miscInfoLabels.add(new InfoLabel("Exp", new JLabel("--")));
         miscInfoLabels.add(new InfoLabel("Last updated", lastUpdated));
 
         for (InfoLabel infoLabel : miscInfoLabels)
         {
             JLabel label = infoLabel.getLabel();
+            String rawString = infoLabel.getRawString();
+            ImageIcon icon;
 
-            if (infoLabel.getRawString().equalsIgnoreCase("last updated"))
+            switch (rawString.toLowerCase())
             {
-                label.setFont(FontManager.getRunescapeSmallFont());
-                label.setHorizontalAlignment(JLabel.CENTER);
-                continue;
+                case "country":
+                    icon = CountryIcon.loadSquareImage("default");
+                    break;
+                case "ttm":
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ttm.png"));
+                    break;
+                case "exp":
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "/skill_icons_small/overall.png"));
+                    break;
+                case "ehb":
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../bosses/ehb.png"));
+                    break;
+                case "ehp":
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ehp.png"));
+                    break;
+                case "build":
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../build.png"));
+                    break;
+                default:
+                    label.setFont(FontManager.getRunescapeSmallFont());
+                    label.setHorizontalAlignment(JLabel.CENTER);
+                    continue;
             }
 
             label.setBackground(ColorScheme.DARKER_GRAY_COLOR);
             label.setOpaque(true);
-            label.setFont(FontManager.getRunescapeFont());
+            label.setFont(FontManager.getRunescapeSmallFont());
+            label.setBorder(new EmptyBorder(5, 10, 5, 5));
+            label.setToolTipText(rawString);
+            label.setIcon(icon);
+
+            // Align the labels and icons
+            label.setIconTextGap(ICON_WIDTH - icon.getIconWidth());
 
             miscInfoPanel.add(label);
         }
@@ -197,7 +234,7 @@ public class WomPanel extends PluginPanel
         MaterialTab bossingTab = new MaterialTab("Bosses", tabGroup, bossingPanel);
         MaterialTab activitiesTab = new MaterialTab("Activities", tabGroup, activitiesPanel);
 
-        tabGroup.setBorder(new EmptyBorder(5, 0, 0, 0));
+        tabGroup.setBorder(new EmptyBorder(10, 0, 0, 0));
         tabGroup.addTab(skillingTab);
         tabGroup.addTab(bossingTab);
         tabGroup.addTab(activitiesTab);
@@ -213,7 +250,7 @@ public class WomPanel extends PluginPanel
 
     public void shutdown()
     {
-        removeInputKeyListener(nameAutoCompleter);
+        removeInputKeyListener(nameAutocompleter);
     }
 
     @Override
@@ -262,7 +299,18 @@ public class WomPanel extends PluginPanel
         // Reset overview info
         for (InfoLabel infoLabel : miscInfoLabels)
         {
-            infoLabel.getLabel().setText(infoLabel.getRawString() + ": --");
+            JLabel label = infoLabel.getLabel();
+            String rawString = infoLabel.getRawString();
+            label.setText("--");
+
+            if (rawString.equalsIgnoreCase("country"))
+            {
+                label.setIcon(CountryIcon.loadSquareImage("default"));
+            }
+            else if (rawString.equalsIgnoreCase("last updated"))
+            {
+                label.setText("Last updated --");
+            }
         }
 
         skillingPanel.reset();
@@ -316,10 +364,7 @@ public class WomPanel extends PluginPanel
                 loading = false;
 
                 toggleButtons(true);
-                applyOverviewResult(result);
-                skillingPanel.update(result);
-                bossingPanel.update(result);
-                activitiesPanel.update(result);
+                applyResult(result);
             }));
     }
 
@@ -333,28 +378,42 @@ public class WomPanel extends PluginPanel
                 case "country":
                     String country = result.getCountry();
                     String countryTxt = country == null ? "--" : country;
-                    label.setText("Country: " + countryTxt);
+                    String languageCode = country == null ? "default" : country.toLowerCase();
+                    label.setIcon(CountryIcon.loadSquareImage(languageCode));
+                    label.setText(countryTxt);
                     break;
                 case "build":
-                    label.setText("Build: " + result.getBuild());
+                    label.setText("" + result.getBuild());
                     break;
                 case "ttm":
-                    label.setText("TTM: " + Format.formatNumber(result.getTtm()) + 'h');
+                    label.setText(Format.formatNumber(result.getTtm()) + 'h');
                     break;
                 case "ehp":
-                    label.setText("EHP: " + Format.formatNumber(result.getEhp()));
+                    label.setText(Format.formatNumber(result.getEhp()));
                     break;
                 case "ehb":
-                    label.setText("EHB: " + Format.formatNumber(result.getEhb()));
+                    label.setText(Format.formatNumber(result.getEhb()));
                     break;
                 case "exp":
-                    label.setText("Exp: " + Format.formatNumber(result.getExp()));
+                    label.setText(Format.formatNumber(result.getExp()));
                     break;
                 case "last updated":
                     label.setText("Last updated " + Format.formatDate(result.getUpdatedAt(), config.relativeTime()));
                     break;
             }
         }
+    }
+
+    private void applyResult(PlayerInfo result)
+    {
+        assert SwingUtilities.isEventDispatchThread();
+
+        nameAutocompleter.addToSearchHistory(result.getUsername());
+
+        applyOverviewResult(result);
+        skillingPanel.update(result);
+        bossingPanel.update(result);
+        activitiesPanel.update(result);
     }
 
     void addInputKeyListener(KeyListener l)

@@ -46,7 +46,7 @@ import java.util.Map;
 @Slf4j
 public class TableRow extends JPanel
 {
-    private static final int ICON_WIDTH = 30;
+    private static final int ICON_WIDTH = 35;
 
     Map<String, JLabel> labels = new HashMap<>();
 

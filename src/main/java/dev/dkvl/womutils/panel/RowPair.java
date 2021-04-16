@@ -1,6 +1,5 @@
 package dev.dkvl.womutils.panel;
 
-import dev.dkvl.womutils.panel.TableRow;
 import lombok.Value;
 import net.runelite.http.api.hiscore.HiscoreSkill;
 
