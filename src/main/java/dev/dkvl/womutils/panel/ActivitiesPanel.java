@@ -27,7 +27,7 @@ public class ActivitiesPanel extends JPanel
         CLUE_SCROLL_MEDIUM, CLUE_SCROLL_HARD, CLUE_SCROLL_ELITE,
         CLUE_SCROLL_MASTER, LAST_MAN_STANDING, SOUL_WARS_ZEAL
     );
-    Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
+    static Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
 
     List<RowPair> tableRows = new ArrayList<>();
 

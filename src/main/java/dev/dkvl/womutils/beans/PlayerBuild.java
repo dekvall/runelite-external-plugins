@@ -16,7 +16,7 @@ public enum PlayerBuild
     F2P("F2P"),
 
     @SerializedName("10hp")
-    TEN_HP("10 HP Pure"),
+    HP_PURE("10 HP Pure"),
 
     @SerializedName("main")
     MAIN("Main");

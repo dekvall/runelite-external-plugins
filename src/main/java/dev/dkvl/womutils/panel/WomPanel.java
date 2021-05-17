@@ -43,7 +43,7 @@ public class WomPanel extends PluginPanel
 
     private final IconTextField searchBar;
 
-    private final java.util.List<InfoLabel> miscInfoLabels = new ArrayList<>();
+    private final java.util.List<MiscInfo> miscInfoLabels = new ArrayList<>();
     private final java.util.List<JButton> buttons = new ArrayList<>();
 
     /* The currently selected endpoint */
@@ -53,11 +53,16 @@ public class WomPanel extends PluginPanel
     private boolean loading = false;
 
     @Inject
-    public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient, WomUtilsConfig config, SkillingPanel skillingPanel, BossingPanel bossingPanel, ActivitiesPanel activitiesPanel)
+    public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient, WomUtilsConfig config,
+                    SkillingPanel skillingPanel, BossingPanel bossingPanel, ActivitiesPanel activitiesPanel)
     {
         this.nameAutocompleter = nameAutocompleter;
         this.womClient = womClient;
         this.config = config;
+        this.skillingPanel = skillingPanel;
+        this.bossingPanel = bossingPanel;
+        this.activitiesPanel = activitiesPanel;
+
 
         // The layout seems to be ignoring the top margin and only gives it
         // a 2-3 pixel margin, so I set the value to 18 to compensate
@@ -115,110 +120,29 @@ public class WomPanel extends PluginPanel
 
         c.gridy++;
 
-        JPanel buttonsPanel = new JPanel();
-        buttonsPanel.setLayout(new GridBagLayout());
-        buttonsPanel.setBorder(new EmptyBorder(0, 0, 10, 0));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridx = 0;
-        gbc.weightx = 1;
-        gbc.ipady = 10;
-
-        JButton updateButton = new JButton();
-        updateButton.setFont(FontManager.getRunescapeSmallFont());
-        updateButton.setEnabled(false);
-        updateButton.addActionListener(e ->
-            womClient.updatePlayer(sanitize(searchBar.getText())));
-        updateButton.setText("Update");
-
-        JButton profileButton = new JButton();
-        profileButton.setFont(FontManager.getRunescapeSmallFont());
-        profileButton.setEnabled(false);
-        profileButton.addActionListener(e ->
-            openPlayerProfile(sanitize(searchBar.getText())));
-        profileButton.setText("Open Profile");
-
-        buttons.add(updateButton);
-        buttons.add(profileButton);
-
-        buttonsPanel.add(updateButton, gbc);
-        gbc.gridx++;
-        gbc.insets.left = 7;
-        buttonsPanel.add(profileButton, gbc);
-
-        add(buttonsPanel, c);
+        add(createButtonsPanel(), c);
 
         c.gridy++;
+
+        MiscInfo lastUpdated = MiscInfo.LAST_UPDATED;
+        miscInfoLabels.add(MiscInfo.BUILD);
+        miscInfoLabels.add(MiscInfo.COUNTRY);
+        miscInfoLabels.add(MiscInfo.TTM);
+        miscInfoLabels.add(MiscInfo.EHP);
+        miscInfoLabels.add(MiscInfo.EHB);
+        miscInfoLabels.add(MiscInfo.EXP);
+        miscInfoLabels.add(lastUpdated);
 
         JLabel overviewTitle = new JLabel("Overview");
         overviewTitle.setFont(FontManager.getRunescapeBoldFont());
         add(overviewTitle, c);
         c.gridy++;
 
-        JLabel lastUpdated = new JLabel("Last updated --");
-
-        JPanel miscInfoPanel = new JPanel();
-        miscInfoPanel.setLayout(new GridLayout(3, 2, 5, 5));
-
-        miscInfoLabels.add(new InfoLabel("Build", new JLabel("--")));
-        miscInfoLabels.add(new InfoLabel("Country", new JLabel("--")));
-        miscInfoLabels.add(new InfoLabel("TTM", new JLabel("--")));
-        miscInfoLabels.add(new InfoLabel("EHP", new JLabel("--")));
-        miscInfoLabels.add(new InfoLabel("EHB", new JLabel("--")));
-        miscInfoLabels.add(new InfoLabel("Exp", new JLabel("--")));
-        miscInfoLabels.add(new InfoLabel("Last updated", lastUpdated));
-
-        for (InfoLabel infoLabel : miscInfoLabels)
-        {
-            JLabel label = infoLabel.getLabel();
-            String rawString = infoLabel.getRawString();
-            ImageIcon icon;
-
-            switch (rawString.toLowerCase())
-            {
-                case "country":
-                    icon = CountryIcon.loadSquareImage("default");
-                    break;
-                case "ttm":
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ttm.png"));
-                    break;
-                case "exp":
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../overall.png"));
-                    break;
-                case "ehb":
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../bosses/ehb.png"));
-                    break;
-                case "ehp":
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ehp.png"));
-                    break;
-                case "build":
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../build.png"));
-                    break;
-                default:
-                    label.setHorizontalAlignment(JLabel.CENTER);
-                    continue;
-            }
-
-            label.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-            label.setOpaque(true);
-            label.setFont(FontManager.getRunescapeSmallFont());
-            label.setBorder(new EmptyBorder(5, 10, 5, 5));
-            label.setToolTipText(rawString);
-            label.setIcon(icon);
-
-            miscInfoPanel.add(label);
-        }
-
-        add(miscInfoPanel, c);
+        add(createOverViewPanel(), c);
         c.gridy++;
 
-        add(lastUpdated, c);
+        add(lastUpdated.getLabel(), c);
         c.gridy++;
-
-        this.skillingPanel = skillingPanel;
-        this.bossingPanel = bossingPanel;
-        this.activitiesPanel = activitiesPanel;
 
         // Holds currently visible tab
         JPanel display = new JPanel();
@@ -243,6 +167,7 @@ public class WomPanel extends PluginPanel
 
     public void shutdown()
     {
+        resetOverview();
         removeInputKeyListener(nameAutocompleter);
     }
 
@@ -289,23 +214,7 @@ public class WomPanel extends PluginPanel
         searchBar.setIcon(IconTextField.Icon.LOADING_DARKER);
         loading = true;
 
-        // Reset overview info
-        for (InfoLabel infoLabel : miscInfoLabels)
-        {
-            JLabel label = infoLabel.getLabel();
-            String rawString = infoLabel.getRawString();
-            label.setText("--");
-
-            if (rawString.equalsIgnoreCase("country"))
-            {
-                label.setIcon(CountryIcon.loadSquareImage("default"));
-            }
-            else if (rawString.equalsIgnoreCase("last updated"))
-            {
-                label.setText("Last updated --");
-            }
-        }
-
+        resetOverview();
         skillingPanel.reset();
         bossingPanel.reset();
         activitiesPanel.reset();
@@ -363,35 +272,54 @@ public class WomPanel extends PluginPanel
 
     private void applyOverviewResult(PlayerInfo result)
     {
-        for (InfoLabel infoLabel : miscInfoLabels)
+        for (MiscInfo infoLabel : miscInfoLabels)
         {
             JLabel label = infoLabel.getLabel();
-            switch (infoLabel.getRawString().toLowerCase())
+            switch (infoLabel)
             {
-                case "country":
+                case COUNTRY:
                     String country = result.getCountry();
                     String countryTxt = country == null ? "--" : country;
                     String languageCode = country == null ? "default" : country.toLowerCase();
                     label.setIcon(CountryIcon.loadSquareImage(languageCode));
                     label.setText(countryTxt);
                     break;
-                case "build":
+                case BUILD:
                     label.setText("" + result.getBuild());
                     break;
-                case "ttm":
+                case TTM:
                     label.setText(Format.formatNumber(result.getTtm()) + 'h');
                     break;
-                case "ehp":
+                case EHP:
                     label.setText(Format.formatNumber(result.getEhp()));
                     break;
-                case "ehb":
+                case EHB:
                     label.setText(Format.formatNumber(result.getEhb()));
                     break;
-                case "exp":
+                case EXP:
                     label.setText(Format.formatNumber(result.getExp()));
                     break;
-                case "last updated":
+                case LAST_UPDATED:
                     label.setText("Last updated " + Format.formatDate(result.getUpdatedAt(), config.relativeTime()));
+                    break;
+            }
+        }
+    }
+
+    private void resetOverview()
+    {
+        for (MiscInfo infoLabel : miscInfoLabels)
+        {
+            JLabel label = infoLabel.getLabel();
+            label.setText("--");
+
+            switch (infoLabel)
+            {
+                case COUNTRY:
+                    label.setIcon(CountryIcon.loadSquareImage("default"));
+                    break;
+                case LAST_UPDATED:
+                    label.setText("Last updated --");
                     break;
             }
         }
@@ -435,5 +363,90 @@ public class WomPanel extends PluginPanel
             .toString();
 
         SwingUtilities.invokeLater(() -> LinkBrowser.browse(url));
+    }
+
+    private JPanel createButtonsPanel()
+    {
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.setLayout(new GridBagLayout());
+        buttonsPanel.setBorder(new EmptyBorder(0, 0, 10, 0));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.weightx = 1;
+        gbc.ipady = 10;
+
+        JButton updateButton = new JButton();
+        updateButton.setFont(FontManager.getRunescapeSmallFont());
+        updateButton.setEnabled(false);
+        updateButton.addActionListener(e ->
+            womClient.updatePlayer(sanitize(searchBar.getText())));
+        updateButton.setText("Update");
+
+        JButton profileButton = new JButton();
+        profileButton.setFont(FontManager.getRunescapeSmallFont());
+        profileButton.setEnabled(false);
+        profileButton.addActionListener(e ->
+            openPlayerProfile(sanitize(searchBar.getText())));
+        profileButton.setText("Open Profile");
+
+        buttons.add(updateButton);
+        buttons.add(profileButton);
+
+        buttonsPanel.add(updateButton, gbc);
+        gbc.gridx++;
+        gbc.insets.left = 7;
+        buttonsPanel.add(profileButton, gbc);
+
+        return buttonsPanel;
+    }
+
+    private JPanel createOverViewPanel()
+    {
+        JPanel miscInfoPanel = new JPanel();
+        miscInfoPanel.setLayout(new GridLayout(3, 2, 5, 5));
+
+        for (MiscInfo infoLabel : miscInfoLabels)
+        {
+            JLabel label = infoLabel.getLabel();
+            ImageIcon icon;
+
+            switch (infoLabel)
+            {
+                case COUNTRY:
+                    icon = CountryIcon.loadSquareImage("default");
+                    break;
+                case TTM:
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ttm.png"));
+                    break;
+                case EXP:
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../overall.png"));
+                    break;
+                case EHB:
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../bosses/ehb.png"));
+                    break;
+                case EHP:
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ehp.png"));
+                    break;
+                case BUILD:
+                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../build.png"));
+                    break;
+                default:
+                    label.setHorizontalAlignment(JLabel.CENTER);
+                    continue;
+            }
+
+            label.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            label.setOpaque(true);
+            label.setFont(FontManager.getRunescapeSmallFont());
+            label.setBorder(new EmptyBorder(5, 10, 5, 5));
+            label.setToolTipText(infoLabel.getRawString());
+            label.setIcon(icon);
+
+            miscInfoPanel.add(label);
+        }
+
+        return miscInfoPanel;
     }
 }

@@ -25,6 +25,7 @@
 package dev.dkvl.womutils.panel;
 
 import dev.dkvl.womutils.Format;
+import dev.dkvl.womutils.Utils;
 import dev.dkvl.womutils.beans.Boss;
 import dev.dkvl.womutils.beans.Minigame;
 import dev.dkvl.womutils.beans.Skill;
@@ -136,7 +137,7 @@ public class TableRow extends JPanel
     void update(Boss boss, HiscoreSkill b)
     {
         int kills = boss.getKills();
-        int minimumKc = Format.getMinimumKc(b);
+        int minimumKc = Utils.getMinimumKc(b);
         boolean ranked = kills >= minimumKc;
 
         int rank = boss.getRank();

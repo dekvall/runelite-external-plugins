@@ -24,7 +24,7 @@
  */
 package dev.dkvl.womutils;
 
-import net.runelite.http.api.hiscore.HiscoreSkill;
+import net.runelite.client.util.QuantityFormatter;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -37,7 +37,7 @@ public class Format
     {
         if ((num < 10000 && num > -10000))
         {
-            return String.valueOf(num);
+            return QuantityFormatter.formatNumber(num);
         }
 
         DecimalFormat df = new DecimalFormat();
@@ -89,7 +89,7 @@ public class Format
 
             if (difference == 0)
             {
-                return "less than 60 minutes ago";
+                return "less than 1 hour ago";
             }
 
             long days = difference / 24;
@@ -106,26 +106,6 @@ public class Format
         else
         {
             return formatter.format(updatedAt);
-        }
-    }
-
-    public static int getMinimumKc(HiscoreSkill boss)
-    {
-        switch (boss)
-        {
-            case MIMIC:
-            case TZKAL_ZUK:
-                return 2;
-            case BRYOPHYTA:
-            case CHAMBERS_OF_XERIC_CHALLENGE_MODE:
-            case HESPORI:
-            case OBOR:
-            case SKOTIZO:
-            case THE_CORRUPTED_GAUNTLET:
-            case TZTOK_JAD:
-                return 10;
-            default:
-                return 50;
         }
     }
 }

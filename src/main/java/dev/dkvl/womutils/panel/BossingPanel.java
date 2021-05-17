@@ -41,7 +41,7 @@ class BossingPanel extends JPanel
         VETION, VORKATH, WINTERTODT,
         ZALCANO, ZULRAH
     );
-    Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
+    static Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
 
     TableRow totalEhbRow;
     List<RowPair> tableRows = new ArrayList<>();

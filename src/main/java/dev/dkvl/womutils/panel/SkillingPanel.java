@@ -36,7 +36,7 @@ class SkillingPanel extends JPanel
         SLAYER, FARMING, RUNECRAFT,
         HUNTER, CONSTRUCTION
     );
-    Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
+    static Color[] ROW_COLORS = {ColorScheme.DARKER_GRAY_COLOR, new Color(34, 34, 34)};
 
     TableRow overallRow;
     List<RowPair> tableRows = new ArrayList<>();
