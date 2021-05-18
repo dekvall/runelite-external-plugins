@@ -12,7 +12,6 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.ui.components.materialtabs.MaterialTab;
 import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
-import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.http.api.hiscore.HiscoreEndpoint;
 import okhttp3.HttpUrl;
@@ -43,7 +42,7 @@ public class WomPanel extends PluginPanel
 
     private final IconTextField searchBar;
 
-    private final java.util.List<MiscInfo> miscInfoLabels = new ArrayList<>();
+    private final java.util.List<MiscInfoLabel> miscInfoLabels = new ArrayList<>();
     private final java.util.List<JButton> buttons = new ArrayList<>();
 
     /* The currently selected endpoint */
@@ -124,14 +123,6 @@ public class WomPanel extends PluginPanel
 
         c.gridy++;
 
-        MiscInfo lastUpdated = MiscInfo.LAST_UPDATED;
-        miscInfoLabels.add(MiscInfo.BUILD);
-        miscInfoLabels.add(MiscInfo.COUNTRY);
-        miscInfoLabels.add(MiscInfo.TTM);
-        miscInfoLabels.add(MiscInfo.EHP);
-        miscInfoLabels.add(MiscInfo.EHB);
-        miscInfoLabels.add(MiscInfo.EXP);
-        miscInfoLabels.add(lastUpdated);
 
         JLabel overviewTitle = new JLabel("Overview");
         overviewTitle.setFont(FontManager.getRunescapeBoldFont());
@@ -141,7 +132,9 @@ public class WomPanel extends PluginPanel
         add(createOverViewPanel(), c);
         c.gridy++;
 
-        add(lastUpdated.getLabel(), c);
+        MiscInfoLabel lastUpdated = new MiscInfoLabel(MiscInfo.LAST_UPDATED);
+        miscInfoLabels.add(lastUpdated);
+        add(lastUpdated, c);
         c.gridy++;
 
         // Holds currently visible tab
@@ -167,7 +160,6 @@ public class WomPanel extends PluginPanel
 
     public void shutdown()
     {
-        resetOverview();
         removeInputKeyListener(nameAutocompleter);
     }
 
@@ -272,56 +264,17 @@ public class WomPanel extends PluginPanel
 
     private void applyOverviewResult(PlayerInfo result)
     {
-        for (MiscInfo infoLabel : miscInfoLabels)
+        for (MiscInfoLabel infoLabel : miscInfoLabels)
         {
-            JLabel label = infoLabel.getLabel();
-            switch (infoLabel)
-            {
-                case COUNTRY:
-                    String country = result.getCountry();
-                    String countryTxt = country == null ? "--" : country;
-                    String languageCode = country == null ? "default" : country.toLowerCase();
-                    label.setIcon(CountryIcon.loadSquareImage(languageCode));
-                    label.setText(countryTxt);
-                    break;
-                case BUILD:
-                    label.setText("" + result.getBuild());
-                    break;
-                case TTM:
-                    label.setText(Format.formatNumber(result.getTtm()) + 'h');
-                    break;
-                case EHP:
-                    label.setText(Format.formatNumber(result.getEhp()));
-                    break;
-                case EHB:
-                    label.setText(Format.formatNumber(result.getEhb()));
-                    break;
-                case EXP:
-                    label.setText(Format.formatNumber(result.getExp()));
-                    break;
-                case LAST_UPDATED:
-                    label.setText("Last updated " + Format.formatDate(result.getUpdatedAt(), config.relativeTime()));
-                    break;
-            }
+            infoLabel.format(result, config.relativeTime());
         }
     }
 
     private void resetOverview()
     {
-        for (MiscInfo infoLabel : miscInfoLabels)
+        for (MiscInfoLabel infoLabel : miscInfoLabels)
         {
-            JLabel label = infoLabel.getLabel();
-            label.setText("--");
-
-            switch (infoLabel)
-            {
-                case COUNTRY:
-                    label.setIcon(CountryIcon.loadSquareImage("default"));
-                    break;
-                case LAST_UPDATED:
-                    label.setText("Last updated --");
-                    break;
-            }
+            infoLabel.reset();
         }
     }
 
@@ -407,46 +360,15 @@ public class WomPanel extends PluginPanel
         JPanel miscInfoPanel = new JPanel();
         miscInfoPanel.setLayout(new GridLayout(3, 2, 5, 5));
 
-        for (MiscInfo infoLabel : miscInfoLabels)
+        for (MiscInfo info : MiscInfo.values())
         {
-            JLabel label = infoLabel.getLabel();
-            ImageIcon icon;
-
-            switch (infoLabel)
+            if (info != MiscInfo.LAST_UPDATED)
             {
-                case COUNTRY:
-                    icon = CountryIcon.loadSquareImage("default");
-                    break;
-                case TTM:
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ttm.png"));
-                    break;
-                case EXP:
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../overall.png"));
-                    break;
-                case EHB:
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../bosses/ehb.png"));
-                    break;
-                case EHP:
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../ehp.png"));
-                    break;
-                case BUILD:
-                    icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "../build.png"));
-                    break;
-                default:
-                    label.setHorizontalAlignment(JLabel.CENTER);
-                    continue;
+                MiscInfoLabel miscInfoLabel = new MiscInfoLabel(info);
+                miscInfoLabels.add(miscInfoLabel);
+                miscInfoPanel.add(miscInfoLabel);
             }
-
-            label.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-            label.setOpaque(true);
-            label.setFont(FontManager.getRunescapeSmallFont());
-            label.setBorder(new EmptyBorder(5, 10, 5, 5));
-            label.setToolTipText(infoLabel.getRawString());
-            label.setIcon(icon);
-
-            miscInfoPanel.add(label);
         }
-
         return miscInfoPanel;
     }
 }

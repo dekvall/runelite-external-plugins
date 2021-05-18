@@ -95,7 +95,7 @@ public class Format
             long days = difference / 24;
             long hours = difference % 24;
 
-            String dayUnit = days > 1 ? " days, " : "day, ";
+            String dayUnit = days > 1 ? " days, " : " day, ";
             String hourUnit = hours > 1 ? " hours ago" : " hour ago";
 
             lastUpdated += days > 0 ? days + dayUnit : "";
