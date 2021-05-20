@@ -116,14 +116,26 @@ public class TableRow extends JPanel
         double ehp = skill.getEhp();
 
         JLabel experienceLabel = labels.get("experience");
-        experienceLabel.setText(Format.formatNumber(experience));
-        experienceLabel.setToolTipText(QuantityFormatter.formatNumber(experience));
+        experienceLabel.setText(experience > 0 ? Format.formatNumber(experience) : "--");
+        experienceLabel.setToolTipText(experience > 0 ? QuantityFormatter.formatNumber(experience) : "");
 
         JLabel levelLabel = labels.get("level");
-        int level = Experience.getLevelForXp((int) experience);
-        int levelToDisplay = !virtualLevels && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
-        levelLabel.setText(String.valueOf(levelToDisplay));
-        levelLabel.setToolTipText(String.valueOf(levelToDisplay));
+        String levelText;
+        String hoverText;
+        if (experience == -1)
+        {
+            levelText = "--";
+            hoverText = "";
+        }
+        else
+        {
+            int level = Experience.getLevelForXp((int) experience);
+            int levelToDisplay = !virtualLevels && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
+            levelText = String.valueOf(levelToDisplay);
+            hoverText = String.valueOf(levelToDisplay);
+        }
+        levelLabel.setText(levelText);
+        levelLabel.setToolTipText(hoverText);
 
         JLabel rankLabel = labels.get("rank");
         rankLabel.setText(ranked ? Format.formatNumber(rank) : "--");

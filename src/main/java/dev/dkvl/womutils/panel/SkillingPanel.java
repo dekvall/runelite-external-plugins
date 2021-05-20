@@ -100,10 +100,13 @@ class SkillingPanel extends JPanel
     {
         int totalLevel = 0;
         Skill overall = snapshot.getSkill(OVERALL);
+        long overallExperience = overall.getExperience();
+        int overallRank = overall.getRank();
 
         for (HiscoreSkill skill : SKILLS)
         {
-            int level = Experience.getLevelForXp((int) snapshot.getSkill(skill).getExperience());
+            int experience = (int) snapshot.getSkill(skill).getExperience();
+            int level = experience >= 0 ? Experience.getLevelForXp(experience) : 0;
             totalLevel += !config.virtualLevels() && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
         }
 
@@ -112,14 +115,14 @@ class SkillingPanel extends JPanel
         JLabel rankLabel = overallRow.labels.get("rank");
         JLabel ehpLabel = overallRow.labels.get("ehp");
 
-        expLabel.setText(Format.formatNumber(overall.getExperience()));
-        expLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getExperience()));
+        expLabel.setText(overallExperience >= 0 ? Format.formatNumber(overallExperience) : "--");
+        expLabel.setToolTipText(overallExperience >= 0 ? QuantityFormatter.formatNumber(overallExperience) : "");
 
-        levelLabel.setText(String.valueOf(totalLevel));
-        levelLabel.setToolTipText(QuantityFormatter.formatNumber(totalLevel));
+        levelLabel.setText(totalLevel > 0 ? String.valueOf(totalLevel) : "--");
+        levelLabel.setToolTipText(totalLevel > 0 ? QuantityFormatter.formatNumber(totalLevel) : "");
 
-        rankLabel.setText(Format.formatNumber(overall.getRank()));
-        rankLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getRank()));
+        rankLabel.setText(overallRank > 0 ? Format.formatNumber(overallRank) : "--");
+        rankLabel.setToolTipText(overallRank > 0 ? QuantityFormatter.formatNumber(overallRank) : "Unranked");
 
         ehpLabel.setText(Format.formatNumber(overall.getEhp()));
         ehpLabel.setToolTipText(QuantityFormatter.formatNumber(overall.getEhp()));

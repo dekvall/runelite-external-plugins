@@ -5,7 +5,6 @@ import dev.dkvl.womutils.Format;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.util.ImageUtil;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -20,14 +19,14 @@ public class MiscInfoLabel extends JLabel
 
         setFont(FontManager.getRunescapeSmallFont());
         setBorder(new EmptyBorder(5, 10, 5, 5));
-        setText(info.getClearedString());
-        setToolTipText(info.getRawString());
+        setText(info.getDefaultText());
+        setToolTipText(info.getHoverText());
 
         if (info != MiscInfo.LAST_UPDATED)
         {
             setBackground(ColorScheme.DARKER_GRAY_COLOR);
             setOpaque(true);
-            setIcon(new ImageIcon(ImageUtil.loadImageResource(getClass(), info.getIconPath())));
+            setIcon(info.getIcon());
         }
         else
         {
@@ -41,10 +40,10 @@ public class MiscInfoLabel extends JLabel
         {
             case COUNTRY:
                 String country = result.getCountry();
-                String countryTxt = country == null ? "--" : country;
-                String languageCode = country == null ? "default" : country.toLowerCase();
-                setIcon(CountryIcon.loadSquareImage(languageCode));
-                setText(countryTxt);
+                String countryText = country == null ? "--" : country;
+                String countryCode = country == null ? "default" : country.toLowerCase();
+                setIcon(CountryIcon.loadSquareImage(countryCode));
+                setText(countryText);
                 break;
             case BUILD:
                 setText("" + result.getBuild());
@@ -59,10 +58,11 @@ public class MiscInfoLabel extends JLabel
                 setText(Format.formatNumber(result.getEhb()));
                 break;
             case EXP:
-                setText(Format.formatNumber(result.getExp()));
+                long experience = result.getExp();
+                setText(experience > 0 ? Format.formatNumber(experience) : "--");
                 break;
             case LAST_UPDATED:
-                setText(info.getRawString() + " " + Format.formatDate(result.getUpdatedAt(), relative));
+                setText(info.getHoverText() + " " + Format.formatDate(result.getUpdatedAt(), relative));
                 break;
         }
     }
@@ -71,8 +71,8 @@ public class MiscInfoLabel extends JLabel
     {
         if (info == MiscInfo.COUNTRY)
         {
-            setIcon(new ImageIcon(ImageUtil.loadImageResource(getClass(), info.getIconPath())));
+            setIcon(info.getIcon());
         }
-        setText(info.getClearedString());
+        setText(info.getDefaultText());
     }
 }
