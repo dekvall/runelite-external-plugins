@@ -13,7 +13,7 @@ public enum MiscInfo
     BUILD("Build", "build.png"),
     COUNTRY("Country", "flags_square/default.png"),
     EHP("EHP", "ehp.png"),
-    EHB("EHB", "bosses/ehb.png"),
+	EHB("EHB", "bosses/ehb.png"),
 	EXP("Exp", "overall.png"),
 	TTM("TTM", "ttm.png"),
     LAST_UPDATED("Last updated", null, "Last updated --");
