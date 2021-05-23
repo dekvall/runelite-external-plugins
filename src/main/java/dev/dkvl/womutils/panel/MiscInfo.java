@@ -1,5 +1,7 @@
 package dev.dkvl.womutils.panel;
 
+import com.google.common.base.Strings;
+import dev.dkvl.womutils.WomUtilsPlugin;
 import lombok.Getter;
 import net.runelite.client.util.ImageUtil;
 
@@ -8,29 +10,27 @@ import javax.swing.*;
 @Getter
 public enum MiscInfo
 {
-    BUILD("Build", new ImageIcon(ImageUtil.loadImageResource(MiscInfo.class, "../build.png")), "--"),
-    COUNTRY("Country", new ImageIcon(ImageUtil.loadImageResource(MiscInfo.class, "../flags_square/default.png")), "--"),
-    TTM("TTM", new ImageIcon(ImageUtil.loadImageResource(MiscInfo.class, "../ttm.png")), "--"),
-    EHP("EHP", new ImageIcon(ImageUtil.loadImageResource(MiscInfo.class, "../ehp.png")), "--"),
-    EHB("EHB", new ImageIcon(ImageUtil.loadImageResource(MiscInfo.class, "../bosses/ehb.png")), "--"),
-    EXP("Exp", new ImageIcon(ImageUtil.loadImageResource(MiscInfo.class, "../overall.png")), "--"),
-    LAST_UPDATED("Last updated", "Last updated --");
+    BUILD("Build", "build.png"),
+    COUNTRY("Country", "flags_square/default.png"),
+    EHP("EHP", "ehp.png"),
+    EHB("EHB", "bosses/ehb.png"),
+	EXP("Exp", "overall.png"),
+	TTM("TTM", "ttm.png"),
+    LAST_UPDATED("Last updated", null, "Last updated --");
 
     private final String hoverText;
     private final ImageIcon icon;
     private final String defaultText;
 
-    MiscInfo(String hoverText, String defaultText)
-    {
-        this.hoverText = hoverText;
-        this.defaultText = defaultText;
-        icon = null;
-    }
+    MiscInfo(String hoverText, String iconPath, String defaultText)
+	{
+		this.hoverText = hoverText;
+		this.icon = !Strings.isNullOrEmpty(iconPath) ? new ImageIcon(ImageUtil.loadImageResource(WomUtilsPlugin.class, iconPath)) : null;
+		this.defaultText = !Strings.isNullOrEmpty(defaultText) ? defaultText : "--";
+	}
 
-    MiscInfo(String hoverText, ImageIcon icon, String defaultText)
+    MiscInfo(String hoverText, String iconPath)
     {
-        this.hoverText = hoverText;
-        this.defaultText = defaultText;
-        this.icon = icon;
+    	this(hoverText, iconPath, null);
     }
 }
