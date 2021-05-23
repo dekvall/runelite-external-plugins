@@ -218,11 +218,11 @@ public class WorldHiderPlugin extends Plugin
 
 		for (Widget entry : entries)
 		{
-			if (entry.getText().startsWith("World"))
+			if (entry.getText().startsWith("W"))
 			{
 				if (config.massHide())
 				{
-					entry.setText("World XXX");
+					entry.setText("WXXX");
 				}
 				entry.setTextColor(0xFFFF64);
 			}
