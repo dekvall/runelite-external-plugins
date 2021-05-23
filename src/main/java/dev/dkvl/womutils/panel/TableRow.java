@@ -26,6 +26,7 @@ package dev.dkvl.womutils.panel;
 
 import dev.dkvl.womutils.Format;
 import dev.dkvl.womutils.Utils;
+import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.Boss;
 import dev.dkvl.womutils.beans.Minigame;
 import dev.dkvl.womutils.beans.Skill;
@@ -64,11 +65,11 @@ public class TableRow extends JPanel
 
         if (type == HiscoreSkillType.BOSS)
         {
-            directory = "../bosses/";
+            directory = "bosses/";
         }
         else if (type == HiscoreSkillType.ACTIVITY)
         {
-            directory = "../activities/";
+            directory = "activities/";
         }
         else
         {
@@ -88,7 +89,7 @@ public class TableRow extends JPanel
         JLabel iconLabel = new JLabel("", SwingConstants.CENTER);
         iconPanel.add(iconLabel);
 
-        ImageIcon icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), iconDirectory));
+        ImageIcon icon = new ImageIcon(ImageUtil.loadImageResource(WomUtilsPlugin.class, iconDirectory));
         iconPanel.setPreferredSize(new Dimension(ICON_WIDTH, icon.getIconHeight()));
 
         iconLabel.setIcon(icon);
