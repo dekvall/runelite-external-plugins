@@ -106,6 +106,7 @@ public class WomPanel extends PluginPanel
         {
             searchBar.setIcon(IconTextField.Icon.SEARCH);
             searchBar.setEditable(true);
+            toggleButtons(false);
         });
 
         add(searchBar, c);
@@ -202,47 +203,52 @@ public class WomPanel extends PluginPanel
         bossingPanel.reset();
         activitiesPanel.reset();
 
-        womClient.lookupAsync(lookup).whenCompleteAsync((result, ex) ->
-            SwingUtilities.invokeLater(() ->
-            {
-                if (!sanitize(searchBar.getText()).equals(lookup))
-                {
-                    // search has changed in the meantime
-                    return;
-                }
-
-                if (result == null || ex != null)
-                {
-                    if (ex != null)
-                    {
-                        log.warn("Error fetching Wise Old Man data " + ex.getMessage());
-                    }
-
-                    searchBar.setIcon(IconTextField.Icon.ERROR);
-                    searchBar.setEditable(true);
-
-                    // Track option
-                    return;
-                }
-
-                if (result.getLatestSnapshot() == null)
-                {
-                    log.warn("Player on WOM without snapshot {}.", lookup);
-                    searchBar.setIcon(IconTextField.Icon.ERROR);
-                    searchBar.setEditable(true);
-
-                    // Update option
-                    return;
-                }
-
-                //successful player search
-                searchBar.setIcon(IconTextField.Icon.SEARCH);
-                searchBar.setEditable(true);
-
-                toggleButtons(true);
-                applyResult(result);
-            }));
+        womClient.lookupAsync(lookup).whenCompleteAsync((result, ex) -> updateAfterSearch(lookup, result, ex));
     }
+
+    private void updateAfterSearch(String lookup, PlayerInfo result, Throwable ex)
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			if (!sanitize(searchBar.getText()).equals(lookup))
+			{
+				// search has changed in the meantime
+				return;
+			}
+
+			toggleButtons(true);
+
+			if (result == null || ex != null)
+			{
+				if (ex != null)
+				{
+					log.warn("Error fetching Wise Old Man data " + ex.getMessage());
+				}
+
+				searchBar.setIcon(IconTextField.Icon.ERROR);
+				searchBar.setEditable(true);
+
+				// Track option
+				return;
+			}
+
+			if (result.getLatestSnapshot() == null)
+			{
+				log.warn("Player on WOM without snapshot {}.", lookup);
+				searchBar.setIcon(IconTextField.Icon.ERROR);
+				searchBar.setEditable(true);
+
+				// Update option
+				return;
+			}
+
+			//successful player search
+			searchBar.setIcon(IconTextField.Icon.SEARCH);
+			searchBar.setEditable(true);
+
+			applyResult(result);
+		});
+	}
 
     private void applyOverviewResult(PlayerInfo result)
     {
@@ -318,10 +324,7 @@ public class WomPanel extends PluginPanel
         updateButton.addActionListener(e ->
             womClient.updateAsync(sanitize(searchBar.getText())).whenCompleteAsync((result, ex) ->
 			{
-				SwingUtilities.invokeLater(() ->
-				{
-					applyResult(result);
-				});
+				updateAfterSearch(sanitize(searchBar.getText()), result, ex);
 			}));
         updateButton.setText("Update");
 
