@@ -5,8 +5,6 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-import java.awt.*;
-
 @ConfigGroup(WomUtilsPlugin.CONFIG_GROUP)
 public interface WomUtilsConfig extends Config
 {
@@ -41,6 +39,24 @@ public interface WomUtilsConfig extends Config
 		section = lookupConfig
 	)
 	default boolean menuLookupOption() { return true; }
+
+	@ConfigItem(
+		keyName = "virtualLevels",
+		name = "Virtual levels",
+		description = "Show virtual levels in the side bar on lookup",
+		position = 2,
+		section = lookupConfig
+	)
+	default boolean virtualLevels() { return false; }
+
+	@ConfigItem(
+		keyName = "relativeTime",
+		name = "Relative time",
+		description = "Display last updated time relative to current date and time",
+		position = 3,
+		section = lookupConfig
+	)
+	default boolean relativeTime() { return false; }
 
 	@ConfigItem(
 		keyName = "showIcons",

@@ -8,14 +8,12 @@ import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.PlayerInfo;
-import dev.dkvl.womutils.beans.Snapshot;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
 import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -30,8 +28,6 @@ import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
-import net.runelite.http.api.hiscore.HiscoreResult;
-import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -41,7 +37,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 @Slf4j
-class WomClient
+public class WomClient
 {
 	@Inject
 	private OkHttpClient okHttpClient;
@@ -313,13 +309,13 @@ class WomClient
 		client.refreshChat();
 	}
 
-	void updatePlayer(String username)
+	public void updatePlayer(String username)
 	{
 		Request request = createRequest(new WomPlayer(username), "players", "track");
 		sendRequest(request);
 	}
 
-	CompletableFuture<PlayerInfo> lookupAsync(String username)
+	public CompletableFuture<PlayerInfo> lookupAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
 		Request request = createRequest("players", "username", username);
