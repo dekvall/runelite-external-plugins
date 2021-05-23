@@ -322,4 +322,12 @@ public class WomClient
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}
+
+	public CompletableFuture<PlayerInfo> updateAsync(String username)
+	{
+		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
+		Request request = createRequest(new WomPlayer(username), "players", "track");
+		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
+		return future;
+	}
 }

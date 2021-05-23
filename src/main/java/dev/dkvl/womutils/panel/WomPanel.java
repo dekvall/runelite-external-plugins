@@ -45,12 +45,6 @@ public class WomPanel extends PluginPanel
     private final java.util.List<MiscInfoLabel> miscInfoLabels = new ArrayList<>();
     private final java.util.List<JButton> buttons = new ArrayList<>();
 
-    /* The currently selected endpoint */
-    private HiscoreEndpoint selectedEndPoint;
-
-    /* Used to prevent users from switching endpoint tabs while the results are loading */
-    private boolean loading = false;
-
     @Inject
     public WomPanel(Client client, NameAutocompleter nameAutocompleter, WomClient womClient, WomUtilsConfig config,
                     SkillingPanel skillingPanel, BossingPanel bossingPanel, ActivitiesPanel activitiesPanel)
@@ -112,7 +106,6 @@ public class WomPanel extends PluginPanel
         {
             searchBar.setIcon(IconTextField.Icon.SEARCH);
             searchBar.setEditable(true);
-            loading = false;
         });
 
         add(searchBar, c);
@@ -198,24 +191,16 @@ public class WomPanel extends PluginPanel
         if (lookup.length() > MAX_USERNAME_LENGTH)
         {
             searchBar.setIcon(IconTextField.Icon.ERROR);
-            loading = false;
             return;
         }
 
         searchBar.setEditable(false);
         searchBar.setIcon(IconTextField.Icon.LOADING_DARKER);
-        loading = true;
 
         resetOverview();
         skillingPanel.reset();
         bossingPanel.reset();
         activitiesPanel.reset();
-
-        // if for some reason no endpoint was selected, default to normal
-        if (selectedEndPoint == null)
-        {
-            selectedEndPoint = HiscoreEndpoint.NORMAL;
-        }
 
         womClient.lookupAsync(lookup).whenCompleteAsync((result, ex) ->
             SwingUtilities.invokeLater(() ->
@@ -235,7 +220,6 @@ public class WomPanel extends PluginPanel
 
                     searchBar.setIcon(IconTextField.Icon.ERROR);
                     searchBar.setEditable(true);
-                    loading = false;
 
                     // Track option
                     return;
@@ -246,7 +230,6 @@ public class WomPanel extends PluginPanel
                     log.warn("Player on WOM without snapshot {}.", lookup);
                     searchBar.setIcon(IconTextField.Icon.ERROR);
                     searchBar.setEditable(true);
-                    loading = false;
 
                     // Update option
                     return;
@@ -255,7 +238,6 @@ public class WomPanel extends PluginPanel
                 //successful player search
                 searchBar.setIcon(IconTextField.Icon.SEARCH);
                 searchBar.setEditable(true);
-                loading = false;
 
                 toggleButtons(true);
                 applyResult(result);
@@ -334,7 +316,13 @@ public class WomPanel extends PluginPanel
         updateButton.setFont(FontManager.getRunescapeSmallFont());
         updateButton.setEnabled(false);
         updateButton.addActionListener(e ->
-            womClient.updatePlayer(sanitize(searchBar.getText())));
+            womClient.updateAsync(sanitize(searchBar.getText())).whenCompleteAsync((result, ex) ->
+			{
+				SwingUtilities.invokeLater(() ->
+				{
+					applyResult(result);
+				});
+			}));
         updateButton.setText("Update");
 
         JButton profileButton = new JButton();
