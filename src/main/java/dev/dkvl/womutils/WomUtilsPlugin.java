@@ -82,13 +82,13 @@ public class WomUtilsPlugin extends Plugin
 	private static final File WORKING_DIR;
 	private static final String NAME_CHANGES = "name-changes.json";
 
-	private static final String ADD_MEMBER = "Add Member";
-	private static final String REMOVE_MEMBER = "Remove Member";
+	private static final String ADD_MEMBER = "Add member";
+	private static final String REMOVE_MEMBER = "Remove member";
 
 	private static final String IMPORT_MEMBERS = "Import";
 	private static final String BROWSE_GROUP = "Browse";
-	private static final String MENU_TARGET = "WOM Group";
-	private static final String LOOKUP = "WOM Lookup";
+	private static final String MENU_TARGET = "WOM group";
+	private static final String LOOKUP = "WOM lookup";
 
 	private static final String KICK_OPTION = "Kick";
 
@@ -118,6 +118,9 @@ public class WomUtilsPlugin extends Plugin
 			.build();
 
 	private static final int XP_THRESHOLD = 10_000;
+
+	private static final int CLAN_SIDEPANEL_DRAW = 4397;
+	private static final int CLAN_SETTINGS_MEMBERS_DRAW = 4232;
 
 	private boolean levelupThisSession = false;
 
@@ -399,11 +402,15 @@ public class WomUtilsPlugin extends Plugin
 			&& config.groupId() > 0
 			&& !Strings.isNullOrEmpty(config.verificationCode())
 			&& (groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
-				|| groupId == WidgetInfo.FRIENDS_LIST.getGroupId());
+				|| groupId == WidgetInfo.FRIENDS_LIST.getGroupId()
+				|| groupId == WidgetID.CLAN_GROUP_ID
+				|| groupId == WidgetID.CLAN_GUEST_GROUP_ID);
 
 		boolean addMenuLookup = config.menuLookupOption()
 			&& (groupId == WidgetInfo.FRIENDS_LIST.getGroupId()
 			|| groupId == WidgetInfo.FRIENDS_CHAT.getGroupId()
+			|| groupId == WidgetID.CLAN_GROUP_ID
+			|| groupId == WidgetID.CLAN_GUEST_GROUP_ID
 			// prevent from adding for Kick option (interferes with the raiding party one)
 			|| groupId == WidgetInfo.CHATBOX.getGroupId() && !KICK_OPTION.equals(option)
 			|| groupId == WidgetInfo.RAIDING_PARTY.getGroupId()
@@ -572,7 +579,16 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (event.getScriptId() == ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD)
 		{
-			iconHandler.rebuildFriendsChatList(!config.showicons(), groupMembers);
+			iconHandler.rebuildMemberList(!config.showicons(), groupMembers, WidgetInfo.FRIENDS_CHAT_LIST);
+		}
+		else if (event.getScriptId() == CLAN_SIDEPANEL_DRAW)
+		{
+			iconHandler.rebuildMemberList(!config.showicons(), groupMembers, WidgetInfo.CLAN_MEMBER_LIST);
+			iconHandler.rebuildMemberList(!config.showicons(), groupMembers, WidgetInfo.CLAN_GUEST_MEMBER_LIST);
+		}
+		else if (event.getScriptId() == CLAN_SETTINGS_MEMBERS_DRAW)
+		{
+			iconHandler.rebuildSettingsMemberList(!config.showicons(), groupMembers);
 		}
 	}
 

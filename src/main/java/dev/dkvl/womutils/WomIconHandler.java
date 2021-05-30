@@ -106,9 +106,9 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildFriendsChatList(boolean disable, Map<String, MemberInfo> groupMembers)
+	void rebuildMemberList(boolean disable, Map<String, MemberInfo> groupMembers, WidgetInfo widgetInfo)
 	{
-		Widget containerWidget = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
+		Widget containerWidget = client.getWidget(widgetInfo);
 		if (containerWidget == null)
 		{
 			return;
@@ -122,7 +122,7 @@ class WomIconHandler
 
 		for (int i = 0; i < children.length; i+=3)
 		{
-			String name = Text.removeTags(children[i].getName());
+			String name = Text.removeTags(children[i].getText());
 			String sanitized = Text.toJagexName(name);
 			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
 
@@ -131,7 +131,8 @@ class WomIconHandler
 				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
 				CountryIcon icon = CountryIcon.getIcon(country);
 				int iconIdx = modIconsStart + icon.ordinal();
-				String newName = name + " <img=" + iconIdx + ">";
+				String spacer = name.charAt(name.length() - 1) != ' ' ? " " : ""; // Stupid
+				String newName = name + spacer + "<img=" + iconIdx + ">";
 				children[i].setText(newName);
 			}
 			else
@@ -141,12 +142,54 @@ class WomIconHandler
 		}
 	}
 
+	void rebuildSettingsMemberList(boolean disable, Map<String, MemberInfo> groupMembers)
+	{
+		Widget containerWidget = client.getWidget(693, 10);
+		if (containerWidget == null)
+		{
+			return;
+		}
+
+		Widget[] children = containerWidget.getChildren();
+		if (children == null)
+		{
+			return;
+		}
+
+		for (int i = 1; i < children.length; i+=3)
+		{
+			String name = Text.removeTags(children[i].getText());
+			String sanitized = Text.toJagexName(name);
+			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
+
+			if (!disable && m != null)
+			{
+				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
+				CountryIcon icon = CountryIcon.getIcon(country);
+				int iconIdx = modIconsStart + icon.ordinal();
+				String spacer = name.charAt(name.length() - 1) != ' ' ? " " : ""; // Stupid
+				String newName = name + spacer + "<img=" + iconIdx + ">";
+				children[i].setText(newName);
+
+				children[i+1].setOriginalX(children[i+1].getOriginalX() - 6);
+				children[i+1].revalidate();
+			}
+			else
+			{
+				children[i].setText(name);
+			}
+
+		}
+	}
+
 	void rebuildLists(Map<String, MemberInfo> members, boolean showIcons)
 	{
 		clientThread.invokeLater(() ->
 		{
 			rebuildFriendsList();
-			rebuildFriendsChatList(!showIcons, members);
+			rebuildMemberList(!showIcons, members, WidgetInfo.FRIENDS_CHAT_LIST);
+			rebuildMemberList(!showIcons, members, WidgetInfo.CLAN_MEMBER_LIST);
+			rebuildMemberList(!showIcons, members, WidgetInfo.CLAN_GUEST_MEMBER_LIST);
 		});
 	}
 
