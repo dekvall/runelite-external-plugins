@@ -36,7 +36,9 @@ import net.runelite.api.Nameable;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
 import net.runelite.api.Skill;
+import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
@@ -645,12 +647,30 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
+	@Subscribe
+	public void onClanMemberJoined(ClanMemberJoined clanMemberJoined)
+	{
+		if (config.autoAddClanMembers()
+			&& config.groupId() > 0
+			&& !Strings.isNullOrEmpty(config.verificationCode())
+			&& clanMemberJoined.getClanChannel() == client.getClanChannel())
+		{
+			String username = clanMemberJoined.getClanMember().getName();
+
+			if (!groupMembers.containsKey(username.toLowerCase()))
+			{
+				womClient.addGroupMember(username, groupMembers);
+			}
+		}
+	}
+
 	private void addGroupMenuOptions(List<WidgetMenuOption> menuOptions)
 	{
 		for (WidgetMenuOption option : menuOptions)
 		{
 			menuManager.addManagedCustomMenu(option);
 		}
+
 	}
 
 	private void removeGroupMenuOptions()

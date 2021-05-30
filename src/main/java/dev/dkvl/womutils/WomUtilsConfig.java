@@ -119,10 +119,22 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "autoAddClanMembers",
+		name = "Automatically add new members to the group",
+		description = "Adds members from the WOM group when they join the clan chat channel",
+		position = 5,
+		section = groupConfig
+	)
+	default boolean autoAddClanMembers()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 		keyName = "groupId",
 		name = "Group Id",
 		description = "The group id in WOM",
-		position = 5,
+		position = 6,
 		section = groupConfig
 	)
 	default int groupId()
@@ -135,7 +147,7 @@ public interface WomUtilsConfig extends Config
 		name = "Verification code",
 		description = "Verification code for the WOM group",
 		secret = true,
-		position = 6,
+		position = 7,
 		section = groupConfig
 	)
 	default String verificationCode()

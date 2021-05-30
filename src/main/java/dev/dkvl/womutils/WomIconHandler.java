@@ -171,8 +171,9 @@ class WomIconHandler
 				String newName = name + spacer + "<img=" + iconIdx + ">";
 				children[i].setText(newName);
 
-				children[i+1].setOriginalX(children[i+1].getOriginalX() - 6);
-				children[i+1].revalidate();
+				Widget rankIcon = children[i+1];
+				rankIcon.setOriginalX(rankIcon.getOriginalX() - 6);
+				rankIcon.revalidate();
 			}
 			else
 			{
