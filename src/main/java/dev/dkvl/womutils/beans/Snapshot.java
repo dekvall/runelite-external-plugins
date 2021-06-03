@@ -80,6 +80,7 @@ public class Snapshot
 	Boss the_gauntlet;
 	Boss the_corrupted_gauntlet;
 	Boss theatre_of_blood;
+	Boss theatre_of_blood_hard_mode;
 	Boss thermonuclear_smoke_devil;
 	Boss tzkal_zuk;
 	Boss tztok_jad;
@@ -259,6 +260,8 @@ public class Snapshot
 				return getThe_corrupted_gauntlet();
 			case THEATRE_OF_BLOOD:
 				return getTheatre_of_blood();
+			case THEATRE_OF_BLOOD_HARD_MODE:
+				return getTheatre_of_blood_hard_mode();
 			case THERMONUCLEAR_SMOKE_DEVIL:
 				return getThermonuclear_smoke_devil();
 			case TZKAL_ZUK:
