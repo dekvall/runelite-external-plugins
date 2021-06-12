@@ -8,7 +8,6 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
-import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -26,6 +25,7 @@ import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 
 import dev.dkvl.womutils.panel.WomPanel;
+import dev.dkvl.womutils.ui.SyncButton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
@@ -36,7 +36,6 @@ import net.runelite.api.Nameable;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
 import net.runelite.api.Skill;
-import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ClanMemberJoined;
 import net.runelite.api.events.GameStateChanged;
@@ -47,6 +46,7 @@ import net.runelite.api.events.NameableNameChanged;
 import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
@@ -56,6 +56,7 @@ import net.runelite.client.chat.ChatCommandManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.menus.MenuManager;
 import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
@@ -124,6 +125,11 @@ public class WomUtilsPlugin extends Plugin
 	private static final int CLAN_SIDEPANEL_DRAW = 4397;
 	private static final int CLAN_SETTINGS_MEMBERS_DRAW = 4232;
 
+	private static final int CLAN_SETTINGS_WIDGET_ID = WidgetInfo.PACK(690, 2);
+	private static final int CLAN_SETTINGS_WIDGET = 690;
+	private static final int CLAN_SETTINGS_MEMBERS_WIDGET_ID = WidgetInfo.PACK(693, 2);//45416450;
+	private static final int CLAN_SETTINGS_MEMBERS_WIDGET = 693;
+
 	private boolean levelupThisSession = false;
 
 	@Inject
@@ -137,6 +143,9 @@ public class WomUtilsPlugin extends Plugin
 
 	@Inject
 	private ClientThread clientThread;
+
+	@Inject
+	ChatboxPanelManager chatboxPanelManager;
 
 	@Inject
 	private Gson gson;
@@ -160,13 +169,14 @@ public class WomUtilsPlugin extends Plugin
 
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
-	private final Map<String, MemberInfo> groupMembers = new HashMap<>();
 
 	private String lastUsername;
 	private boolean fetchXp;
 	private long lastXp;
 
 	private NavigationButton navButton;
+
+	private SyncButton syncButton;
 
 	private final Map<Skill, Integer> previousSkillLevels = new EnumMap<>(Skill.class);
 
@@ -193,7 +203,7 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		iconHandler.loadIcons();
-		womClient.importGroupMembersTo(groupMembers);
+		womClient.importGroupMembers();
 
 		if (config.playerLookupOption())
 		{
@@ -213,7 +223,7 @@ public class WomUtilsPlugin extends Plugin
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			iconHandler.rebuildLists(groupMembers, config.showicons());
+			iconHandler.rebuildLists(womClient.groupMembers, config.showicons());
 		}
 
 		for (WomCommand c : WomCommand.values())
@@ -244,7 +254,7 @@ public class WomUtilsPlugin extends Plugin
 
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			iconHandler.rebuildLists(groupMembers, false);
+			iconHandler.rebuildLists(womClient.groupMembers, false);
 		}
 
 		for (WomCommand c : WomCommand.values())
@@ -433,7 +443,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			MenuEntry modifyMember = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
 			String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
-			modifyMember.setOption(groupMembers.containsKey(name) ? REMOVE_MEMBER : ADD_MEMBER);
+			modifyMember.setOption(womClient.groupMembers.containsKey(name) ? REMOVE_MEMBER : ADD_MEMBER);
 			modifyMember.setType(MenuAction.RUNELITE.getId());
 			offset--;
 		}
@@ -462,10 +472,10 @@ public class WomUtilsPlugin extends Plugin
 		switch (event.getMenuOption())
 		{
 			case ADD_MEMBER:
-				womClient.addGroupMember(username, groupMembers);
+				womClient.addGroupMember(username);
 				break;
 			case REMOVE_MEMBER:
-				womClient.removeGroupMember(username, groupMembers);
+				womClient.removeGroupMember(username);
 				break;
 			case LOOKUP:
 			{
@@ -519,7 +529,7 @@ public class WomUtilsPlugin extends Plugin
 		switch (event.getMenuOption())
 		{
 			case IMPORT_MEMBERS:
-				womClient.importGroupMembersTo(groupMembers);
+				womClient.importGroupMembers();
 				break;
 			case BROWSE_GROUP:
 				openGroupInBrowser();
@@ -571,7 +581,7 @@ public class WomUtilsPlugin extends Plugin
 		if ((event.getKey().equals("showIcons") || event.getKey().equals("showFlags"))
 			&& client.getGameState() == GameState.LOGGED_IN)
 		{
-			iconHandler.rebuildLists(groupMembers, config.showicons());
+			iconHandler.rebuildLists(womClient.groupMembers, config.showicons());
 		}
 
 	}
@@ -581,16 +591,35 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (event.getScriptId() == ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD)
 		{
-			iconHandler.rebuildMemberList(!config.showicons(), groupMembers, WidgetInfo.FRIENDS_CHAT_LIST);
+			iconHandler.rebuildMemberList(!config.showicons(), womClient.groupMembers, WidgetInfo.FRIENDS_CHAT_LIST);
 		}
 		else if (event.getScriptId() == CLAN_SIDEPANEL_DRAW)
 		{
-			iconHandler.rebuildMemberList(!config.showicons(), groupMembers, WidgetInfo.CLAN_MEMBER_LIST);
-			iconHandler.rebuildMemberList(!config.showicons(), groupMembers, WidgetInfo.CLAN_GUEST_MEMBER_LIST);
+			iconHandler.rebuildMemberList(!config.showicons(), womClient.groupMembers, WidgetInfo.CLAN_MEMBER_LIST);
+			iconHandler.rebuildMemberList(!config.showicons(), womClient.groupMembers, WidgetInfo.CLAN_GUEST_MEMBER_LIST);
 		}
 		else if (event.getScriptId() == CLAN_SETTINGS_MEMBERS_DRAW)
 		{
-			iconHandler.rebuildSettingsMemberList(!config.showicons(), groupMembers);
+			iconHandler.rebuildSettingsMemberList(!config.showicons(), womClient.groupMembers);
+		}
+	}
+
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded widgetLoaded)
+	{
+		if(!config.syncClanButton() || config.groupId() <= 0 || Strings.isNullOrEmpty(config.verificationCode()))
+		{
+			return;
+		}
+
+		switch (widgetLoaded.getGroupId())
+		{
+			case CLAN_SETTINGS_MEMBERS_WIDGET:
+				clientThread.invoke(() -> this.createSyncButton(CLAN_SETTINGS_MEMBERS_WIDGET_ID));
+				break;
+			case CLAN_SETTINGS_WIDGET:
+				clientThread.invoke(() -> this.createSyncButton(CLAN_SETTINGS_WIDGET_ID));
+				break;
 		}
 	}
 
@@ -602,7 +631,7 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		iconHandler.handleScriptEvent(event, groupMembers);
+		iconHandler.handleScriptEvent(event, womClient.groupMembers);
 	}
 
 	@Subscribe
@@ -657,9 +686,9 @@ public class WomUtilsPlugin extends Plugin
 		{
 			String username = clanMemberJoined.getClanMember().getName();
 
-			if (!groupMembers.containsKey(username.toLowerCase()))
+			if (!womClient.groupMembers.containsKey(username.toLowerCase()))
 			{
-				womClient.addGroupMember(username, groupMembers);
+				womClient.addGroupMember(username);
 			}
 		}
 	}
@@ -705,6 +734,11 @@ public class WomUtilsPlugin extends Plugin
 			}
 			womPanel.lookup(playerName);
 		});
+	}
+
+	private void createSyncButton(int w)
+	{
+		new SyncButton(client, womClient, chatboxPanelManager, client.getWidget(w));
 	}
 
 	@Provides
