@@ -10,10 +10,14 @@ import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
+import dev.dkvl.womutils.beans.GroupInfo;
+
 import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -62,10 +66,11 @@ public class WomClient
 
 	private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.##");
 
+	public Map<String, MemberInfo> groupMembers = new HashMap<>();
 
 	void submitNameChanges(NameChangeEntry[] changes)
 	{
-		Request request = createRequest(changes, "names", "bulk");
+		Request request = createRequest(changes, RequestType.POST, "names", "bulk");
 		sendRequest(request);
 		log.info("Submitted {} name changes to WOM", changes.length);
 	}
@@ -90,7 +95,7 @@ public class WomClient
 		okHttpClient.newCall(request).enqueue(callback);
 	}
 
-	private Request createRequest(Object payload, String... pathSegments)
+	private Request createRequest(Object payload, RequestType requestType, String... pathSegments)
 	{
 		HttpUrl url = buildUrl(pathSegments);
 		RequestBody body = RequestBody.create(
@@ -98,11 +103,16 @@ public class WomClient
 			gson.toJson(payload)
 		);
 
-		return new Request.Builder()
+		Request.Builder requestBuilder = new Request.Builder()
 			.header("User-Agent", "WiseOldMan RuneLite Plugin")
-			.url(url)
-			.post(body)
-			.build();
+			.url(url);
+
+		if (requestType == RequestType.PUT)
+		{
+			return requestBuilder.put(body).build();
+		}
+
+		return requestBuilder.post(body).build();
 	}
 
 	private Request createRequest(String... pathSegments)
@@ -128,10 +138,10 @@ public class WomClient
 		return urlBuilder.build();
 	}
 
-	void importGroupMembersTo(Map<String, MemberInfo> group)
+	public void importGroupMembers()
 	{
 		Request request = createRequest("groups", "" + config.groupId(), "members");
-		sendRequest(request, r -> importMembersCallback(r, group));
+		sendRequest(request, r -> importMembersCallback(r, groupMembers));
 	}
 
 	private void importMembersCallback(Response response, Map<String, MemberInfo> groupMembers)
@@ -155,7 +165,52 @@ public class WomClient
 		}
 	}
 
-	private void removeMemberCallback(Response response, String username, Map<String, MemberInfo> groupMembers)
+	private void syncClanMembersCallBack(Response response)
+	{
+		final String message;
+		final Map<String, MemberInfo> newGroup = new HashMap<>();
+
+		if (response.isSuccessful())
+		{
+			GroupInfo data = parseResponse(response, GroupInfo.class);
+			int membersAdded = 0;
+			for (MemberInfo m : data.getMembers())
+			{
+				String username = m.getUsername().toLowerCase();
+				membersAdded += groupMembers.containsKey(username) ? 0 : 1;
+				newGroup.put(username, m);
+			}
+
+			int membersRemoved = 0;
+			int ranksChanged = 0;
+			for (String k : groupMembers.keySet())
+			{
+				if (newGroup.containsKey(k))
+				{
+					ranksChanged += !newGroup.get(k).getRole().equals(groupMembers.get(k).getRole()) ? 1 : 0;
+				}
+				else
+				{
+					membersRemoved += 1;
+				}
+			}
+
+			iconHandler.rebuildLists(newGroup, config.showicons());
+			groupMembers = newGroup;
+			message = String.format("Synced %d clan members. %d added, %d removed, %d ranks changed.",
+				newGroup.size(), membersAdded, membersRemoved, ranksChanged);
+		}
+		else
+		{
+			WomStatus data = parseResponse(response, WomStatus.class);
+			message = "Error: " + data.getMessage();
+		}
+
+		Color color = response.isSuccessful() ? SUCCESS : ERROR;
+		sendResponseToChat(message, color);
+	}
+
+	private void removeMemberCallback(Response response, String username)
 	{
 		final String message;
 		final WomStatus data = parseResponse(response, WomStatus.class);
@@ -176,7 +231,7 @@ public class WomClient
 		sendResponseToChat(message, color);
 	}
 
-	private void addMemberCallback(Response response, String username,  Map<String, MemberInfo> groupMembers)
+	private void addMemberCallback(Response response, String username)
 	{
 		final String message;
 
@@ -249,18 +304,28 @@ public class WomClient
 			.build());
 	}
 
-	void addGroupMember(String username, Map<String, MemberInfo> group)
+	public void syncClanMembers(ArrayList<Member> clanMembers)
 	{
-		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), new Member[] {new Member(username.toLowerCase())});
-		Request request = createRequest(payload, "groups", "" + config.groupId(), "add-members");
-		sendRequest(request, r -> addMemberCallback(r, username, group));
+		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), clanMembers);
+		Request request = createRequest(payload, RequestType.PUT, "groups", "" + config.groupId());
+		sendRequest(request, this::syncClanMembersCallBack);
 	}
 
-	void removeGroupMember(String username, Map<String, MemberInfo> group)
+	void addGroupMember(String username)
+	{
+		ArrayList<Member> memberToAdd = new ArrayList<>();
+		memberToAdd.add(new Member(username.toLowerCase(), "member"));
+
+		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), memberToAdd);
+		Request request = createRequest(payload, RequestType.POST, "groups", "" + config.groupId(), "add-members");
+		sendRequest(request, r -> addMemberCallback(r, username));
+	}
+
+	void removeGroupMember(String username)
 	{
 		GroupMemberRemoval payload = new GroupMemberRemoval(config.verificationCode(), new String[] {username.toLowerCase()});
-		Request request = createRequest(payload, "groups", "" + config.groupId(), "remove-members");
-		sendRequest(request, r -> removeMemberCallback(r, username, group));
+		Request request = createRequest(payload, RequestType.POST, "groups", "" + config.groupId(), "remove-members");
+		sendRequest(request, r -> removeMemberCallback(r, username));
 	}
 
 	void commandLookup(String username, WomCommand command, ChatMessage chatMessage)
@@ -311,7 +376,7 @@ public class WomClient
 
 	public void updatePlayer(String username)
 	{
-		Request request = createRequest(new WomPlayer(username), "players", "track");
+		Request request = createRequest(new WomPlayer(username), RequestType.POST, "players", "track");
 		sendRequest(request);
 	}
 
@@ -326,7 +391,7 @@ public class WomClient
 	public CompletableFuture<PlayerInfo> updateAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
-		Request request = createRequest(new WomPlayer(username), "players", "track");
+		Request request = createRequest(new WomPlayer(username), RequestType.POST, "players", "track");
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}
