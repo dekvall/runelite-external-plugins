@@ -72,6 +72,7 @@ public class Snapshot
 	Boss kril_tsutsaroth;
 	Boss mimic;
 	Boss nightmare;
+	Boss phosanis_nightmare;
 	Boss obor;
 	Boss sarachnis;
 	Boss scorpia;
@@ -244,6 +245,8 @@ public class Snapshot
 				return getMimic();
 			case NIGHTMARE:
 				return getNightmare();
+			case PHOSANIS_NIGHTMARE:
+				return getPhosanis_nightmare();
 			case OBOR:
 				return getObor();
 			case SARACHNIS:
