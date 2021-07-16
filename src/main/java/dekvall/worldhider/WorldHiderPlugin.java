@@ -55,6 +55,8 @@ public class WorldHiderPlugin extends Plugin
 	private final static int WORLD_HOPPER_BUILD = 892;
 	private final static int DRAW_FRIEND_ENTRIES = 125;
 	private final static int BUILD_CC = 1658;
+	private final static int MISSING_FLAG_SPRITE = 1132;
+	private final static int FLAG_ORIGINAL_X = 44;
 
 
 	@Inject
@@ -248,8 +250,9 @@ public class WorldHiderPlugin extends Plugin
 		for (Widget entry : entries)
 		{
 			entry.setText("XXX");
-			if ((entry.getOriginalX() == 44) && config.hideFlags()) {
-				entry.setSpriteId(1140);
+			if ((entry.getOriginalX() == FLAG_ORIGINAL_X) && config.hideFlags())
+			{
+				entry.setSpriteId(MISSING_FLAG_SPRITE);
 			}
 		}
 
@@ -265,16 +268,14 @@ public class WorldHiderPlugin extends Plugin
 		for (Widget entry : listEntries)
 		{
 			entry.setName("XXX");
-			if ((entry.getOriginalX() == 44) && config.hideFlags()) {
-				entry.setSpriteId(1140);
-			}
 		}
 
 		Widget worldTooltip = client.getWidget(69, 24);
 
 		worldTooltip.setHidden(true);
 
-		if (config.hideScrollbar()) {
+		if (config.hideScrollbar())
+		{
 			Widget scrollbar = client.getWidget(69, 18);
 
 			if (scrollbar == null)
