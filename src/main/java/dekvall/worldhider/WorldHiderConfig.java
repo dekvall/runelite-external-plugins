@@ -61,4 +61,24 @@ public interface WorldHiderConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "hideFlags",
+		name = "Hide Flags",
+		description = "Hides Flag for each world by making them all the same"
+	)
+	default boolean hideFlags()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "hideScrollbar",
+		name = "Hide Scrollbar",
+		description = "Hides Scrollbar"
+	)
+	default boolean hideScrollbar()
+	{
+		return false;
+	}
 }

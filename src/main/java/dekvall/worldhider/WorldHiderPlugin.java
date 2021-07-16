@@ -248,6 +248,9 @@ public class WorldHiderPlugin extends Plugin
 		for (Widget entry : entries)
 		{
 			entry.setText("XXX");
+			if ((entry.getOriginalX() == 44) && config.hideFlags()) {
+				entry.setSpriteId(1140);
+			}
 		}
 
 		Widget listLabel = client.getWidget(69, 16);
@@ -262,11 +265,30 @@ public class WorldHiderPlugin extends Plugin
 		for (Widget entry : listEntries)
 		{
 			entry.setName("XXX");
+			if ((entry.getOriginalX() == 44) && config.hideFlags()) {
+				entry.setSpriteId(1140);
+			}
 		}
 
 		Widget worldTooltip = client.getWidget(69, 24);
 
 		worldTooltip.setHidden(true);
+
+		if (config.hideScrollbar()) {
+			Widget scrollbar = client.getWidget(69, 18);
+
+			if (scrollbar == null)
+			{
+				return;
+			}
+
+			Widget[] scrollEntries = scrollbar.getDynamicChildren();
+
+			for (Widget entry : scrollEntries)
+			{
+				entry.setSpriteId(-1);
+			}
+		}
 	}
 
 
