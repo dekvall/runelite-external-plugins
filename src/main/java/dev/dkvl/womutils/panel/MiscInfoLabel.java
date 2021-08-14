@@ -2,6 +2,7 @@ package dev.dkvl.womutils.panel;
 
 import dev.dkvl.womutils.CountryIcon;
 import dev.dkvl.womutils.Format;
+import dev.dkvl.womutils.Utils;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -46,7 +47,8 @@ public class MiscInfoLabel extends JLabel
                 setText(countryText);
                 break;
             case BUILD:
-                setText("" + result.getBuild());
+                setText(result.getBuild().toString());
+                setIcon(Utils.getIcon(result.getType()));
                 break;
             case TTM:
                 setText(Format.formatNumber(result.getTtm()) + 'h');
@@ -69,7 +71,7 @@ public class MiscInfoLabel extends JLabel
 
     public void reset()
     {
-        if (info == MiscInfo.COUNTRY)
+        if (info == MiscInfo.COUNTRY || info == MiscInfo.BUILD)
         {
             setIcon(info.getIcon());
         }
