@@ -2,6 +2,7 @@ package dev.dkvl.womutils;
 
 import com.google.gson.Gson;
 import dev.dkvl.womutils.beans.AddedMembersInfo;
+import dev.dkvl.womutils.beans.GroupInfo;
 import dev.dkvl.womutils.beans.GroupMemberAddition;
 import dev.dkvl.womutils.beans.GroupMemberRemoval;
 import dev.dkvl.womutils.beans.Member;
@@ -10,8 +11,6 @@ import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.beans.WomStatus;
-import dev.dkvl.womutils.beans.GroupInfo;
-
 import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -25,13 +24,13 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
+import net.runelite.client.eventbus.EventBus;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -61,16 +60,17 @@ public class WomClient
 	@Inject
 	private ChatMessageManager chatMessageManager;
 
+	@Inject
+	private EventBus eventBus;
+
 	private static final Color SUCCESS = new Color(170, 255, 40);
 	private static final Color ERROR = new Color(204, 66, 66);
 
 	private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.##");
 
-	public Map<String, MemberInfo> groupMembers = new HashMap<>();
-
 	void submitNameChanges(NameChangeEntry[] changes)
 	{
-		Request request = createRequest(changes, RequestType.POST, "names", "bulk");
+		Request request = createRequest(changes, HttpMethod.POST, "names", "bulk");
 		sendRequest(request);
 		log.info("Submitted {} name changes to WOM", changes.length);
 	}
@@ -95,7 +95,12 @@ public class WomClient
 		okHttpClient.newCall(request).enqueue(callback);
 	}
 
-	private Request createRequest(Object payload, RequestType requestType, String... pathSegments)
+	private Request createRequest(Object payload, String... pathSegments)
+	{
+		return createRequest(payload, HttpMethod.POST, pathSegments);
+	}
+
+	private Request createRequest(Object payload, HttpMethod httpMethod, String... pathSegments)
 	{
 		HttpUrl url = buildUrl(pathSegments);
 		RequestBody body = RequestBody.create(
@@ -107,7 +112,7 @@ public class WomClient
 			.header("User-Agent", "WiseOldMan RuneLite Plugin")
 			.url(url);
 
-		if (requestType == RequestType.PUT)
+		if (httpMethod == HttpMethod.PUT)
 		{
 			return requestBuilder.put(body).build();
 		}
@@ -141,10 +146,10 @@ public class WomClient
 	public void importGroupMembers()
 	{
 		Request request = createRequest("groups", "" + config.groupId(), "members");
-		sendRequest(request, r -> importMembersCallback(r, groupMembers));
+		sendRequest(request, this::importMembersCallback);
 	}
 
-	private void importMembersCallback(Response response, Map<String, MemberInfo> groupMembers)
+	private void importMembersCallback(Response response)
 	{
 		if (!response.isSuccessful())
 		{
@@ -152,17 +157,7 @@ public class WomClient
 		}
 
 		MemberInfo[] members = parseResponse(response, MemberInfo[].class);
-
-		groupMembers.clear();
-		for (MemberInfo m : members)
-		{
-			groupMembers.put(m.getUsername(), m);
-		}
-
-		if (client.getGameState() == GameState.LOGGED_IN)
-		{
-			iconHandler.rebuildLists(groupMembers, config.showicons());
-		}
+		eventBus.post(new WomGroupSynced(members));
 	}
 
 	private void syncClanMembersCallBack(Response response)
@@ -173,41 +168,14 @@ public class WomClient
 		if (response.isSuccessful())
 		{
 			GroupInfo data = parseResponse(response, GroupInfo.class);
-			int membersAdded = 0;
-			for (MemberInfo m : data.getMembers())
-			{
-				String username = m.getUsername().toLowerCase();
-				membersAdded += groupMembers.containsKey(username) ? 0 : 1;
-				newGroup.put(username, m);
-			}
-
-			int membersRemoved = 0;
-			int ranksChanged = 0;
-			for (String k : groupMembers.keySet())
-			{
-				if (newGroup.containsKey(k))
-				{
-					ranksChanged += !newGroup.get(k).getRole().equals(groupMembers.get(k).getRole()) ? 1 : 0;
-				}
-				else
-				{
-					membersRemoved += 1;
-				}
-			}
-
-			iconHandler.rebuildLists(newGroup, config.showicons());
-			groupMembers = newGroup;
-			message = String.format("Synced %d clan members. %d added, %d removed, %d ranks changed.",
-				newGroup.size(), membersAdded, membersRemoved, ranksChanged);
+			eventBus.post(new WomGroupSynced(data.getMembers()));
 		}
 		else
 		{
 			WomStatus data = parseResponse(response, WomStatus.class);
 			message = "Error: " + data.getMessage();
+			sendResponseToChat(message, ERROR);
 		}
-
-		Color color = response.isSuccessful() ? SUCCESS : ERROR;
-		sendResponseToChat(message, color);
 	}
 
 	private void removeMemberCallback(Response response, String username)
@@ -217,18 +185,14 @@ public class WomClient
 
 		if (response.isSuccessful())
 		{
-			groupMembers.remove(username.toLowerCase());
-			message = "Player removed: " + username;
-			iconHandler.rebuildLists(groupMembers, config.showicons());
+			eventBus.post(new WomGroupMemberRemoved(username));
 		}
 		else
 		{
 
 			message = "Error: " + data.getMessage();
+			sendResponseToChat(message, ERROR);
 		}
-
-		Color color = response.isSuccessful() ? SUCCESS : ERROR;
-		sendResponseToChat(message, color);
 	}
 
 	private void addMemberCallback(Response response, String username)
@@ -252,19 +216,14 @@ public class WomClient
 			{
 				log.warn("Info for {} could not be added because there is none in the group", username);
 			}
-
-			message = "New player added: " + username;
-			groupMembers.put(username.toLowerCase(), memberInfo);
-			iconHandler.rebuildLists(groupMembers, config.showicons());
+			eventBus.post(new WomGroupMemberAdded(username, memberInfo));
 		}
 		else
 		{
 			WomStatus data = parseResponse(response, WomStatus.class);
 			message = "Error: " + data.getMessage();
+			sendResponseToChat(message, ERROR);
 		}
-
-		Color color = response.isSuccessful() ? SUCCESS : ERROR;
-		sendResponseToChat(message, color);
 	}
 
 	private <T> T parseResponse(Response r, Class<T> clazz)
@@ -307,7 +266,7 @@ public class WomClient
 	public void syncClanMembers(ArrayList<Member> clanMembers)
 	{
 		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), clanMembers);
-		Request request = createRequest(payload, RequestType.PUT, "groups", "" + config.groupId());
+		Request request = createRequest(payload, HttpMethod.PUT, "groups", "" + config.groupId());
 		sendRequest(request, this::syncClanMembersCallBack);
 	}
 
@@ -317,14 +276,14 @@ public class WomClient
 		memberToAdd.add(new Member(username.toLowerCase(), "member"));
 
 		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), memberToAdd);
-		Request request = createRequest(payload, RequestType.POST, "groups", "" + config.groupId(), "add-members");
+		Request request = createRequest(payload, "groups", "" + config.groupId(), "add-members");
 		sendRequest(request, r -> addMemberCallback(r, username));
 	}
 
 	void removeGroupMember(String username)
 	{
 		GroupMemberRemoval payload = new GroupMemberRemoval(config.verificationCode(), new String[] {username.toLowerCase()});
-		Request request = createRequest(payload, RequestType.POST, "groups", "" + config.groupId(), "remove-members");
+		Request request = createRequest(payload,"groups", "" + config.groupId(), "remove-members");
 		sendRequest(request, r -> removeMemberCallback(r, username));
 	}
 
@@ -376,7 +335,7 @@ public class WomClient
 
 	public void updatePlayer(String username)
 	{
-		Request request = createRequest(new WomPlayer(username), RequestType.POST, "players", "track");
+		Request request = createRequest(new WomPlayer(username), "players", "track");
 		sendRequest(request);
 	}
 
@@ -391,7 +350,7 @@ public class WomClient
 	public CompletableFuture<PlayerInfo> updateAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
-		Request request = createRequest(new WomPlayer(username), RequestType.POST, "players", "track");
+		Request request = createRequest(new WomPlayer(username), "players", "track");
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}

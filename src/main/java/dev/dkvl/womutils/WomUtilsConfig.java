@@ -166,5 +166,4 @@ public interface WomUtilsConfig extends Config
 	{
 		return "";
 	}
-
 }

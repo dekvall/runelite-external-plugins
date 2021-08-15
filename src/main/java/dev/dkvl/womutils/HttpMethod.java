@@ -1,6 +1,6 @@
 package dev.dkvl.womutils;
 
-public enum RequestType
+public enum HttpMethod
 {
     POST,
     PUT
