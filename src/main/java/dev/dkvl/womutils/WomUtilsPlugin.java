@@ -738,7 +738,11 @@ public class WomUtilsPlugin extends Plugin
 			groupMembers.put(m.getUsername(), m);
 		}
 		onGroupUpdate();
-		compareChanges(old, groupMembers);
+		if (!event.isSilent())
+		{
+			String message = compareChanges(old, groupMembers);
+			sendResponseToChat(message, SUCCESS);
+		}
 	}
 
 	@Subscribe
@@ -769,7 +773,7 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void compareChanges(Map<String, MemberInfo> oldMembers, Map<String, MemberInfo> newMembers)
+	private String compareChanges(Map<String, MemberInfo> oldMembers, Map<String, MemberInfo> newMembers)
 	{
 		int membersAdded = 0;
 		int ranksChanged = 0;
@@ -790,9 +794,8 @@ public class WomUtilsPlugin extends Plugin
 
 		int membersRemoved = oldMembers.size() + membersAdded - newMembers.size();
 
-		String message = String.format("Synced %d clan members. %d added, %d removed, %d ranks changed.",
-		newMembers.size(), membersAdded, membersRemoved, ranksChanged);
-		sendResponseToChat(message, SUCCESS);
+		return String.format("Synced %d clan members. %d added, %d removed, %d ranks changed.",
+			newMembers.size(), membersAdded, membersRemoved, ranksChanged);
 	}
 
 	private void sendResponseToChat(String message, Color color)

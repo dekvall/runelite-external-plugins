@@ -157,7 +157,7 @@ public class WomClient
 		}
 
 		MemberInfo[] members = parseResponse(response, MemberInfo[].class);
-		eventBus.post(new WomGroupSynced(members));
+		eventBus.post(new WomGroupSynced(members, true));
 	}
 
 	private void syncClanMembersCallBack(Response response)
