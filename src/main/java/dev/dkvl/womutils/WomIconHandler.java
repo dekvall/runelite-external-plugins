@@ -75,7 +75,7 @@ class WomIconHandler
 	{
 		switch (event.getEventName())
 		{
-			case "friend_cc_settext":
+			case "friendsChatSetText":
 				String[] stringStack = client.getStringStack();
 				int stringStackSize = client.getStringStackSize();
 				final String rsn = stringStack[stringStackSize - 1];
@@ -91,7 +91,7 @@ class WomIconHandler
 					stringStack[stringStackSize - 1] = rsn + " <img=" + iconIdx + ">";
 				}
 				break;
-			case "friend_cc_setposition":
+			case "friendsChatSetPosition":
 				if (currentLayouting == null || !groupMembers.containsKey(currentLayouting))
 				{
 					return;
