@@ -3,6 +3,9 @@ package dev.dkvl.womutils.ui;
 import com.google.common.util.concurrent.Runnables;
 import dev.dkvl.womutils.WomClient;
 import dev.dkvl.womutils.beans.Member;
+import dev.dkvl.womutils.beans.MemberInfo;
+import java.util.HashMap;
+import java.util.Map;
 import net.runelite.api.*;
 import net.runelite.api.clan.ClanMember;
 import net.runelite.api.clan.ClanSettings;
@@ -23,15 +26,17 @@ public class SyncButton
 
     private final List<Widget> cornersAndEdges = new ArrayList<>();
     private final ClanSettings clanSettings;
+    private final Map<String, MemberInfo> groupMembers;
 
 
-    public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager, Widget parent)
+    public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager, int parent, Map<String, MemberInfo> groupMembers)
     {
         this.client = client;
         this.womClient = womClient;
         this.chatboxPanelManager = chatboxPanelManager;
-        this.parent = parent;
+        this.parent = client.getWidget(parent);
         this.clanSettings = client.getClanSettings();
+        this.groupMembers = groupMembers;
 
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_METAL_CORNER_TOP_LEFT, 6, 6, 9, 9);
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_METAL_CORNER_TOP_RIGHT, 97, 6, 9, 9);
@@ -78,11 +83,11 @@ public class SyncButton
         textWidget.setOnOpListener((JavaScriptCallback) e -> {
             chatboxPanelManager.openTextMenuInput(
                 "Any members not in your clan will be removed" +
-                    "<br>from your WOM group. Are you sure about this?")
-                .option("1. Yes", this::syncMembers)
-                .option("2. No", Runnables.doNothing())
+                    "<br>from your WOM group. Proceed?")
+                .option("1. Yes, overwrite WOM group", this::syncMembers)
+				.option("2. No, only add new members", () -> syncMembers(false))
+                .option("3. Cancel", Runnables.doNothing())
                 .build();
-
         });
         textWidget.setOnMouseOverListener((JavaScriptCallback) e -> update(true));
         textWidget.setOnMouseLeaveListener((JavaScriptCallback) e -> update(false));
@@ -101,16 +106,27 @@ public class SyncButton
     }
 
     private void syncMembers()
+	{
+		syncMembers(true);
+	}
+
+    private void syncMembers(boolean overwrite)
     {
-        ArrayList<Member> clanMembers = new ArrayList<>();
+        Map<String, Member> clanMembers = new HashMap<>();
+
+        if (!overwrite)
+		{
+			groupMembers.forEach((k,v) -> clanMembers.put(k, new Member(v.getDisplayName(), v.getRole())));
+		}
 
         for (ClanMember clanMember : clanSettings.getMembers())
         {
             String memberName = Text.toJagexName(clanMember.getName());
             ClanTitle memberTitle = clanSettings.titleForRank(clanMember.getRank());
-            clanMembers.add(new Member(memberName, memberTitle == null ? "member" : memberTitle.getName().toLowerCase()));
+            String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase();
+            clanMembers.put(memberName.toLowerCase(), new Member(memberName, role));
         }
 
-        this.womClient.syncClanMembers(clanMembers);
+        womClient.syncClanMembers(new ArrayList<>(clanMembers.values()));
     }
 }

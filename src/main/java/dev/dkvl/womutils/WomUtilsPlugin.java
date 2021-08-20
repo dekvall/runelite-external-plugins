@@ -623,10 +623,10 @@ public class WomUtilsPlugin extends Plugin
 		switch (widgetLoaded.getGroupId())
 		{
 			case CLAN_SETTINGS_MEMBERS_WIDGET:
-				clientThread.invoke(() -> this.createSyncButton(CLAN_SETTINGS_MEMBERS_WIDGET_ID));
+				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_MEMBERS_WIDGET_ID));
 				break;
 			case CLAN_SETTINGS_WIDGET:
-				clientThread.invoke(() -> this.createSyncButton(CLAN_SETTINGS_WIDGET_ID));
+				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_WIDGET_ID));
 				break;
 		}
 	}
@@ -811,7 +811,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private void createSyncButton(int w)
 	{
-		new SyncButton(client, womClient, chatboxPanelManager, client.getWidget(w));
+		new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers);
 	}
 
 	@Provides
