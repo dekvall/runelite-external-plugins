@@ -13,6 +13,7 @@ import net.runelite.api.clan.ClanTitle;
 import net.runelite.api.widgets.*;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.util.Text;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,9 +28,12 @@ public class SyncButton
     private final List<Widget> cornersAndEdges = new ArrayList<>();
     private final ClanSettings clanSettings;
     private final Map<String, MemberInfo> groupMembers;
+    private final String[] ignoredRanks;
+    private final String[] includedPlayers;
 
 
-    public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager, int parent, Map<String, MemberInfo> groupMembers)
+    public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager, int parent,
+                      Map<String, MemberInfo> groupMembers, String[] ignoredRanks, String[] includedPlayers)
     {
         this.client = client;
         this.womClient = womClient;
@@ -37,6 +41,8 @@ public class SyncButton
         this.parent = client.getWidget(parent);
         this.clanSettings = client.getClanSettings();
         this.groupMembers = groupMembers;
+        this.ignoredRanks = ignoredRanks;
+        this.includedPlayers = includedPlayers;
 
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_METAL_CORNER_TOP_LEFT, 6, 6, 9, 9);
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_METAL_CORNER_TOP_RIGHT, 97, 6, 9, 9);
@@ -116,7 +122,13 @@ public class SyncButton
 
         if (!overwrite)
 		{
-			groupMembers.forEach((k,v) -> clanMembers.put(k, new Member(v.getDisplayName(), v.getRole())));
+			groupMembers.forEach((k,v) ->
+            {
+			    if (!ArrayUtils.contains(ignoredRanks, v.getRole()))
+                {
+                    clanMembers.put(k, new Member(v.getDisplayName(), v.getRole()));
+                }
+            });
 		}
 
         for (ClanMember clanMember : clanSettings.getMembers())
@@ -124,7 +136,15 @@ public class SyncButton
             String memberName = Text.toJagexName(clanMember.getName());
             ClanTitle memberTitle = clanSettings.titleForRank(clanMember.getRank());
             String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase();
-            clanMembers.put(memberName.toLowerCase(), new Member(memberName, role));
+            if (!ArrayUtils.contains(ignoredRanks, role))
+            {
+                clanMembers.put(memberName.toLowerCase(), new Member(memberName, role));
+            }
+        }
+
+        for (String playerName : includedPlayers)
+        {
+            clanMembers.put(playerName.toLowerCase(), new Member(playerName, "member"));
         }
 
         womClient.syncClanMembers(new ArrayList<>(clanMembers.values()));

@@ -811,7 +811,9 @@ public class WomUtilsPlugin extends Plugin
 
 	private void createSyncButton(int w)
 	{
-		new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers);
+		String[] ignoredRanks = !Strings.isNullOrEmpty(config.ignoredRanks()) ? config.ignoredRanks().toLowerCase().split("\\s*,\\s*") : new String[0];
+		String[] includedPlayers = !Strings.isNullOrEmpty(config.includedPlayers()) ? config.includedPlayers().split("\\s*,\\s*") : new String[0];
+		new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers, ignoredRanks, includedPlayers);
 	}
 
 	@Provides

@@ -131,10 +131,28 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "ignoredRanks",
+		name = "Ignored ranks",
+		description = "These ranks will always be ignored when syncing the clan with the sync button. Separate them with a comma",
+		position = 6,
+		section = groupConfig
+	)
+	default String ignoredRanks() { return ""; }
+
+	@ConfigItem(
+		keyName = "includedPlayers",
+		name = "Included players",
+		description = "These players will always be included when syncing the clan with the sync button. Separate them with a comma",
+		position = 7,
+		section = groupConfig
+	)
+	default String includedPlayers() { return ""; }
+
+	@ConfigItem(
 		keyName = "groupId",
 		name = "Group Id",
 		description = "The group id in WOM",
-		position = 6,
+		position = 8,
 		section = groupConfig
 	)
 	default int groupId()
@@ -147,7 +165,7 @@ public interface WomUtilsConfig extends Config
 		name = "Verification code",
 		description = "Verification code for the WOM group",
 		secret = true,
-		position = 7,
+		position = 9,
 		section = groupConfig
 	)
 	default String verificationCode()
