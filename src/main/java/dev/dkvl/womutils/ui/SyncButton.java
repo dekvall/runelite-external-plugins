@@ -121,6 +121,7 @@ public class SyncButton
 
         for (ClanMember clanMember : clanSettings.getMembers())
         {
+            if (clanMember.getName().startsWith("[#")) continue; // Skip adding banned names
             String memberName = Text.toJagexName(clanMember.getName());
             ClanTitle memberTitle = clanSettings.titleForRank(clanMember.getRank());
             String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase();
