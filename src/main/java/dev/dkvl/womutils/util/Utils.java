@@ -1,5 +1,6 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.util;
 
+import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.PlayerType;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;

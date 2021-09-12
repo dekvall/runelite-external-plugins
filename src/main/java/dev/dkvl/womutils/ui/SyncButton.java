@@ -1,7 +1,7 @@
 package dev.dkvl.womutils.ui;
 
 import com.google.common.util.concurrent.Runnables;
-import dev.dkvl.womutils.WomClient;
+import dev.dkvl.womutils.web.WomClient;
 import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.MemberInfo;
 import java.util.HashMap;

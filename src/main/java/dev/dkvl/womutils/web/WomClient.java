@@ -1,6 +1,8 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.web;
 
 import com.google.gson.Gson;
+import dev.dkvl.womutils.ui.WomIconHandler;
+import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.beans.AddedMembersInfo;
 import dev.dkvl.womutils.beans.GroupInfo;
 import dev.dkvl.womutils.beans.GroupMemberAddition;
@@ -71,7 +73,7 @@ public class WomClient
 
 	private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.##");
 
-	void submitNameChanges(NameChangeEntry[] changes)
+	public void submitNameChanges(NameChangeEntry[] changes)
 	{
 		Request request = createRequest(changes, HttpMethod.POST, "names", "bulk");
 		sendRequest(request);
@@ -273,7 +275,7 @@ public class WomClient
 		sendRequest(request, this::syncClanMembersCallBack);
 	}
 
-	void addGroupMember(String username)
+	public void addGroupMember(String username)
 	{
 		ArrayList<Member> memberToAdd = new ArrayList<>();
 		memberToAdd.add(new Member(username.toLowerCase(), "member"));
@@ -283,14 +285,14 @@ public class WomClient
 		sendRequest(request, r -> addMemberCallback(r, username));
 	}
 
-	void removeGroupMember(String username)
+	public void removeGroupMember(String username)
 	{
 		GroupMemberRemoval payload = new GroupMemberRemoval(config.verificationCode(), new String[] {username.toLowerCase()});
 		Request request = createRequest(payload,"groups", "" + config.groupId(), "remove-members");
 		sendRequest(request, r -> removeMemberCallback(r, username));
 	}
 
-	void commandLookup(String username, WomCommand command, ChatMessage chatMessage)
+	public void commandLookup(String username, WomCommand command, ChatMessage chatMessage)
 	{
 		Request request = createRequest("players", "username", username);
 		sendRequest(request, r -> commandCallback(r, command, chatMessage));

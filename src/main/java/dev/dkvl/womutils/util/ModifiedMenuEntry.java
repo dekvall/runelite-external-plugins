@@ -1,12 +1,12 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.util;
 
 import lombok.Builder;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.MenuEntryAdded;
 
-class ModifiedMenuEntry extends MenuEntry
+public class ModifiedMenuEntry extends MenuEntry
 {
-	static ModifiedMenuEntry of(MenuEntryAdded e)
+	public static ModifiedMenuEntry of(MenuEntryAdded e)
 	{
 		return ModifiedMenuEntry.builder()
 			.option(e.getOption())

@@ -24,8 +24,8 @@
  */
 package dev.dkvl.womutils.panel;
 
-import dev.dkvl.womutils.Format;
-import dev.dkvl.womutils.Utils;
+import dev.dkvl.womutils.util.Format;
+import dev.dkvl.womutils.util.Utils;
 import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.Boss;
 import dev.dkvl.womutils.beans.Minigame;

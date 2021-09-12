@@ -3,6 +3,7 @@ package dev.dkvl.womutils.panel;
 import com.google.common.base.Strings;
 import dev.dkvl.womutils.*;
 import dev.dkvl.womutils.beans.PlayerInfo;
+import dev.dkvl.womutils.web.WomClient;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
@@ -13,7 +14,6 @@ import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.ui.components.materialtabs.MaterialTab;
 import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 import net.runelite.client.util.LinkBrowser;
-import net.runelite.http.api.hiscore.HiscoreEndpoint;
 import okhttp3.HttpUrl;
 
 import javax.inject.Inject;

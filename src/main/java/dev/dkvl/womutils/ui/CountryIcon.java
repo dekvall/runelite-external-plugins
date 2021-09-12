@@ -1,4 +1,4 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.ui;
 
 import com.google.common.collect.ImmutableMap;
 import java.awt.image.BufferedImage;
@@ -272,7 +272,7 @@ public enum CountryIcon
 	private final String languageCode;
 	private final String codepoint;
 
-	static final int ICON_WIDTH = 12;
+	public static final int ICON_WIDTH = 12;
 	private static final Map<String, CountryIcon> ICONS;
 
 	static
@@ -287,7 +287,7 @@ public enum CountryIcon
 		ICONS = iconBuilder.build();
 	}
 
-	BufferedImage loadImage()
+	public BufferedImage loadImage()
 	{
 		return ImageUtil.loadImageResource(getClass(), "flags/" + codepoint + ".png");
 	}
@@ -297,7 +297,7 @@ public enum CountryIcon
 		return new ImageIcon(ImageUtil.loadImageResource(CountryIcon.class, "flags_square/" + ICONS.get(languageCode).codepoint + ".png"));
 	}
 
-	static CountryIcon getIcon(String countryCode)
+	public static CountryIcon getIcon(String countryCode)
 	{
 		return ICONS.getOrDefault(countryCode, DEFAULT);
 	}

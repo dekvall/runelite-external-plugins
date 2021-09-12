@@ -1,4 +1,4 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.web;
 
 import java.io.IOException;
 import java.util.function.Consumer;
@@ -12,7 +12,7 @@ import okhttp3.Response;
 @Slf4j
 @RequiredArgsConstructor
 @AllArgsConstructor
-class WomCallback implements Callback
+public class WomCallback implements Callback
 {
 	@Override
 	public void onFailure(Call call, IOException e)

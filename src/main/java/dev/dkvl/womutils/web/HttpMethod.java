@@ -1,4 +1,4 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.web;
 
 public enum HttpMethod
 {

@@ -1,6 +1,8 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.ui;
 
+import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.beans.MemberInfo;
+import dev.dkvl.womutils.ui.CountryIcon;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Map;
@@ -19,7 +21,7 @@ import net.runelite.client.util.Text;
 
 @Slf4j
 @Singleton
-class WomIconHandler
+public class WomIconHandler
 {
 	private final Client client;
 	private final ClientThread clientThread;
@@ -61,17 +63,17 @@ class WomIconHandler
 		return true;
 	}
 
-	boolean iconsAreLoaded()
+	public boolean iconsAreLoaded()
 	{
 		return modIconsStart != -1;
 	}
 
-	void loadIcons()
+	public void loadIcons()
 	{
 		clientThread.invokeLater(this::loadCountryIcons);
 	}
 
-	void handleScriptEvent(ScriptCallbackEvent event, Map<String, MemberInfo> groupMembers)
+	public void handleScriptEvent(ScriptCallbackEvent event, Map<String, MemberInfo> groupMembers)
 	{
 		switch (event.getEventName())
 		{
@@ -106,7 +108,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildMemberList(boolean disable, Map<String, MemberInfo> groupMembers, WidgetInfo widgetInfo)
+	public void rebuildMemberList(boolean disable, Map<String, MemberInfo> groupMembers, WidgetInfo widgetInfo)
 	{
 		Widget containerWidget = client.getWidget(widgetInfo);
 		if (containerWidget == null)
@@ -142,7 +144,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildSettingsMemberList(boolean disable, Map<String, MemberInfo> groupMembers)
+	public void rebuildSettingsMemberList(boolean disable, Map<String, MemberInfo> groupMembers)
 	{
 		Widget containerWidget = client.getWidget(693, 10);
 		if (containerWidget == null)
@@ -183,7 +185,7 @@ class WomIconHandler
 		}
 	}
 
-	void rebuildLists(Map<String, MemberInfo> members, boolean showIcons)
+	public void rebuildLists(Map<String, MemberInfo> members, boolean showIcons)
 	{
 		clientThread.invokeLater(() ->
 		{

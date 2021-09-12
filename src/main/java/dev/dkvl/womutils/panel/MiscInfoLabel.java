@@ -1,8 +1,8 @@
 package dev.dkvl.womutils.panel;
 
-import dev.dkvl.womutils.CountryIcon;
-import dev.dkvl.womutils.Format;
-import dev.dkvl.womutils.Utils;
+import dev.dkvl.womutils.ui.CountryIcon;
+import dev.dkvl.womutils.util.Format;
+import dev.dkvl.womutils.util.Utils;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;

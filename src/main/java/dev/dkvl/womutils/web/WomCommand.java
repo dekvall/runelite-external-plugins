@@ -1,11 +1,11 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.web;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-enum WomCommand
+public enum WomCommand
 {
 	EHP("!ehp", "ehp", "Efficient hours played: "),
 	EHB("!ehb", "ehb", "Efficient hours bossed: "),

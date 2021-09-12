@@ -1,7 +1,7 @@
 package dev.dkvl.womutils.panel;
 
 import com.google.common.collect.ImmutableList;
-import dev.dkvl.womutils.Format;
+import dev.dkvl.womutils.util.Format;
 import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Skill;
