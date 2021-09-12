@@ -18,7 +18,7 @@ public enum WomCommand
 	private final String message;
 
 
-	static WomCommand fromCommand(String command)
+	public static WomCommand fromCommand(String command)
 	{
 		for (WomCommand c : values())
 		{

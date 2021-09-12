@@ -1,6 +1,7 @@
 package dev.dkvl.womutils.ui;
 
 import com.google.common.collect.ImmutableMap;
+import dev.dkvl.womutils.WomUtilsPlugin;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -289,12 +290,12 @@ public enum CountryIcon
 
 	public BufferedImage loadImage()
 	{
-		return ImageUtil.loadImageResource(getClass(), "flags/" + codepoint + ".png");
+		return ImageUtil.loadImageResource(WomUtilsPlugin.class, "flags/" + codepoint + ".png");
 	}
 
 	public static ImageIcon loadSquareImage(String languageCode)
 	{
-		return new ImageIcon(ImageUtil.loadImageResource(CountryIcon.class, "flags_square/" + ICONS.get(languageCode).codepoint + ".png"));
+		return new ImageIcon(ImageUtil.loadImageResource(WomUtilsPlugin.class, "flags_square/" + ICONS.get(languageCode).codepoint + ".png"));
 	}
 
 	public static CountryIcon getIcon(String countryCode)
