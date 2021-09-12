@@ -1,4 +1,4 @@
-package dev.dkvl.womutils;
+package dev.dkvl.womutils.events;
 
 import dev.dkvl.womutils.beans.MemberInfo;
 import lombok.AllArgsConstructor;
