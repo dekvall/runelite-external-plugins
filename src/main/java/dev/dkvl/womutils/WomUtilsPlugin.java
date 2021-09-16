@@ -136,10 +136,13 @@ public class WomUtilsPlugin extends Plugin
 	private static final int CLAN_SIDEPANEL_DRAW = 4397;
 	private static final int CLAN_SETTINGS_MEMBERS_DRAW = 4232;
 
-	private static final int CLAN_SETTINGS_WIDGET = 690;
-	private static final int CLAN_SETTINGS_WIDGET_ID = WidgetInfo.PACK(CLAN_SETTINGS_WIDGET, 2);
-	private static final int CLAN_SETTINGS_MEMBERS_WIDGET = 693;
-	private static final int CLAN_SETTINGS_MEMBERS_WIDGET_ID = WidgetInfo.PACK(CLAN_SETTINGS_MEMBERS_WIDGET, 2);
+	private static final int CLAN_SETTINGS_INFO_PAGE_WIDGET = 690;
+	private static final int CLAN_SETTINGS_INFO_PAGE_WIDGET_ID = WidgetInfo.PACK(CLAN_SETTINGS_INFO_PAGE_WIDGET, 2);
+	private static final int CLAN_SETTINGS_MEMBERS_PAGE_WIDGET = 693;
+	private static final int CLAN_SETTINGS_MEMBERS_PAGE_WIDGET_ID = WidgetInfo.PACK(CLAN_SETTINGS_MEMBERS_PAGE_WIDGET, 2);
+
+	private static final int CLAN_SETTINGS_MEMBERS_WIDGET = WidgetInfo.PACK(693, 10);
+	private static final int CLAN_OPTIONS_RANKS_WIDGET = WidgetInfo.PACK(693, 11);
 
 	private static final Color SUCCESS = new Color(170, 255, 40);
 
@@ -161,7 +164,7 @@ public class WomUtilsPlugin extends Plugin
 	private ChatMessageManager chatMessageManager;
 
 	@Inject
-	ChatboxPanelManager chatboxPanelManager;
+	private ChatboxPanelManager chatboxPanelManager;
 
 	@Inject
 	private Gson gson;
@@ -176,9 +179,9 @@ public class WomUtilsPlugin extends Plugin
 	private WomClient womClient;
 
 	@Inject
-	XpUpdaterConfig xpUpdaterConfig;
+	private XpUpdaterConfig xpUpdaterConfig;
 
-	WomPanel womPanel;
+	private WomPanel womPanel;
 
 	@Inject
 	ClientToolbar clientToolbar;
@@ -630,11 +633,11 @@ public class WomUtilsPlugin extends Plugin
 
 		switch (widgetLoaded.getGroupId())
 		{
-			case CLAN_SETTINGS_MEMBERS_WIDGET:
-				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_MEMBERS_WIDGET_ID));
+			case CLAN_SETTINGS_MEMBERS_PAGE_WIDGET:
+				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_MEMBERS_PAGE_WIDGET_ID));
 				break;
-			case CLAN_SETTINGS_WIDGET:
-				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_WIDGET_ID));
+			case CLAN_SETTINGS_INFO_PAGE_WIDGET:
+				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_INFO_PAGE_WIDGET_ID));
 				break;
 		}
 	}
@@ -698,7 +701,6 @@ public class WomUtilsPlugin extends Plugin
 		{
 			menuManager.addManagedCustomMenu(option);
 		}
-
 	}
 
 	private void removeGroupMenuOptions()
