@@ -9,8 +9,11 @@ import com.google.gson.Gson;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import dev.dkvl.womutils.beans.Competition;
+import dev.dkvl.womutils.beans.CompetitionInfo;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
+import dev.dkvl.womutils.beans.Participant;
+import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
@@ -41,6 +44,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -211,6 +215,7 @@ public class WomUtilsPlugin extends Plugin
 	private List<Competition> playerCompetitions = new ArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new ArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
+	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
 
 	private String lastUsername;
 	private boolean fetchXp;
@@ -310,6 +315,7 @@ public class WomUtilsPlugin extends Plugin
 		clearInfoboxes();
 		cancelNotifications();
 		previousSkillLevels.clear();
+		competitionInfoMap.clear();
 		levelupThisSession = false;
 
 		log.info("Wise Old Man stopped!");
@@ -832,11 +838,23 @@ public class WomUtilsPlugin extends Plugin
 			{
 				sendResponseToChat(c.getStatus(), Color.RED);
 			}
+			if (c.isActive())
+			{
+				womClient.fetchCompetitionInfo(c.getId());
+			}
 		}
 		updateInfoboxes();
 		updateScheduledNotifications();
 
 		log.debug("Fetched {} competitions for player {}", event.getCompetitions().length, event.getUsername());
+	}
+
+	@Subscribe
+	public void onWomCompetitionInfoFetched(WomCompetitionInfoFetched event)
+	{
+		CompetitionInfo comp = event.getComp();
+		competitionInfoMap.put(comp.getId(), comp);
+		updateInfoboxes();
 	}
 
 	private void updateInfoboxes()
@@ -846,7 +864,8 @@ public class WomUtilsPlugin extends Plugin
 		{
 			if (c.isActive() && config.timerOngoing() || !c.hasStarted() && config.timerUpcoming())
 			{
-				competitionInfoboxes.add(new CompetitionInfobox(c, this));
+				Participant player = getParticipant(c.getId(), playerName);
+				competitionInfoboxes.add(new CompetitionInfobox(c, player, this));
 			}
 		}
 
@@ -863,6 +882,25 @@ public class WomUtilsPlugin extends Plugin
 			infoBoxManager.removeInfoBox(b);
 		}
 		competitionInfoboxes.clear();
+	}
+
+	@Nullable
+	private Participant getParticipant(int compid, String username)
+	{
+		CompetitionInfo compInfo = competitionInfoMap.getOrDefault(compid, null);
+		if (compInfo == null)
+		{
+			return null;
+		}
+
+		for (Participant p : compInfo.getParticipants())
+		{
+			if (p.getUsername().equalsIgnoreCase(username))
+			{
+				return p;
+			}
+		}
+		return null;
 	}
 
 	private void updateScheduledNotifications()

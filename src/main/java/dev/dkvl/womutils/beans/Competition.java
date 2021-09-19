@@ -3,10 +3,10 @@ package dev.dkvl.womutils.beans;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
-import lombok.Value;
+import lombok.Data;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
-@Value
+@Data
 public class Competition
 {
 	int id;
@@ -71,6 +71,25 @@ public class Competition
 			sb.append("starts in ").append(durationLeftPretty());
 		}
 
+		return sb.toString();
+	}
+
+	public String getTimeStatus()
+	{
+		StringBuilder sb = new StringBuilder();
+
+		if (isActive())
+		{
+			sb.append("Ends in ").append(durationLeftPretty());
+		}
+		else if (!hasStarted())
+		{
+			sb.append("Starts in ").append(durationLeftPretty());
+		}
+		else
+		{
+			sb.append("Ended");
+		}
 		return sb.toString();
 	}
 }

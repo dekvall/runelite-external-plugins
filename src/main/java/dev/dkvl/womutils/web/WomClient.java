@@ -2,6 +2,8 @@ package dev.dkvl.womutils.web;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import dev.dkvl.womutils.beans.CompetitionInfo;
+import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.WomUtilsConfig;
@@ -251,6 +253,21 @@ public class WomClient
 		}
 	}
 
+	private void competitionInfoCallback(Response response)
+	{
+		if (response.isSuccessful())
+		{
+			CompetitionInfo comp = parseResponse(response, CompetitionInfo.class);
+			eventBus.post(new WomCompetitionInfoFetched(comp));
+		}
+		else
+		{
+			WomStatus data = parseResponse(response, WomStatus.class);
+			String message = "Error: " + data.getMessage();
+			sendResponseToChat(message, ERROR);
+		}
+	}
+
 	private <T> T parseResponse(Response r, Class<T> clazz)
 	{
 		return parseResponse(r, clazz, false);
@@ -362,6 +379,12 @@ public class WomClient
 	{
 		Request request = createRequest("players", "username", username, "competitions");
 		sendRequest(request, r -> playerCompetitionsCallback(username, r));
+	}
+
+	public void fetchCompetitionInfo(int id)
+	{
+		Request request = createRequest("competitions", String.valueOf(id));
+		sendRequest(request, this::competitionInfoCallback);
 	}
 
 	public void updatePlayer(String username)
