@@ -1,5 +1,6 @@
 package dev.dkvl.womutils;
 
+import java.awt.Color;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -28,6 +29,13 @@ public interface WomUtilsConfig extends Config
 		position = 3
 	)
 	String competitionConfig = "competitionConfig";
+
+	@ConfigSection(
+		name = "Event codeword",
+		description = "Event codeword configurations",
+		position = 4
+	)
+	String eventCodeword = "eventCodeword";
 
 	@ConfigItem(
 		keyName = "playerLookupOption",
@@ -208,5 +216,65 @@ public interface WomUtilsConfig extends Config
 	default boolean sendCompetitionNotification()
 	{
 		return false;
+	}
+
+	@ConfigItem(
+		keyName = "displayCodeword",
+		name = "Display codeword",
+		description = "Displays an event codeword overlay",
+		position = 12,
+		section = eventCodeword
+	)
+	default boolean displayCodeword()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "configuredCodeword",
+		name = "Codeword",
+		description = "Event codeword",
+		position = 13,
+		section = eventCodeword
+	)
+	default String configuredCodeword()
+	{
+		return "WOMCodeword";
+	}
+
+	@ConfigItem(
+		keyName = "showTimestamp",
+		name = "Show timestamp",
+		description = "Attach a timestamp to the codeword",
+		position = 14,
+		section = eventCodeword
+	)
+	default boolean showTimestamp()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "codewordColor",
+		name = "Codeword color",
+		description = "Overlay codeword color",
+		position = 15,
+		section = eventCodeword
+	)
+	default Color codewordColor()
+	{
+		return new Color(0x00FF6A);
+	}
+
+	@ConfigItem(
+		keyName = "timestampColor",
+		name = "Timestamp color",
+		description = "Overlay timestamp color",
+		position = 16,
+		section = eventCodeword
+	)
+	default Color timestampColor()
+	{
+		return new Color(0xFFFFFF);
 	}
 }

@@ -20,6 +20,7 @@ import dev.dkvl.womutils.events.WomGroupSynced;
 import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.panel.NameAutocompleter;
 import dev.dkvl.womutils.panel.WomPanel;
+import dev.dkvl.womutils.ui.CodeWordOverlay;
 import dev.dkvl.womutils.ui.CompetitionInfobox;
 import dev.dkvl.womutils.ui.SyncButton;
 import dev.dkvl.womutils.ui.WomIconHandler;
@@ -91,6 +92,7 @@ import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
@@ -204,6 +206,12 @@ public class WomUtilsPlugin extends Plugin
 	@Inject
 	private Notifier notifier;
 
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private CodeWordOverlay codeWordOverlay;
+
 	private WomPanel womPanel;
 
 	@Inject
@@ -291,6 +299,7 @@ public class WomUtilsPlugin extends Plugin
 			.build();
 
 		clientToolbar.addNavigation(navButton);
+		overlayManager.add(codeWordOverlay);
 
 		clientThread.invoke(this::saveCurrentLevels);
 	}
@@ -317,6 +326,7 @@ public class WomUtilsPlugin extends Plugin
 		previousSkillLevels.clear();
 		competitionInfoMap.clear();
 		levelupThisSession = false;
+		overlayManager.remove(codeWordOverlay);
 
 		log.info("Wise Old Man stopped!");
 	}
@@ -1027,5 +1037,6 @@ public class WomUtilsPlugin extends Plugin
 		binder.bind(WomIconHandler.class);
 		binder.bind(NameAutocompleter.class);
 		binder.bind(WomClient.class);
+		binder.bind(CodeWordOverlay.class);
 	}
 }
