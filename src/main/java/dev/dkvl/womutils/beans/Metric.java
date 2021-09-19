@@ -22,8 +22,6 @@ public enum Metric
 	ATTACK(HiscoreSkill.ATTACK),
 	@SerializedName("barrows_chests")
 	BARROWS_CHESTS(HiscoreSkill.BARROWS_CHESTS),
-	@SerializedName("bossing")
-	BOSSING(null),
 	@SerializedName("bounty_hunter_hunter")
 	BOUNTY_HUNTER_HUNTER(HiscoreSkill.BOUNTY_HUNTER_HUNTER),
 	@SerializedName("bounty_hunter_rogue")
@@ -56,8 +54,6 @@ public enum Metric
 	CLUE_SCROLLS_MASTER(HiscoreSkill.CLUE_SCROLL_MASTER),
 	@SerializedName("clue_scrolls_medium")
 	CLUE_SCROLLS_MEDIUM(HiscoreSkill.CLUE_SCROLL_MEDIUM),
-	@SerializedName("combat")
-	COMBAT(null),
 	@SerializedName("commander_zilyana")
 	COMMANDER_ZILYANA(HiscoreSkill.COMMANDER_ZILYANA),
 	@SerializedName("construction")
@@ -168,10 +164,6 @@ public enum Metric
 	THERMONUCLEAR_SMOKE_DEVIL(HiscoreSkill.THERMONUCLEAR_SMOKE_DEVIL),
 	@SerializedName("thieving")
 	THIEVING(HiscoreSkill.THIEVING),
-	@SerializedName("tt200m")
-	TT200M(null),
-	@SerializedName("ttm")
-	TTM(null),
 	@SerializedName("tzkal_zuk")
 	TZKAL_ZUK(HiscoreSkill.TZKAL_ZUK),
 	@SerializedName("tztok_jad")
