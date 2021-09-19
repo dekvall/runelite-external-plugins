@@ -11,15 +11,16 @@ import com.google.inject.Provides;
 import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
-import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
+import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.panel.NameAutocompleter;
 import dev.dkvl.womutils.panel.WomPanel;
 import dev.dkvl.womutils.ui.CompetitionInfobox;
 import dev.dkvl.womutils.ui.SyncButton;
 import dev.dkvl.womutils.ui.WomIconHandler;
+import dev.dkvl.womutils.util.DelayedAction;
 import dev.dkvl.womutils.util.ModifiedMenuEntry;
 import dev.dkvl.womutils.web.WomClient;
 import dev.dkvl.womutils.web.WomCommand;
@@ -28,7 +29,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -874,36 +874,47 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
+		List<DelayedAction> delayedActions = new ArrayList<>();
+
 		for (Competition c : playerCompetitions)
 		{
 			if (!c.hasStarted())
 			{
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
-					c.durationLeft().minus(Duration.of(1, ChronoUnit.HOURS)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
-					c.durationLeft().minus(Duration.of(15, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() ->
+				delayedActions.add(new DelayedAction(c.durationLeft().minusHours(1), () ->
+					notifier.notify(c.getStatus())));
+				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
+					notifier.notify(c.getStatus())));
+				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(5), () ->
 					{
 						notifier.notify(c.getTitle() + " has started!");
 						womClient.updatePlayer(playerName);
-					},
-					c.durationLeft().plus(Duration.of(5, ChronoUnit.SECONDS)).getSeconds(), TimeUnit.SECONDS));
+					})
+				);
 			}
 			else if (c.isActive())
 			{
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
-					c.durationLeft().minus(Duration.of(1, ChronoUnit.HOURS)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() ->
-				{
-					notifier.notify(c.getStatus());
-					// Update player 15 mins before end so there is at least one final datapoint
-					womClient.updatePlayer(playerName);
-				},
-					c.durationLeft().minus(Duration.of(15, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " is ending soon, logout now to record your final datapoint!"),
-					c.durationLeft().minus(Duration.of(4, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " is over, thanks for playing!"),
-					c.durationLeft().plus(Duration.of(5, ChronoUnit.SECONDS)).getSeconds(), TimeUnit.SECONDS));
+				delayedActions.add(new DelayedAction(c.durationLeft().minusHours(1), () ->
+					notifier.notify(c.getStatus())));
+				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
+					{
+						notifier.notify(c.getStatus());
+						// Update player 15 mins before end so there is at least one final datapoint
+						womClient.updatePlayer(playerName);
+					})
+				);
+				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(4), () ->
+					notifier.notify(c.getTitle() + " is ending soon, logout now to record your final datapoint!")));
+				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(5), () ->
+					notifier.notify(c.getTitle() + " is over, thanks for playing!")));
+			}
+		}
+
+		for (DelayedAction action : delayedActions)
+		{
+			if (!action.getDelay().isNegative())
+			{
+				scheduledFutures.add(scheduledExecutorService.schedule(action.getRunnable(),
+					action.getDelay().getSeconds(), TimeUnit.SECONDS));
 			}
 		}
 	}
