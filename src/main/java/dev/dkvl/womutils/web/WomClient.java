@@ -1,6 +1,8 @@
 package dev.dkvl.womutils.web;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.beans.AddedMembersInfo;
@@ -17,14 +19,13 @@ import dev.dkvl.womutils.beans.WomStatus;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
-import dev.dkvl.womutils.util.ParsedCompetition;
 import java.awt.Color;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -53,8 +54,9 @@ public class WomClient
 	@Inject
 	private OkHttpClient okHttpClient;
 
-	@Inject
-	private Gson gson;
+	private Gson gson = new GsonBuilder()
+		.setDateFormat(DateFormat.FULL, DateFormat.FULL)
+		.create();
 
 	@Inject
 	private WomIconHandler iconHandler;
@@ -234,20 +236,18 @@ public class WomClient
 		}
 	}
 
-	private void playerCompetitionsCallback(Response response)
+	private void playerCompetitionsCallback(String username, Response response)
 	{
 		if (response.isSuccessful())
 		{
 			Competition[] comps = parseResponse(response, Competition[].class);
-
-			for (Competition c : comps)
-			{
-				ParsedCompetition pc = ParsedCompetition.of(c);
-
-				sendResponseToChat(pc.getStartDate().toString(), Color.BLUE);
-				sendResponseToChat(pc.getEndDate().toString(), Color.RED);
-			}
-			Arrays.stream(comps).map(ParsedCompetition::of).toArray();
+			eventBus.post(new WomPlayerCompetitionsFetched(username, comps));
+		}
+		else
+		{
+			WomStatus data = parseResponse(response, WomStatus.class);
+			String message = "Error: " + data.getMessage();
+			sendResponseToChat(message, ERROR);
 		}
 	}
 
@@ -361,7 +361,7 @@ public class WomClient
 	public void fetchPlayerCompetitions(String username)
 	{
 		Request request = createRequest("players", "username", username, "competitions");
-		sendRequest(request, this::playerCompetitionsCallback);
+		sendRequest(request, r -> playerCompetitionsCallback(username, r));
 	}
 
 	public void updatePlayer(String username)

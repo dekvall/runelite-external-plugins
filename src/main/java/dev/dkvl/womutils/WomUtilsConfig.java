@@ -22,6 +22,13 @@ public interface WomUtilsConfig extends Config
 	)
 	String lookupConfig = "lookupConfig";
 
+	@ConfigSection(
+		name = "Competitions",
+		description = "Competition configurations",
+		position = 3
+	)
+	String competitionConfig = "competitionConfig";
+
 	@ConfigItem(
 		keyName = "playerLookupOption",
 		name = "Player option",
@@ -153,5 +160,53 @@ public interface WomUtilsConfig extends Config
 	default String verificationCode()
 	{
 		return "";
+	}
+
+	@ConfigItem(
+		keyName = "competitionLoginMessage",
+		name = "Login info",
+		description = "Show current and upcoming competition info when logging in",
+		position = 8,
+		section = competitionConfig
+	)
+	default boolean competitionLoginMessage()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "timerOngoing",
+		name = "Timer Ongoing",
+		description = "Displays timers for ongoing competitions",
+		position = 9,
+		section = competitionConfig
+	)
+	default boolean timerOngoing()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "timerUpcoming",
+		name = "Timer Upcoming",
+		description = "Display timers for upcoming competitions",
+		position = 10,
+		section = competitionConfig
+	)
+	default boolean timerUpcoming()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "sendCompetitionNotification",
+		name = "Competition Notifications",
+		description = "Sends notifications at start and end times for competitions",
+		position = 11,
+		section = competitionConfig
+	)
+	default boolean sendCompetitionNotification()
+	{
+		return false;
 	}
 }

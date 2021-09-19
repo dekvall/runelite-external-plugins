@@ -8,13 +8,16 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
+import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
+import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
 import dev.dkvl.womutils.panel.NameAutocompleter;
 import dev.dkvl.womutils.panel.WomPanel;
+import dev.dkvl.womutils.ui.CompetitionInfobox;
 import dev.dkvl.womutils.ui.SyncButton;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.util.ModifiedMenuEntry;
@@ -25,7 +28,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -33,6 +38,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +66,7 @@ import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.client.Notifier;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatCommandManager;
@@ -78,6 +87,7 @@ import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
@@ -181,6 +191,15 @@ public class WomUtilsPlugin extends Plugin
 	@Inject
 	private XpUpdaterConfig xpUpdaterConfig;
 
+	@Inject
+	private InfoBoxManager infoBoxManager;
+
+	@Inject
+	private ScheduledExecutorService scheduledExecutorService;
+
+	@Inject
+	private Notifier notifier;
+
 	private WomPanel womPanel;
 
 	@Inject
@@ -189,10 +208,15 @@ public class WomUtilsPlugin extends Plugin
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private Map<String, MemberInfo> groupMembers = new HashMap<>();
+	private List<Competition> playerCompetitions = new ArrayList<>();
+	private List<CompetitionInfobox> competitionInfoboxes = new ArrayList<>();
+	private List<ScheduledFuture> scheduledFutures = new ArrayList<>();
 
 	private String lastUsername;
 	private boolean fetchXp;
 	private long lastXp;
+	private boolean visitedLoginScreen;
+	private boolean recentlyLoggedIn;
 
 	private NavigationButton navButton;
 
@@ -263,13 +287,11 @@ public class WomUtilsPlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 
 		clientThread.invoke(this::saveCurrentLevels);
-		womClient.fetchPlayerCompetitions("half off");
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-
 		removeGroupMenuOptions();
 		menuManager.removePlayerMenuItem(LOOKUP);
 
@@ -284,6 +306,8 @@ public class WomUtilsPlugin extends Plugin
 		}
 		clientToolbar.removeNavigation(navButton);
 		womPanel.shutdown();
+		clearInfoboxes();
+		cancelNotifications();
 		previousSkillLevels.clear();
 		levelupThisSession = false;
 
@@ -604,6 +628,16 @@ public class WomUtilsPlugin extends Plugin
 		{
 			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
+
+		if (event.getKey().equals("timerOngoing") || event.getKey().equals("timerUpcoming"))
+		{
+			updateInfoboxes();
+		}
+
+		if (event.getKey().equals("sendCompetitionNotification"))
+		{
+			updateScheduledNotifications();
+		}
 	}
 
 	@Subscribe
@@ -665,9 +699,12 @@ public class WomUtilsPlugin extends Plugin
 				lastUsername = client.getUsername();
 				fetchXp = true;
 			}
+
+			recentlyLoggedIn = true;
 		}
 		else if (state == GameState.LOGIN_SCREEN)
 		{
+			visitedLoginScreen = true;
 			Player local = client.getLocalPlayer();
 			if (local == null)
 			{
@@ -693,6 +730,13 @@ public class WomUtilsPlugin extends Plugin
 		{
 			lastXp = client.getOverallExperience();
 			fetchXp = false;
+		}
+
+		if(visitedLoginScreen && recentlyLoggedIn)
+		{
+			womClient.fetchPlayerCompetitions(client.getLocalPlayer().getName());
+			recentlyLoggedIn = false;
+			visitedLoginScreen = false;
 		}
 	}
 
@@ -774,6 +818,92 @@ public class WomUtilsPlugin extends Plugin
 		onGroupUpdate();
 		String message = "Player removed: " + event.getUsername();
 		sendResponseToChat(message, SUCCESS);
+	}
+
+	@Subscribe
+	public void onWomPlayerCompetitionsFetched(WomPlayerCompetitionsFetched event)
+	{
+		playerCompetitions = Arrays.asList(event.getCompetitions());
+		for (Competition c : playerCompetitions)
+		{
+			if (!c.hasEnded() && config.competitionLoginMessage())
+			{
+				sendResponseToChat(c.getStatus(), Color.RED);
+			}
+		}
+		updateInfoboxes();
+		updateScheduledNotifications();
+
+		log.debug("Fetched {} competitions for player {}", event.getCompetitions().length, event.getUsername());
+	}
+
+	private void updateInfoboxes()
+	{
+		clearInfoboxes();
+		for (Competition c : playerCompetitions)
+		{
+			if (c.isActive() && config.timerOngoing() || !c.hasStarted() && config.timerUpcoming())
+			{
+				competitionInfoboxes.add(new CompetitionInfobox(c, this));
+			}
+		}
+
+		for (CompetitionInfobox b: competitionInfoboxes)
+		{
+			infoBoxManager.addInfoBox(b);
+		}
+	}
+
+	private void clearInfoboxes()
+	{
+		for (CompetitionInfobox b : competitionInfoboxes)
+		{
+			infoBoxManager.removeInfoBox(b);
+		}
+		competitionInfoboxes.clear();
+	}
+
+	private void updateScheduledNotifications()
+	{
+		cancelNotifications();
+
+		if (!config.sendCompetitionNotification())
+		{
+			return;
+		}
+
+		for (Competition c : playerCompetitions)
+		{
+			if (!c.hasStarted())
+			{
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
+					c.durationLeft().minus(Duration.of(1, ChronoUnit.HOURS)).getSeconds(), TimeUnit.SECONDS));
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
+					c.durationLeft().minus(Duration.of(15, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " has started, logout now to record your first datapoint!"),
+					c.durationLeft().plus(Duration.of(5, ChronoUnit.SECONDS)).getSeconds(), TimeUnit.SECONDS));
+			}
+			else if (c.isActive())
+			{
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
+					c.durationLeft().minus(Duration.of(1, ChronoUnit.HOURS)).getSeconds(), TimeUnit.SECONDS));
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
+					c.durationLeft().minus(Duration.of(15, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " is ending soon, logout now to record your final datapoint!"),
+					c.durationLeft().minus(Duration.of(4, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
+				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " is over, thanks for playing!"),
+					c.durationLeft().plus(Duration.of(5, ChronoUnit.SECONDS)).getSeconds(), TimeUnit.SECONDS));
+			}
+		}
+	}
+
+	private void cancelNotifications()
+	{
+		for (ScheduledFuture sf : scheduledFutures)
+		{
+			sf.cancel(false);
+		}
+		scheduledFutures.clear();
 	}
 
 	private void onGroupUpdate()
