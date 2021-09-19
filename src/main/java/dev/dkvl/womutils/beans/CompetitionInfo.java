@@ -7,6 +7,6 @@ import lombok.EqualsAndHashCode;
 @Data
 public class CompetitionInfo extends Competition
 {
-	double totalGained; // Needs to be double since we alse have ehp and ehb metrics
+	double totalGained; // Needs to be double since we also have ehp and ehb metrics
 	Participant[] participants;
 }
