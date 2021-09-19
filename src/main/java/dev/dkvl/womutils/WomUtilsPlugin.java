@@ -210,7 +210,7 @@ public class WomUtilsPlugin extends Plugin
 	private Map<String, MemberInfo> groupMembers = new HashMap<>();
 	private List<Competition> playerCompetitions = new ArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new ArrayList<>();
-	private List<ScheduledFuture> scheduledFutures = new ArrayList<>();
+	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 
 	private String lastUsername;
 	private boolean fetchXp;
@@ -921,7 +921,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private void cancelNotifications()
 	{
-		for (ScheduledFuture sf : scheduledFutures)
+		for (ScheduledFuture<?> sf : scheduledFutures)
 		{
 			sf.cancel(false);
 		}
