@@ -217,6 +217,7 @@ public class WomUtilsPlugin extends Plugin
 	private long lastXp;
 	private boolean visitedLoginScreen;
 	private boolean recentlyLoggedIn;
+	private String playerName;
 
 	private NavigationButton navButton;
 
@@ -824,6 +825,7 @@ public class WomUtilsPlugin extends Plugin
 	public void onWomPlayerCompetitionsFetched(WomPlayerCompetitionsFetched event)
 	{
 		playerCompetitions = Arrays.asList(event.getCompetitions());
+		playerName = event.getUsername();
 		for (Competition c : playerCompetitions)
 		{
 			if (!c.hasEnded() && config.competitionLoginMessage())
@@ -880,14 +882,23 @@ public class WomUtilsPlugin extends Plugin
 					c.durationLeft().minus(Duration.of(1, ChronoUnit.HOURS)).getSeconds(), TimeUnit.SECONDS));
 				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
 					c.durationLeft().minus(Duration.of(15, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " has started, logout now to record your first datapoint!"),
+				scheduledFutures.add(scheduledExecutorService.schedule(() ->
+					{
+						notifier.notify(c.getTitle() + " has started!");
+						womClient.updatePlayer(playerName);
+					},
 					c.durationLeft().plus(Duration.of(5, ChronoUnit.SECONDS)).getSeconds(), TimeUnit.SECONDS));
 			}
 			else if (c.isActive())
 			{
 				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
 					c.durationLeft().minus(Duration.of(1, ChronoUnit.HOURS)).getSeconds(), TimeUnit.SECONDS));
-				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getStatus()),
+				scheduledFutures.add(scheduledExecutorService.schedule(() ->
+				{
+					notifier.notify(c.getStatus());
+					// Update player 15 mins before end so there is at least one final datapoint
+					womClient.updatePlayer(playerName);
+				},
 					c.durationLeft().minus(Duration.of(15, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
 				scheduledFutures.add(scheduledExecutorService.schedule(() -> notifier.notify(c.getTitle() + " is ending soon, logout now to record your final datapoint!"),
 					c.durationLeft().minus(Duration.of(4, ChronoUnit.MINUTES)).getSeconds(), TimeUnit.SECONDS));
