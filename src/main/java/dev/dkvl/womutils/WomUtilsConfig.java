@@ -1,8 +1,6 @@
 package dev.dkvl.womutils;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
