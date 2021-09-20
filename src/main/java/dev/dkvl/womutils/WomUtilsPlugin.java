@@ -23,6 +23,7 @@ import dev.dkvl.womutils.panel.NameAutocompleter;
 import dev.dkvl.womutils.panel.WomPanel;
 import dev.dkvl.womutils.ui.CodeWordOverlay;
 import dev.dkvl.womutils.ui.CompetitionInfobox;
+import dev.dkvl.womutils.ui.PlaceHolderCompetitionInfobox;
 import dev.dkvl.womutils.ui.SyncButton;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.util.DelayedAction;
@@ -42,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -49,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
@@ -83,6 +86,7 @@ import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.InfoBoxMenuClicked;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.menus.MenuManager;
 import net.runelite.client.menus.WidgetMenuOption;
@@ -123,6 +127,9 @@ public class WomUtilsPlugin extends Plugin
 	private static final String LOOKUP = "WOM lookup";
 
 	private static final String KICK_OPTION = "Kick";
+
+	public static final String HIDE_COMPETITION_INFOBOX = "Hide competition";
+	public static final String SHOW_ALL_COMPETITIONS = "Show all competitions";
 
 	private static final ImmutableList<String> AFTER_OPTIONS = ImmutableList.of("Message", "Add ignore", "Remove friend", "Delete", KICK_OPTION);
 
@@ -223,9 +230,16 @@ public class WomUtilsPlugin extends Plugin
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private Map<String, MemberInfo> groupMembers = new HashMap<>();
 	private List<Competition> playerCompetitions = new ArrayList<>();
-	private List<CompetitionInfobox> competitionInfoboxes = new ArrayList<>();
+	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
+
+	@Getter
+	private List<Integer> hiddenCompetitions = new ArrayList<>();
+	@Getter
+	private boolean showTimerOngoing;
+	@Getter
+	private boolean showTimerUpcoming;
 
 	private String lastUsername;
 	private boolean fetchXp;
@@ -236,7 +250,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private NavigationButton navButton;
 
-	private SyncButton syncButton;
+	private PlaceHolderCompetitionInfobox placeHolderCompetitionInfobox;
 
 	private final Map<Skill, Integer> previousSkillLevels = new EnumMap<>(Skill.class);
 
@@ -291,6 +305,14 @@ public class WomUtilsPlugin extends Plugin
 			chatCommandManager.registerCommandAsync(c.getCommand(), this::commandHandler);
 		}
 
+		Type listType = new TypeToken<List<Integer>>() {}.getType();
+		hiddenCompetitions = gson.fromJson(config.hiddenCompetitionIds(), listType);
+		showTimerOngoing = config.timerOngoing();
+		showTimerUpcoming = config.timerUpcoming();
+
+		placeHolderCompetitionInfobox = new PlaceHolderCompetitionInfobox(this);
+		infoBoxManager.addInfoBox(placeHolderCompetitionInfobox);
+
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "wom-icon.png");
 
 		navButton = NavigationButton.builder()
@@ -327,8 +349,10 @@ public class WomUtilsPlugin extends Plugin
 		cancelNotifications();
 		previousSkillLevels.clear();
 		competitionInfoMap.clear();
+		hiddenCompetitions.clear();
 		levelupThisSession = false;
 		overlayManager.remove(codeWordOverlay);
+		infoBoxManager.removeInfoBox(placeHolderCompetitionInfobox);
 
 		log.info("Wise Old Man stopped!");
 	}
@@ -652,6 +676,12 @@ public class WomUtilsPlugin extends Plugin
 		{
 			updateScheduledNotifications();
 		}
+
+		if (event.getKey().equals("timerOngoing") || event.getKey().equals("timerUpcoming"))
+		{
+			showTimerOngoing = config.timerOngoing();
+			showTimerUpcoming = config.timerUpcoming();
+		}
 	}
 
 	@Subscribe
@@ -700,6 +730,42 @@ public class WomUtilsPlugin extends Plugin
 		}
 
 		iconHandler.handleScriptEvent(event, groupMembers);
+	}
+
+	@Subscribe
+	public void onInfoBoxMenuClicked(final InfoBoxMenuClicked event)
+	{
+		if (!(event.getInfoBox() instanceof CompetitionInfobox)
+			&& !(event.getInfoBox() instanceof PlaceHolderCompetitionInfobox))
+		{
+			return;
+		}
+
+		switch (event.getEntry().getOption())
+		{
+			case HIDE_COMPETITION_INFOBOX:
+				hiddenCompetitions.add(((CompetitionInfobox) event.getInfoBox()).getLinkedCompetitionId());
+				config.hiddenCompetitionIds(gson.toJson(hiddenCompetitions));
+				break;
+			case SHOW_ALL_COMPETITIONS:
+				hiddenCompetitions.clear();
+				config.hiddenCompetitionIds(gson.toJson(hiddenCompetitions));
+				break;
+		}
+	}
+
+	public boolean allInfoboxesAreHidden()
+	{
+		return competitionInfoboxes.size() != 0
+			&& competitionInfoboxes.stream().allMatch(ib -> !ib.shouldShow() || ib.isHidden())
+			&& countHiddenInfoboxes() != 0;
+	}
+
+	public int countHiddenInfoboxes()
+	{
+		return (int) competitionInfoboxes.stream()
+			.filter(ib -> ib.shouldShow() && ib.isHidden())
+			.count();
 	}
 
 	@Subscribe
@@ -872,7 +938,7 @@ public class WomUtilsPlugin extends Plugin
 			if (c.isActive() || !c.hasStarted())
 			{
 				RankedParticipant player = getRankedParticipant(c.getId(), playerName);
-				competitionInfoboxes.add(new CompetitionInfobox(c, player, this, config));
+				competitionInfoboxes.add(new CompetitionInfobox(c, player, this));
 			}
 		}
 

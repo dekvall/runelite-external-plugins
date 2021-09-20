@@ -1,6 +1,5 @@
 package dev.dkvl.womutils.ui;
 
-import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.Metric;
@@ -10,6 +9,8 @@ import dev.dkvl.womutils.util.Utils;
 import java.awt.Color;
 import java.text.DecimalFormat;
 import java.time.Duration;
+import net.runelite.api.MenuAction;
+import net.runelite.client.ui.overlay.OverlayMenuEntry;
 import net.runelite.client.ui.overlay.infobox.InfoBox;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
@@ -19,20 +20,21 @@ public class CompetitionInfobox extends InfoBox
 {
 	final Competition comp;
 	final WomUtilsPlugin plugin;
-	final WomUtilsConfig config;
 	final Participant player;
 	final int rank;
 
 	private static final Color ACTIVE_COLOR = new Color(0x51f542);
 
-	public CompetitionInfobox(Competition comp, RankedParticipant rp, WomUtilsPlugin plugin, WomUtilsConfig config)
+	public CompetitionInfobox(Competition comp, RankedParticipant rp, WomUtilsPlugin plugin)
 	{
 		super(comp.getMetric().loadImage(), plugin);
 		this.comp = comp;
 		this.player = rp != null ? rp.getParticipant() : null;
 		this.rank = rp != null ? rp.getCompetitionRank() : -1;
 		this.plugin = plugin;
-		this.config = config;
+
+		this.getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_INFOBOX, WomUtilsPlugin.SHOW_ALL_COMPETITIONS, "Wise Old Man"));
+		this.getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_INFOBOX, WomUtilsPlugin.HIDE_COMPETITION_INFOBOX, comp.getTitle()));
 	}
 
 	@Override
@@ -132,12 +134,27 @@ public class CompetitionInfobox extends InfoBox
 	@Override
 	public boolean render()
 	{
-		return config.timerOngoing() && comp.isActive() || config.timerUpcoming() && !comp.hasStarted();
+		return shouldShow() && !isHidden();
 	}
 
 	@Override
 	public boolean cull()
 	{
 		return comp.hasEnded();
+	}
+
+	public boolean shouldShow()
+	{
+		return plugin.isShowTimerOngoing() && comp.isActive() || plugin.isShowTimerUpcoming() && !comp.hasStarted();
+	}
+
+	public boolean isHidden()
+	{
+		return plugin.getHiddenCompetitions().contains(comp.getId());
+	}
+
+	public int getLinkedCompetitionId()
+	{
+		return comp.getId();
 	}
 }
