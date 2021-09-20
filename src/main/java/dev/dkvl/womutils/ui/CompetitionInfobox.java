@@ -1,30 +1,38 @@
 package dev.dkvl.womutils.ui;
 
+import dev.dkvl.womutils.WomUtilsConfig;
 import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.Metric;
 import dev.dkvl.womutils.beans.Participant;
+import dev.dkvl.womutils.beans.RankedParticipant;
+import dev.dkvl.womutils.util.Utils;
 import java.awt.Color;
 import java.text.DecimalFormat;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import net.runelite.client.ui.overlay.infobox.Timer;
+import net.runelite.client.ui.overlay.infobox.InfoBox;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.http.api.hiscore.HiscoreSkillType;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
-public class CompetitionInfobox extends Timer
+public class CompetitionInfobox extends InfoBox
 {
 	final Competition comp;
 	final WomUtilsPlugin plugin;
+	final WomUtilsConfig config;
 	final Participant player;
+	final int rank;
 
-	public CompetitionInfobox(Competition comp, Participant player, WomUtilsPlugin plugin)
+	private static final Color ACTIVE_COLOR = new Color(0x51f542);
+
+	public CompetitionInfobox(Competition comp, RankedParticipant rp, WomUtilsPlugin plugin, WomUtilsConfig config)
 	{
-		super(comp.durationLeft().toMillis(), ChronoUnit.MILLIS, comp.getMetric().loadImage(), plugin);
+		super(comp.getMetric().loadImage(), plugin);
 		this.comp = comp;
-		this.player = player;
+		this.player = rp != null ? rp.getParticipant() : null;
+		this.rank = rp != null ? rp.getCompetitionRank() : -1;
 		this.plugin = plugin;
+		this.config = config;
 	}
 
 	@Override
@@ -40,6 +48,9 @@ public class CompetitionInfobox extends Timer
 			double progress = player.getProgress().getGained();
 			if (progress > 0)
 			{
+				String coloredRank = ColorUtil.wrapWithColorTag(Utils.ordinalOf(rank), Color.GREEN);
+				sb.append("Ranked: ").append(coloredRank);
+
 				final DecimalFormat df;
 				if (comp.getMetric() == Metric.EHB || comp.getMetric() == Metric.EHP)
 				{
@@ -50,10 +61,10 @@ public class CompetitionInfobox extends Timer
 				{
 					df = new DecimalFormat("###,###,###");
 				}
-				String formattedProgress = df.format(progress);
 
-				String colored = ColorUtil.wrapWithColorTag(formattedProgress, Color.GREEN);
-				sb.append("Gained ").append(colored);
+				String formattedProgress = df.format(progress);
+				String coloredProgress = ColorUtil.wrapWithColorTag(formattedProgress, Color.GREEN);
+				sb.append(" (Gained ").append(coloredProgress);
 
 				switch (comp.getMetric())
 				{
@@ -64,6 +75,7 @@ public class CompetitionInfobox extends Timer
 					default:
 						sb.append(getUnitForType(comp.getMetric().getType()));
 				}
+				sb.append(")");
 			}
 		}
 		return sb.toString();
@@ -91,7 +103,7 @@ public class CompetitionInfobox extends Timer
 	@Override
 	public Color getTextColor()
 	{
-		return Color.WHITE;
+		return comp.isActive() ? ACTIVE_COLOR : Color.YELLOW;
 	}
 
 	@Override
@@ -109,11 +121,23 @@ public class CompetitionInfobox extends Timer
 		}
 		else if (timeLeft.toHours() > 0)
 		{
-			return DurationFormatUtils.formatDuration(timeLeft.toMillis(), "HH:mm");
+			return DurationFormatUtils.formatDuration(timeLeft.toMillis(), "H'h'm'm'");
 		}
 		else
 		{
 			return DurationFormatUtils.formatDuration(timeLeft.toMillis(), "mm:ss");
 		}
+	}
+
+	@Override
+	public boolean render()
+	{
+		return config.timerOngoing() && comp.isActive() || config.timerUpcoming() && !comp.hasStarted();
+	}
+
+	@Override
+	public boolean cull()
+	{
+		return comp.hasEnded();
 	}
 }

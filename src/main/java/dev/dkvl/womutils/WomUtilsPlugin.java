@@ -13,6 +13,7 @@ import dev.dkvl.womutils.beans.CompetitionInfo;
 import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.Participant;
+import dev.dkvl.womutils.beans.RankedParticipant;
 import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
@@ -74,6 +75,7 @@ import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.Notifier;
 import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatCommandManager;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
@@ -646,11 +648,6 @@ public class WomUtilsPlugin extends Plugin
 			iconHandler.rebuildLists(groupMembers, config.showicons());
 		}
 
-		if (event.getKey().equals("timerOngoing") || event.getKey().equals("timerUpcoming"))
-		{
-			updateInfoboxes();
-		}
-
 		if (event.getKey().equals("sendCompetitionNotification"))
 		{
 			updateScheduledNotifications();
@@ -846,7 +843,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			if (!c.hasEnded() && config.competitionLoginMessage())
 			{
-				sendResponseToChat(c.getStatus(), Color.RED);
+				sendHighlightedMessage(c.getStatus());
 			}
 			if (c.isActive())
 			{
@@ -872,10 +869,10 @@ public class WomUtilsPlugin extends Plugin
 		clearInfoboxes();
 		for (Competition c : playerCompetitions)
 		{
-			if (c.isActive() && config.timerOngoing() || !c.hasStarted() && config.timerUpcoming())
+			if (c.isActive() || !c.hasStarted())
 			{
-				Participant player = getParticipant(c.getId(), playerName);
-				competitionInfoboxes.add(new CompetitionInfobox(c, player, this));
+				RankedParticipant player = getRankedParticipant(c.getId(), playerName);
+				competitionInfoboxes.add(new CompetitionInfobox(c, player, this, config));
 			}
 		}
 
@@ -895,20 +892,21 @@ public class WomUtilsPlugin extends Plugin
 	}
 
 	@Nullable
-	private Participant getParticipant(int compid, String username)
+	private RankedParticipant getRankedParticipant(int compid, String username)
 	{
 		CompetitionInfo compInfo = competitionInfoMap.getOrDefault(compid, null);
 		if (compInfo == null)
 		{
 			return null;
 		}
-
+		int count = 1;
 		for (Participant p : compInfo.getParticipants())
 		{
 			if (p.getUsername().equalsIgnoreCase(username))
 			{
-				return p;
+				return new RankedParticipant(p, count);
 			}
+			count++;
 		}
 		return null;
 	}
@@ -932,9 +930,9 @@ public class WomUtilsPlugin extends Plugin
 					notifier.notify(c.getStatus())));
 				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
 					notifier.notify(c.getStatus())));
-				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(5), () ->
+				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
 					{
-						notifier.notify(c.getTitle() + " has started!");
+						notifier.notify("Competition: " + c.getTitle() + " has started!");
 						womClient.updatePlayer(playerName);
 					})
 				);
@@ -951,9 +949,9 @@ public class WomUtilsPlugin extends Plugin
 					})
 				);
 				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(4), () ->
-					notifier.notify(c.getTitle() + " is ending soon, logout now to record your final datapoint!")));
-				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(5), () ->
-					notifier.notify(c.getTitle() + " is over, thanks for playing!")));
+					notifier.notify("Competition: " + c.getTitle() + " is ending soon, logout now to record your final datapoint!")));
+				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
+					notifier.notify("Competition: " + c.getTitle() + " is over, thanks for playing!")));
 			}
 		}
 
@@ -1018,6 +1016,20 @@ public class WomUtilsPlugin extends Plugin
 			.type(ChatMessageType.CONSOLE)
 			.runeLiteFormattedMessage(cmb.build())
 			.build());
+	}
+
+	private void sendHighlightedMessage(String chatMessage)
+	{
+		final String message = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT)
+			.append(chatMessage)
+			.build();
+
+		chatMessageManager.queue(
+			QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(message)
+				.build());
 	}
 
 	private void createSyncButton(int w)

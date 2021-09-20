@@ -61,7 +61,7 @@ public class Competition
 	public String getStatus()
 	{
 		StringBuilder sb = new StringBuilder();
-		sb.append("Competition ").append(title).append(" ");
+		sb.append("Competition: ").append(title).append(" ");
 		if (isActive())
 		{
 			sb.append("ends in ").append(durationLeftPretty());
