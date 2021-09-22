@@ -23,6 +23,8 @@ import net.runelite.client.util.Text;
 @Singleton
 public class WomIconHandler
 {
+	private static final int CLAN_SETTINGS_MEMBERS_WIDGET = WidgetInfo.PACK(693, 10);
+
 	private final Client client;
 	private final ClientThread clientThread;
 	private final WomUtilsConfig config;
@@ -146,7 +148,7 @@ public class WomIconHandler
 
 	public void rebuildSettingsMemberList(boolean disable, Map<String, MemberInfo> groupMembers)
 	{
-		Widget containerWidget = client.getWidget(693, 10);
+		Widget containerWidget = client.getWidget(CLAN_SETTINGS_MEMBERS_WIDGET);
 		if (containerWidget == null)
 		{
 			return;

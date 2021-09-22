@@ -115,7 +115,7 @@ import okhttp3.HttpUrl;
 @PluginDescriptor(
 	name = "Wise Old Man",
 	tags = {"wom", "utils", "group", "xp"},
-	description = "Helps you manage your wiseoldman.net group."
+	description = "Helps you manage your wiseoldman.net group and track your competitions."
 )
 public class WomUtilsPlugin extends Plugin
 {
@@ -173,7 +173,6 @@ public class WomUtilsPlugin extends Plugin
 	private static final int CLAN_SETTINGS_MEMBERS_PAGE_WIDGET = 693;
 	private static final int CLAN_SETTINGS_MEMBERS_PAGE_WIDGET_ID = WidgetInfo.PACK(CLAN_SETTINGS_MEMBERS_PAGE_WIDGET, 2);
 
-	private static final int CLAN_SETTINGS_MEMBERS_WIDGET = WidgetInfo.PACK(693, 10);
 	private static final int CLAN_OPTIONS_RANKS_WIDGET = WidgetInfo.PACK(693, 11);
 
 	private static final Color SUCCESS = new Color(170, 255, 40);
