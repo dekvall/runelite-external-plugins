@@ -1,6 +1,7 @@
 package dev.dkvl.womutils;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
@@ -178,6 +179,8 @@ public class WomUtilsPlugin extends Plugin
 	private static final Color SUCCESS = new Color(170, 255, 40);
 	private static final Color DEFAULT_CLAN_SETTINGS_TEXT_COLOR = new Color(0xff981f);
 
+	private static final Splitter SPLITTER = Splitter.on(',').trimResults().omitEmptyStrings();
+
 	private boolean levelupThisSession = false;
 
 	@Inject
@@ -241,6 +244,7 @@ public class WomUtilsPlugin extends Plugin
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
 	private List<String> ignoredRanks = new ArrayList<>();
+	private List<String> alwaysIncludedOnSync = new ArrayList<>();
 
 	@Getter
 	private List<Integer> hiddenCompetitions = new ArrayList<>();
@@ -324,6 +328,8 @@ public class WomUtilsPlugin extends Plugin
 		Type stringListType = new TypeToken<List<String>>() {}.getType();
 		ignoredRanks = gson.fromJson(config.ignoredRanks(), stringListType);
 
+		alwaysIncludedOnSync.addAll(SPLITTER.splitToList(config.alwaysIncludedOnSync()));
+
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "wom-icon.png");
 
 		navButton = NavigationButton.builder()
@@ -362,6 +368,7 @@ public class WomUtilsPlugin extends Plugin
 		competitionInfoMap.clear();
 		hiddenCompetitions.clear();
 		ignoredRanks.clear();
+		alwaysIncludedOnSync.clear();
 		levelupThisSession = false;
 		overlayManager.remove(codeWordOverlay);
 		infoBoxManager.removeInfoBox(placeHolderCompetitionInfobox);
@@ -704,6 +711,12 @@ public class WomUtilsPlugin extends Plugin
 		{
 			showTimerOngoing = config.timerOngoing();
 			showTimerUpcoming = config.timerUpcoming();
+		}
+
+		if (event.getKey().equals("alwaysIncludedOnSync"))
+		{
+			alwaysIncludedOnSync.clear();
+			alwaysIncludedOnSync.addAll(SPLITTER.splitToList(config.alwaysIncludedOnSync()));
 		}
 	}
 
@@ -1192,7 +1205,7 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (config.syncClanButton() && config.groupId() > 0 && !Strings.isNullOrEmpty(config.verificationCode()))
 		{
-			new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers, ignoredRanks);
+			new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers, ignoredRanks, alwaysIncludedOnSync);
 		}
 	}
 

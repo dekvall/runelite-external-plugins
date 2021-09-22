@@ -28,10 +28,12 @@ public class SyncButton
     private final ClanSettings clanSettings;
     private final Map<String, MemberInfo> groupMembers;
 	private final List<String> ignoredRanks;
+	private final List<String> alwaysIncludedOnSync;
 
 
     public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager,
-					  int parent, Map<String, MemberInfo> groupMembers, List<String> ignoredRanks)
+					  int parent, Map<String, MemberInfo> groupMembers, List<String> ignoredRanks,
+					  List<String> alwaysIncludedOnSync)
     {
         this.client = client;
         this.womClient = womClient;
@@ -40,6 +42,7 @@ public class SyncButton
         this.clanSettings = client.getClanSettings();
         this.groupMembers = groupMembers;
 		this.ignoredRanks = ignoredRanks;
+		this.alwaysIncludedOnSync = alwaysIncludedOnSync;
 
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_METAL_CORNER_TOP_LEFT, 6, 6, 9, 9);
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_METAL_CORNER_TOP_RIGHT, 97, 6, 9, 9);
@@ -131,15 +134,24 @@ public class SyncButton
 
             String memberName = Text.toJagexName(clanMember.getName());
             ClanTitle memberTitle = clanSettings.titleForRank(clanMember.getRank());
+			String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase();
 
-			if (ignoredRanks.contains(memberTitle.getName().toLowerCase()))
+			if (ignoredRanks.contains(role))
 			{
 				continue;
 			}
 
-            String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase();
             clanMembers.put(memberName.toLowerCase(), new Member(memberName, role));
         }
+
+		for (String name : alwaysIncludedOnSync)
+		{
+			String nameLower = name.toLowerCase();
+			if (!clanMembers.containsKey(nameLower))
+			{
+				clanMembers.put(nameLower, new Member(name, "member"));
+			}
+		}
 
         womClient.syncClanMembers(new ArrayList<>(clanMembers.values()));
     }

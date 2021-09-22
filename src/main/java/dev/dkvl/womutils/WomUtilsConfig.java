@@ -146,10 +146,22 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "alwaysIncludedOnSync",
+		name = "Always Included",
+		description = "Players that will always be included in the group regardless of clan sync method, comma separated names",
+		position = 6,
+		section = groupConfig
+	)
+	default String alwaysIncludedOnSync()
+	{
+		return "";
+	}
+
+	@ConfigItem(
 		keyName = "groupId",
 		name = "Group Id",
 		description = "The group id in WOM",
-		position = 6,
+		position = 7,
 		section = groupConfig
 	)
 	default int groupId()
@@ -162,7 +174,7 @@ public interface WomUtilsConfig extends Config
 		name = "Verification code",
 		description = "Verification code for the WOM group",
 		secret = true,
-		position = 7,
+		position = 8,
 		section = groupConfig
 	)
 	default String verificationCode()
@@ -174,7 +186,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "competitionLoginMessage",
 		name = "Login info",
 		description = "Show current and upcoming competition info when logging in",
-		position = 8,
+		position = 9,
 		section = competitionConfig
 	)
 	default boolean competitionLoginMessage()
@@ -186,7 +198,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "timerOngoing",
 		name = "Timer Ongoing",
 		description = "Displays timers for ongoing competitions",
-		position = 9,
+		position = 10,
 		section = competitionConfig
 	)
 	default boolean timerOngoing()
@@ -198,7 +210,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "timerUpcoming",
 		name = "Timer Upcoming",
 		description = "Display timers for upcoming competitions",
-		position = 10,
+		position = 11,
 		section = competitionConfig
 	)
 	default boolean timerUpcoming()
@@ -210,7 +222,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "sendCompetitionNotification",
 		name = "Competition Notifications",
 		description = "Sends notifications at start and end times for competitions",
-		position = 11,
+		position = 12,
 		section = competitionConfig
 	)
 	default boolean sendCompetitionNotification()
@@ -222,7 +234,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "displayCodeword",
 		name = "Display codeword",
 		description = "Displays an event codeword overlay",
-		position = 12,
+		position = 13,
 		section = eventCodeword
 	)
 	default boolean displayCodeword()
@@ -234,7 +246,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "configuredCodeword",
 		name = "Codeword",
 		description = "Event codeword",
-		position = 13,
+		position = 14,
 		section = eventCodeword
 	)
 	default String configuredCodeword()
@@ -246,7 +258,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "showTimestamp",
 		name = "Show timestamp",
 		description = "Attach a timestamp to the codeword",
-		position = 14,
+		position = 15,
 		section = eventCodeword
 	)
 	default boolean showTimestamp()
@@ -258,7 +270,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "codewordColor",
 		name = "Codeword color",
 		description = "Overlay codeword color",
-		position = 15,
+		position = 16,
 		section = eventCodeword
 	)
 	default Color codewordColor()
