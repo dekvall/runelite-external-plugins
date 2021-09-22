@@ -62,10 +62,13 @@ import net.runelite.api.Nameable;
 import net.runelite.api.Player;
 import net.runelite.api.ScriptID;
 import net.runelite.api.Skill;
+import net.runelite.api.clan.ClanRank;
+import net.runelite.api.clan.ClanSettings;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NameableNameChanged;
 import net.runelite.api.events.ScriptCallbackEvent;
@@ -73,6 +76,7 @@ import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.events.WidgetMenuOptionClicked;
+import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.Notifier;
@@ -100,6 +104,7 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
+import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
@@ -125,6 +130,8 @@ public class WomUtilsPlugin extends Plugin
 	private static final String BROWSE_GROUP = "Browse";
 	private static final String MENU_TARGET = "WOM group";
 	private static final String LOOKUP = "WOM lookup";
+	private static final String IGNORE_RANK = "Ignore rank";
+	private static final String UNIGNORE_RANK = "Unignore rank";
 
 	private static final String KICK_OPTION = "Kick";
 
@@ -170,6 +177,7 @@ public class WomUtilsPlugin extends Plugin
 	private static final int CLAN_OPTIONS_RANKS_WIDGET = WidgetInfo.PACK(693, 11);
 
 	private static final Color SUCCESS = new Color(170, 255, 40);
+	private static final Color DEFAULT_CLAN_SETTINGS_TEXT_COLOR = new Color(0xff981f);
 
 	private boolean levelupThisSession = false;
 
@@ -233,6 +241,7 @@ public class WomUtilsPlugin extends Plugin
 	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
+	private List<String> ignoredRanks = new ArrayList<>();
 
 	@Getter
 	private List<Integer> hiddenCompetitions = new ArrayList<>();
@@ -305,13 +314,16 @@ public class WomUtilsPlugin extends Plugin
 			chatCommandManager.registerCommandAsync(c.getCommand(), this::commandHandler);
 		}
 
-		Type listType = new TypeToken<List<Integer>>() {}.getType();
-		hiddenCompetitions = gson.fromJson(config.hiddenCompetitionIds(), listType);
+		Type intListType = new TypeToken<List<Integer>>() {}.getType();
+		hiddenCompetitions = gson.fromJson(config.hiddenCompetitionIds(), intListType);
 		showTimerOngoing = config.timerOngoing();
 		showTimerUpcoming = config.timerUpcoming();
 
 		placeHolderCompetitionInfobox = new PlaceHolderCompetitionInfobox(this);
 		infoBoxManager.addInfoBox(placeHolderCompetitionInfobox);
+
+		Type stringListType = new TypeToken<List<String>>() {}.getType();
+		ignoredRanks = gson.fromJson(config.ignoredRanks(), stringListType);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "wom-icon.png");
 
@@ -350,6 +362,7 @@ public class WomUtilsPlugin extends Plugin
 		previousSkillLevels.clear();
 		competitionInfoMap.clear();
 		hiddenCompetitions.clear();
+		ignoredRanks.clear();
 		levelupThisSession = false;
 		overlayManager.remove(codeWordOverlay);
 		infoBoxManager.removeInfoBox(placeHolderCompetitionInfobox);
@@ -555,15 +568,15 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		String username = Text.toJagexName(Text.removeTags(event.getMenuTarget()));
+		String escapedTarget = Text.toJagexName(Text.removeTags(event.getMenuTarget()));
 
 		switch (event.getMenuOption())
 		{
 			case ADD_MEMBER:
-				womClient.addGroupMember(username);
+				womClient.addGroupMember(escapedTarget);
 				break;
 			case REMOVE_MEMBER:
-				womClient.removeGroupMember(username);
+				womClient.removeGroupMember(escapedTarget);
 				break;
 			case LOOKUP:
 			{
@@ -582,7 +595,18 @@ public class WomUtilsPlugin extends Plugin
 					target = Text.removeTags(event.getMenuTarget());
 				}
 				lookupPlayer(target);
+				break;
 			}
+			case IGNORE_RANK:
+				ignoredRanks.add(escapedTarget.toLowerCase());
+				config.ignoredRanks(gson.toJson(ignoredRanks));
+				updateIgnoredRankColors();
+				break;
+			case UNIGNORE_RANK:
+				ignoredRanks.removeIf(r -> r.equals(escapedTarget.toLowerCase()));
+				config.ignoredRanks(gson.toJson(ignoredRanks));
+				updateIgnoredRankColors();
+				break;
 		}
 	}
 
@@ -705,20 +729,26 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded widgetLoaded)
 	{
-		if(!config.syncClanButton() || config.groupId() <= 0 || Strings.isNullOrEmpty(config.verificationCode()))
+		if (widgetLoaded.getGroupId() != CLAN_SETTINGS_INFO_PAGE_WIDGET && widgetLoaded.getGroupId() != CLAN_SETTINGS_MEMBERS_PAGE_WIDGET)
 		{
 			return;
 		}
+
 
 		switch (widgetLoaded.getGroupId())
 		{
 			case CLAN_SETTINGS_MEMBERS_PAGE_WIDGET:
 				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_MEMBERS_PAGE_WIDGET_ID));
+				clientThread.invokeLater(this::updateIgnoredRankColors);
 				break;
 			case CLAN_SETTINGS_INFO_PAGE_WIDGET:
 				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_INFO_PAGE_WIDGET_ID));
 				break;
 		}
+
+
+
+
 	}
 
 	@Subscribe
@@ -766,6 +796,66 @@ public class WomUtilsPlugin extends Plugin
 		return (int) competitionInfoboxes.stream()
 			.filter(ib -> ib.shouldShow() && ib.isHidden())
 			.count();
+	}
+
+	@Subscribe
+	public void onMenuOpened(MenuOpened event)
+	{
+		if (event.getMenuEntries().length < 2)
+		{
+			return;
+		}
+
+		final MenuEntry entry = event.getMenuEntries()[event.getMenuEntries().length - 1];
+
+		if (entry.getType() != MenuAction.CC_OP.getId() || entry.getParam1() != CLAN_OPTIONS_RANKS_WIDGET)
+		{
+			return;
+		}
+
+		ClanSettings clanSettings = client.getClanSettings();
+		String targetPlayer = Text.removeTags(entry.getTarget());
+		ClanRank rank = clanSettings.findMember(targetPlayer).getRank();
+		String rankTitle = clanSettings.titleForRank(rank).getName();
+		String targetRank = ColorUtil.wrapWithColorTag(rankTitle, new Color(0xff9040));
+
+		final MenuEntry ignoreEntry = ModifiedMenuEntry.of(entry);
+		ignoreEntry.setOption(!ignoredRanks.contains(rankTitle.toLowerCase()) ? IGNORE_RANK : UNIGNORE_RANK);
+		ignoreEntry.setType(MenuAction.RUNELITE.getId());
+		ignoreEntry.setTarget(targetRank);
+
+		MenuEntry[] entries = client.getMenuEntries();
+		entries = Arrays.copyOf(entries, entries.length + 1);
+		entries[entries.length - 1] = ignoreEntry;
+
+		client.setMenuEntries(entries);
+	}
+
+	private void updateIgnoredRankColors()
+	{
+		Widget parent = client.getWidget(CLAN_OPTIONS_RANKS_WIDGET);
+		if (parent == null)
+		{
+			return;
+		}
+
+		Widget[] children = parent.getDynamicChildren();
+		if (children == null || children.length == 0)
+		{
+			return;
+		}
+
+		for (Widget child : children)
+		{
+			if (ignoredRanks.contains(child.getText().toLowerCase()))
+			{
+				child.setTextColor(Color.RED.getRGB());
+			}
+			else
+			{
+				child.setTextColor(DEFAULT_CLAN_SETTINGS_TEXT_COLOR.getRGB());
+			}
+		}
 	}
 
 	@Subscribe
@@ -877,6 +967,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			String message = compareChanges(old, groupMembers);
 			sendResponseToChat(message, SUCCESS);
+			clientThread.invokeLater(() -> iconHandler.rebuildSettingsMemberList(!config.showicons(), groupMembers));
 		}
 	}
 
@@ -1100,7 +1191,10 @@ public class WomUtilsPlugin extends Plugin
 
 	private void createSyncButton(int w)
 	{
-		new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers);
+		if (config.syncClanButton() && config.groupId() > 0 && !Strings.isNullOrEmpty(config.verificationCode()))
+		{
+			new SyncButton(client, womClient, chatboxPanelManager, w, groupMembers, ignoredRanks);
+		}
 	}
 
 	@Provides

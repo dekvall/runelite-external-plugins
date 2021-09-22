@@ -17,6 +17,17 @@ public class ModifiedMenuEntry extends MenuEntry
 			.build();
 	}
 
+	public static ModifiedMenuEntry of(MenuEntry e)
+	{
+		return ModifiedMenuEntry.builder()
+			.option(e.getOption())
+			.target(e.getTarget())
+			.identifier(e.getIdentifier())
+			.param0(e.getParam0())
+			.param1(e.getParam1())
+			.build();
+	}
+
 	// Work around since there is no @Builder (yo use @SuperBuilder),
 	// nor @AllArgsConstructor in MenuEntry
 	@Builder

@@ -166,6 +166,8 @@ public class WomIconHandler
 
 			if (!disable && m != null)
 			{
+				String oldText = children[i].getText();
+
 				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
 				CountryIcon icon = CountryIcon.getIcon(country);
 				int iconIdx = modIconsStart + icon.ordinal();
@@ -173,15 +175,26 @@ public class WomIconHandler
 				String newName = name + spacer + "<img=" + iconIdx + ">";
 				children[i].setText(newName);
 
-				Widget rankIcon = children[i+1];
-				rankIcon.setOriginalX(rankIcon.getOriginalX() - 6);
-				rankIcon.revalidate();
+				if (!oldText.contains("<img"))
+				{
+					Widget rankIcon = children[i+1];
+					rankIcon.setOriginalX(rankIcon.getOriginalX() - 6);
+					rankIcon.revalidate();
+				}
 			}
 			else
 			{
+				String oldText = children[i].getText();
+				if (oldText.contains("<img"))
+				{
+					// If the sequence have img in it it's an old and removed member so we have to move
+					// its rank icon back
+					Widget rankIcon = children[i+1];
+					rankIcon.setOriginalX(rankIcon.getOriginalX() + 6);
+					rankIcon.revalidate();
+				}
 				children[i].setText(name);
 			}
-
 		}
 	}
 

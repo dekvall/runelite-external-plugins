@@ -296,4 +296,23 @@ public interface WomUtilsConfig extends Config
 		hidden = true
 	)
 	void hiddenCompetitionIds(String value);
+
+	@ConfigItem(
+		keyName = "ignoredRanks",
+		name = "",
+		description = "",
+		hidden = true
+	)
+	default String ignoredRanks()
+	{
+		return "[]";
+	}
+
+	@ConfigItem(
+		keyName = "ignoredRanks",
+		name = "",
+		description = "",
+		hidden = true
+	)
+	void ignoredRanks(String value);
 }
