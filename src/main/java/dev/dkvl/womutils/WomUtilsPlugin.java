@@ -914,9 +914,11 @@ public class WomUtilsPlugin extends Plugin
 			fetchXp = false;
 		}
 
-		if(visitedLoginScreen && recentlyLoggedIn)
+		Player local = client.getLocalPlayer();
+
+		if(visitedLoginScreen && recentlyLoggedIn && local != null)
 		{
-			womClient.fetchPlayerCompetitions(client.getLocalPlayer().getName());
+			womClient.fetchPlayerCompetitions(local.getName());
 			recentlyLoggedIn = false;
 			visitedLoginScreen = false;
 		}
