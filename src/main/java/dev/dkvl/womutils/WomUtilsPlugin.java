@@ -252,6 +252,8 @@ public class WomUtilsPlugin extends Plugin
 	private boolean showTimerOngoing;
 	@Getter
 	private boolean showTimerUpcoming;
+	@Getter
+	private int upcomingInfoboxesMaxDays;
 
 	private String lastUsername;
 	private boolean fetchXp;
@@ -707,10 +709,13 @@ public class WomUtilsPlugin extends Plugin
 			updateScheduledNotifications();
 		}
 
-		if (event.getKey().equals("timerOngoing") || event.getKey().equals("timerUpcoming"))
+		if (event.getKey().equals("timerOngoing")
+			|| event.getKey().equals("timerUpcoming")
+			|| event.getKey().equals("upcomingMaxDays"))
 		{
 			showTimerOngoing = config.timerOngoing();
 			showTimerUpcoming = config.timerUpcoming();
+			upcomingInfoboxesMaxDays = config.upcomingMaxDays();
 		}
 
 		if (event.getKey().equals("alwaysIncludedOnSync"))

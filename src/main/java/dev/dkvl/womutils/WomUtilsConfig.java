@@ -5,6 +5,8 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
 @ConfigGroup(WomUtilsPlugin.CONFIG_GROUP)
 public interface WomUtilsConfig extends Config
@@ -186,7 +188,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "competitionLoginMessage",
 		name = "Login info",
 		description = "Show current and upcoming competition info when logging in",
-		position = 9,
+		position = 1,
 		section = competitionConfig
 	)
 	default boolean competitionLoginMessage()
@@ -198,7 +200,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "timerOngoing",
 		name = "Timer Ongoing",
 		description = "Displays timers for ongoing competitions",
-		position = 10,
+		position = 2,
 		section = competitionConfig
 	)
 	default boolean timerOngoing()
@@ -210,7 +212,7 @@ public interface WomUtilsConfig extends Config
 		keyName = "timerUpcoming",
 		name = "Timer Upcoming",
 		description = "Display timers for upcoming competitions",
-		position = 11,
+		position = 3,
 		section = competitionConfig
 	)
 	default boolean timerUpcoming()
@@ -219,10 +221,26 @@ public interface WomUtilsConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "upcomingMaxDays",
+		name = "Upcoming up to",
+		description = "Don't show info for competitions later than this many days in the future",
+		position = 4,
+		section = competitionConfig
+	)
+	@Range(
+		max = 365
+	)
+	@Units(" days")
+	default int upcomingMaxDays()
+	{
+		return 7;
+	}
+
+	@ConfigItem(
 		keyName = "sendCompetitionNotification",
 		name = "Competition Notifications",
 		description = "Sends notifications at start and end times for competitions",
-		position = 12,
+		position = 5,
 		section = competitionConfig
 	)
 	default boolean sendCompetitionNotification()

@@ -145,7 +145,9 @@ public class CompetitionInfobox extends InfoBox
 
 	public boolean shouldShow()
 	{
-		return plugin.isShowTimerOngoing() && comp.isActive() || plugin.isShowTimerUpcoming() && !comp.hasStarted();
+		return plugin.isShowTimerOngoing() && comp.isActive()
+			|| plugin.isShowTimerUpcoming() && !comp.hasStarted()
+					&& comp.durationLeft().toDays() <= plugin.getUpcomingInfoboxesMaxDays();
 	}
 
 	public boolean isHidden()
