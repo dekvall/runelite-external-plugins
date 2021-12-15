@@ -13,7 +13,7 @@ import net.runelite.api.MenuAction;
 import net.runelite.client.ui.overlay.OverlayMenuEntry;
 import net.runelite.client.ui.overlay.infobox.InfoBox;
 import net.runelite.client.util.ColorUtil;
-import net.runelite.http.api.hiscore.HiscoreSkillType;
+import net.runelite.client.hiscore.HiscoreSkillType;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
 public class CompetitionInfobox extends InfoBox

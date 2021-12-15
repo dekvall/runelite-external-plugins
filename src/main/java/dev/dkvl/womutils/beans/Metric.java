@@ -6,8 +6,8 @@ import java.awt.image.BufferedImage;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.http.api.hiscore.HiscoreSkill;
-import net.runelite.http.api.hiscore.HiscoreSkillType;
+import net.runelite.client.hiscore.HiscoreSkill;
+import net.runelite.client.hiscore.HiscoreSkillType;
 
 @AllArgsConstructor
 public enum Metric

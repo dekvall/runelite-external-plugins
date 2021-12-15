@@ -7,8 +7,8 @@ import dev.dkvl.womutils.beans.Snapshot;
 import dev.dkvl.womutils.beans.VirtualSkill;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.QuantityFormatter;
-import net.runelite.http.api.hiscore.HiscoreSkill;
-import net.runelite.http.api.hiscore.HiscoreSkillType;
+import net.runelite.client.hiscore.HiscoreSkill;
+import net.runelite.client.hiscore.HiscoreSkillType;
 
 import javax.inject.Inject;
 import javax.swing.*;
@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static net.runelite.http.api.hiscore.HiscoreSkill.*;
+import static net.runelite.client.hiscore.HiscoreSkill.*;
 
 class BossingPanel extends JPanel
 {

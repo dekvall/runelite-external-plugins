@@ -5,7 +5,7 @@ import dev.dkvl.womutils.beans.PlayerType;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.http.api.hiscore.HiscoreSkill;
+import net.runelite.client.hiscore.HiscoreSkill;
 
 public class Utils
 {

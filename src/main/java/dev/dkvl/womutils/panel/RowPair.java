@@ -1,7 +1,7 @@
 package dev.dkvl.womutils.panel;
 
 import lombok.Value;
-import net.runelite.http.api.hiscore.HiscoreSkill;
+import net.runelite.client.hiscore.HiscoreSkill;
 
 @Value
 public class RowPair
