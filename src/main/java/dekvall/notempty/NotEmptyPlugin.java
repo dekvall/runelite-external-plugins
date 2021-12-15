@@ -1,24 +1,17 @@
 package dekvall.notempty;
 
-import com.google.inject.Provides;
-import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
-import net.runelite.api.events.GameStateChanged;
-import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOptionClicked;
-import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.util.Text;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
 
 @Slf4j
 @PluginDescriptor(
@@ -52,10 +45,9 @@ public class NotEmptyPlugin extends Plugin
 
 		for (MenuEntry entry : menuEntries)
 		{
-			int type = entry.getType();
 			String option = entry.getOption().toLowerCase();
 
-			if (type != MenuAction.ITEM_FOURTH_OPTION.getId()
+			if (entry.getType() != MenuAction.ITEM_FOURTH_OPTION
 				|| !"empty".equals(option)
 				|| !Pattern.matches(DRINK_PATTERN, entry.getTarget()))
 			{
