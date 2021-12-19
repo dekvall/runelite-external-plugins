@@ -53,12 +53,7 @@ public class LowercaseUsernamesPlugin extends Plugin
 
 		for (MenuEntry entry : menuEntries)
 		{
-			int type = entry.getType();
-
-			if (type >= MENU_ACTION_DEPRIORITIZE_OFFSET)
-			{
-				type -= MENU_ACTION_DEPRIORITIZE_OFFSET;
-			}
+			MenuAction type = entry.getType();
 
 			if (!isPlayerEntry(type))
 			{
@@ -72,7 +67,7 @@ public class LowercaseUsernamesPlugin extends Plugin
 
 			// 'Walk here' identifiers are offset by 1 because the default
 			// identifier for this option is 0, which is also a player index.
-			if (type == WALK.getId())
+			if (type == WALK)
 			{
 				identifier--;
 			}
@@ -124,10 +119,8 @@ public class LowercaseUsernamesPlugin extends Plugin
 		}
 	}
 
-	boolean isPlayerEntry(int type)
+	boolean isPlayerEntry(MenuAction action)
 	{
-		MenuAction action = MenuAction.of(type);
-
 		switch (action)
 		{
 			case WALK:
@@ -141,7 +134,7 @@ public class LowercaseUsernamesPlugin extends Plugin
 			case PLAYER_SIXTH_OPTION:
 			case PLAYER_SEVENTH_OPTION:
 			case PLAYER_EIGTH_OPTION:
-			case RUNELITE:
+			case RUNELITE_PLAYER:
 				return true;
 			default:
 				return false;
