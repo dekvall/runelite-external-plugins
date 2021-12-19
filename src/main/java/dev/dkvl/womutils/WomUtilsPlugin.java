@@ -28,7 +28,6 @@ import dev.dkvl.womutils.ui.PlaceHolderCompetitionInfobox;
 import dev.dkvl.womutils.ui.SyncButton;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.util.DelayedAction;
-import dev.dkvl.womutils.util.ModifiedMenuEntry;
 import dev.dkvl.womutils.web.WomClient;
 import dev.dkvl.womutils.web.WomCommand;
 import java.awt.Color;
@@ -49,6 +48,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
@@ -76,7 +76,6 @@ import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.WidgetLoaded;
-import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.WidgetInfo;
@@ -300,12 +299,12 @@ public class WomUtilsPlugin extends Plugin
 
 		if (config.importGroup())
 		{
-			addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS);
+			addGroupImportOptions();
 		}
 
 		if (config.browseGroup())
 		{
-			addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
+			addGroupBrowseOptions();
 		}
 
 
@@ -376,6 +375,20 @@ public class WomUtilsPlugin extends Plugin
 		infoBoxManager.removeInfoBox(placeHolderCompetitionInfobox);
 
 		log.info("Wise Old Man stopped!");
+	}
+
+	private void addGroupBrowseOptions()
+	{
+		addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS, ev -> {
+			openGroupInBrowser();
+		});
+	}
+
+	private void addGroupImportOptions()
+	{
+		addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS, ev -> {
+			womClient.importGroupMembers();
+		});
 	}
 
 	private void saveCurrentLevels()
@@ -545,76 +558,50 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		MenuEntry[] entries = client.getMenuEntries();
-		entries = Arrays.copyOf(entries, entries.length + offset);
+		String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
 
 		if (addModifyMember)
 		{
-			MenuEntry modifyMember = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
-			String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
-			modifyMember.setOption(groupMembers.containsKey(name) ? REMOVE_MEMBER : ADD_MEMBER);
-			modifyMember.setType(MenuAction.RUNELITE.getId());
+			client.createMenuEntry(-offset)
+				.setOption(groupMembers.containsKey(name) ? REMOVE_MEMBER : ADD_MEMBER)
+				.setType(MenuAction.RUNELITE)
+				.setTarget(event.getTarget())
+				.onClick(e -> {
+					if (groupMembers.containsKey(name))
+					{
+						womClient.removeGroupMember(name);
+					}
+					else
+					{
+						womClient.addGroupMember(name);
+					}
+				});
 			offset--;
 		}
 
 		if (addMenuLookup)
 		{
-			MenuEntry womLookup = entries[entries.length - offset] = ModifiedMenuEntry.of(event);
-			womLookup.setOption(LOOKUP);
-			womLookup.setType(MenuAction.RUNELITE.getId());
-			womLookup.setIdentifier(event.getIdentifier() + offset);
+			client.createMenuEntry(-offset)
+				.setTarget(event.getTarget())
+				.setOption(LOOKUP)
+				.setType(MenuAction.RUNELITE)
+				.setIdentifier(event.getIdentifier())
+				.onClick(e -> lookupPlayer(name));
 		}
-
-		client.setMenuEntries(entries);
 	}
 
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		if (event.getMenuAction() != MenuAction.RUNELITE && event.getMenuAction() != MenuAction.RUNELITE_PLAYER)
+		if (event.getMenuAction() == MenuAction.RUNELITE_PLAYER && event.getMenuOption().equals(LOOKUP))
 		{
-			return;
-		}
-
-		String escapedTarget = Text.toJagexName(Text.removeTags(event.getMenuTarget()));
-
-		switch (event.getMenuOption())
-		{
-			case ADD_MEMBER:
-				womClient.addGroupMember(escapedTarget);
-				break;
-			case REMOVE_MEMBER:
-				womClient.removeGroupMember(escapedTarget);
-				break;
-			case LOOKUP:
+			Player player = client.getCachedPlayers()[event.getId()];
+			if (player == null)
 			{
-				final String target;
-				if (event.getMenuAction() == MenuAction.RUNELITE_PLAYER)
-				{
-					Player player = client.getCachedPlayers()[event.getId()];
-					if (player == null)
-					{
-						return;
-					}
-					target = player.getName();
-				}
-				else
-				{
-					target = Text.removeTags(event.getMenuTarget());
-				}
-				lookupPlayer(target);
-				break;
+				return;
 			}
-			case IGNORE_RANK:
-				ignoredRanks.add(escapedTarget.toLowerCase());
-				config.ignoredRanks(gson.toJson(ignoredRanks));
-				updateIgnoredRankColors();
-				break;
-			case UNIGNORE_RANK:
-				ignoredRanks.removeIf(r -> r.equals(escapedTarget.toLowerCase()));
-				config.ignoredRanks(gson.toJson(ignoredRanks));
-				updateIgnoredRankColors();
-				break;
+			String target = player.getName();
+			lookupPlayer(target);
 		}
 	}
 
@@ -630,31 +617,6 @@ public class WomUtilsPlugin extends Plugin
 			levelupThisSession = true;
 		}
 		previousSkillLevels.put(s, levelAfter);
-	}
-
-	@Subscribe
-	public void onWidgetMenuOptionClicked(final WidgetMenuOptionClicked event)
-	{
-		// Using widgetId since getWidget is nullable
-		int widgetId = event.getWidgetId();
-		if (widgetId != WidgetInfo.FIXED_VIEWPORT_FRIENDS_CHAT_TAB.getPackedId()
-			&& widgetId != WidgetInfo.RESIZABLE_VIEWPORT_FRIENDS_CHAT_TAB.getPackedId()
-			&& widgetId != WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON.getPackedId()
-			&& widgetId != RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_TAB_ID
-			|| config.groupId() < 1)
-		{
-			return;
-		}
-
-		switch (event.getMenuOption())
-		{
-			case IMPORT_MEMBERS:
-				womClient.importGroupMembers();
-				break;
-			case BROWSE_GROUP:
-				openGroupInBrowser();
-				break;
-		}
 	}
 
 	private void openGroupInBrowser()
@@ -689,12 +651,12 @@ public class WomUtilsPlugin extends Plugin
 		{
 			if (config.browseGroup())
 			{
-				addGroupMenuOptions(WIDGET_BROWSE_MENU_OPTIONS);
+				addGroupBrowseOptions();
 			}
 
 			if (config.importGroup())
 			{
-				addGroupMenuOptions(WIDGET_IMPORT_MENU_OPTIONS);
+				addGroupImportOptions();
 			}
 		}
 
@@ -762,10 +724,6 @@ public class WomUtilsPlugin extends Plugin
 				clientThread.invoke(() -> createSyncButton(CLAN_SETTINGS_INFO_PAGE_WIDGET_ID));
 				break;
 		}
-
-
-
-
 	}
 
 	@Subscribe
@@ -825,7 +783,7 @@ public class WomUtilsPlugin extends Plugin
 
 		final MenuEntry entry = event.getMenuEntries()[event.getMenuEntries().length - 1];
 
-		if (entry.getType() != MenuAction.CC_OP.getId() || entry.getParam1() != CLAN_OPTIONS_RANKS_WIDGET)
+		if (entry.getType() != MenuAction.CC_OP || entry.getParam1() != CLAN_OPTIONS_RANKS_WIDGET)
 		{
 			return;
 		}
@@ -835,17 +793,25 @@ public class WomUtilsPlugin extends Plugin
 		ClanRank rank = clanSettings.findMember(targetPlayer).getRank();
 		String rankTitle = clanSettings.titleForRank(rank).getName();
 		String targetRank = ColorUtil.wrapWithColorTag(rankTitle, new Color(0xff9040));
+		boolean rankIsIgnored = ignoredRanks.contains(rankTitle.toLowerCase());
 
-		final MenuEntry ignoreEntry = ModifiedMenuEntry.of(entry);
-		ignoreEntry.setOption(!ignoredRanks.contains(rankTitle.toLowerCase()) ? IGNORE_RANK : UNIGNORE_RANK);
-		ignoreEntry.setType(MenuAction.RUNELITE.getId());
-		ignoreEntry.setTarget(targetRank);
+		client.createMenuEntry(-1)
+			.setOption(!rankIsIgnored ? IGNORE_RANK : UNIGNORE_RANK)
+			.setType(MenuAction.RUNELITE)
+			.setTarget(targetRank)
+			.onClick(e -> {
+				if (!rankIsIgnored)
+				{
+					ignoredRanks.add(rankTitle.toLowerCase());
 
-		MenuEntry[] entries = client.getMenuEntries();
-		entries = Arrays.copyOf(entries, entries.length + 1);
-		entries[entries.length - 1] = ignoreEntry;
-
-		client.setMenuEntries(entries);
+				}
+				else
+				{
+					ignoredRanks.removeIf(r -> r.equals(rankTitle.toLowerCase()));
+				}
+				config.ignoredRanks(gson.toJson(ignoredRanks));
+				updateIgnoredRankColors();
+			});
 	}
 
 	private void updateIgnoredRankColors()
@@ -929,11 +895,11 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void addGroupMenuOptions(List<WidgetMenuOption> menuOptions)
+	private void addGroupMenuOptions(List<WidgetMenuOption> menuOptions, Consumer<MenuEntry> callback)
 	{
 		for (WidgetMenuOption option : menuOptions)
 		{
-			menuManager.addManagedCustomMenu(option);
+			menuManager.addManagedCustomMenu(option, callback);
 		}
 	}
 
