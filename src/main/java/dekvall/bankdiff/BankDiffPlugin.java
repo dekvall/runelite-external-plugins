@@ -117,36 +117,29 @@ public class BankDiffPlugin extends Plugin
 			return;
 		}
 
-		MenuEntry[] entries = client.getMenuEntries();
-
-		int offset = config.diffViewToggled() || snapshot.isEmpty() ? 1 : 2;
-		entries = Arrays.copyOf(entries, entries.length + offset);
 		int place = 1;
 
 		if (!snapshot.isEmpty())
 		{
-			entries[entries.length - place++] = createEntry(TOGGLE_VIEW, event);
+			createEntry(TOGGLE_VIEW, event, place++);
 		}
 
 		if (!config.diffViewToggled())
 		{
-			entries[entries.length - place] = createEntry(CREATE_SNAPSHOT, event);
+			createEntry(CREATE_SNAPSHOT, event, place);
 		}
 
-		client.setMenuEntries(entries);
 	}
 
-	private MenuEntry createEntry(String option, MenuEntryAdded event)
+	private void createEntry(String option, MenuEntryAdded event, int place)
 	{
-		MenuEntry entry = new MenuEntry();
-		entry.setOption(option);
-		entry.setTarget("");
-		entry.setType(MenuAction.RUNELITE.getId());
-		entry.setIdentifier(event.getIdentifier());
-		entry.setParam0(event.getActionParam0());
-		entry.setParam1(event.getActionParam1());
-
-		return entry;
+		client.createMenuEntry(-place)
+			.setOption(option)
+			.setTarget("")
+			.setType(MenuAction.RUNELITE)
+			.setIdentifier(event.getIdentifier())
+			.setParam0(event.getActionParam0())
+			.setParam1(event.getActionParam1());
 	}
 
 	@Subscribe
