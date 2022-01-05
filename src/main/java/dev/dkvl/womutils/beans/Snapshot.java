@@ -71,6 +71,7 @@ public class Snapshot
 	Boss kreearra;
 	Boss kril_tsutsaroth;
 	Boss mimic;
+	Boss nex;
 	Boss nightmare;
 	Boss phosanis_nightmare;
 	Boss obor;
@@ -243,6 +244,8 @@ public class Snapshot
 				return getKril_tsutsaroth();
 			case MIMIC:
 				return getMimic();
+			case NEX:
+				return getNex();
 			case NIGHTMARE:
 				return getNightmare();
 			case PHOSANIS_NIGHTMARE:
