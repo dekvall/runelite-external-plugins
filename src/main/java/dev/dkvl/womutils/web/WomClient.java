@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
+import net.runelite.api.WorldType;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -144,8 +145,19 @@ public class WomClient
 	private HttpUrl buildUrl(String[] pathSegments)
 	{
 		HttpUrl.Builder urlBuilder = new HttpUrl.Builder()
-			.scheme("https")
-			.host("api.wiseoldman.net");
+			.scheme("https");
+
+		boolean isSeasonal = client.getWorldType().contains(WorldType.SEASONAL);
+
+		if (isSeasonal)
+		{
+			urlBuilder.host("league.wiseoldman.net")
+				.addPathSegment("api");
+		}
+		else
+		{
+			urlBuilder.host("api.wiseoldman.net");
+		}
 
 		for (String pathSegment : pathSegments)
 		{
