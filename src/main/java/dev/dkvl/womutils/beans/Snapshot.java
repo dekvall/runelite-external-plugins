@@ -44,6 +44,7 @@ public class Snapshot
 	Minigame clue_scrolls_master;
 	Minigame last_man_standing;
 	Minigame soul_wars_zeal;
+	Minigame guardians_of_the_rift;
 	Boss abyssal_sire;
 	Boss alchemical_hydra;
 	Boss barrows_chests;
@@ -180,6 +181,8 @@ public class Snapshot
 				return getLast_man_standing();
 			case SOUL_WARS_ZEAL:
 				return getSoul_wars_zeal();
+			case RIFTS_CLOSED:
+				return getGuardians_of_the_rift();
 			default:
 				throw new IllegalArgumentException("Invalid hiscore minigame");
 		}
