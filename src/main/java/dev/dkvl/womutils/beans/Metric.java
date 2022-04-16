@@ -94,6 +94,8 @@ public enum Metric
 	GIANT_MOLE(HiscoreSkill.GIANT_MOLE),
 	@SerializedName("grotesque_guardians")
 	GROTESQUE_GUARDIANS(HiscoreSkill.GROTESQUE_GUARDIANS),
+	@SerializedName("guardians_of_the_rift")
+	GUARDIANS_OF_THE_RIFT(HiscoreSkill.RIFTS_CLOSED),
 	@SerializedName("herblore")
 	HERBLORE(HiscoreSkill.HERBLORE),
 	@SerializedName("hespori")
@@ -122,6 +124,8 @@ public enum Metric
 	MIMIC(HiscoreSkill.MIMIC),
 	@SerializedName("mining")
 	MINING(HiscoreSkill.MINING),
+	@SerializedName("nex")
+	NEX(HiscoreSkill.NEX),
 	@SerializedName("nightmare")
 	NIGHTMARE(HiscoreSkill.NIGHTMARE),
 	@SerializedName("obor")
