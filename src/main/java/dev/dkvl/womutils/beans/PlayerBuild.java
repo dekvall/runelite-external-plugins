@@ -19,7 +19,10 @@ public enum PlayerBuild
     HP_PURE("10 HP Pure"),
 
     @SerializedName("main")
-    MAIN("Main");
+    MAIN("Main"),
+
+    @SerializedName("zerker")
+    ZERKER("Zerker");
 
     private final String build;
 
