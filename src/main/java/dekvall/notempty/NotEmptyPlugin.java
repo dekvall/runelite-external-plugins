@@ -12,6 +12,7 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.util.Text;
 
 @Slf4j
 @PluginDescriptor(
@@ -46,10 +47,11 @@ public class NotEmptyPlugin extends Plugin
 		for (MenuEntry entry : menuEntries)
 		{
 			String option = entry.getOption().toLowerCase();
+			String target = Text.removeTags(entry.getTarget());
 
-			if (entry.getType() != MenuAction.ITEM_FOURTH_OPTION
+			if (entry.getType() != MenuAction.CC_OP_LOW_PRIORITY
 				|| !"empty".equals(option)
-				|| !Pattern.matches(DRINK_PATTERN, entry.getTarget()))
+				|| !Pattern.matches(DRINK_PATTERN, target))
 			{
 				cleaned.add(entry);
 			}
