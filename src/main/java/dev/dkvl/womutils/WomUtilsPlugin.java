@@ -42,7 +42,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -254,10 +253,10 @@ public class WomUtilsPlugin extends Plugin
 	@Getter
 	private int upcomingInfoboxesMaxDays;
 
-	private String lastUsername;
+	private long lastAccount;
 	private boolean fetchXp;
 	private long lastXp;
-	private boolean visitedLoginScreen;
+	private boolean visitedLoginScreen = true;
 	private boolean recentlyLoggedIn;
 	private String playerName;
 
@@ -847,9 +846,9 @@ public class WomUtilsPlugin extends Plugin
 		GameState state = gameStateChanged.getGameState();
 		if (state == GameState.LOGGED_IN)
 		{
-			if (!Objects.equals(client.getUsername(), lastUsername))
+			if (lastAccount != client.getAccountHash())
 			{
-				lastUsername = client.getUsername();
+				lastAccount = client.getAccountHash();
 				fetchXp = true;
 			}
 
