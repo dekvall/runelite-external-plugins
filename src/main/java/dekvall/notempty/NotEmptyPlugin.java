@@ -9,6 +9,8 @@ import net.runelite.api.Client;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.widgets.WidgetID;
+import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -41,6 +43,12 @@ public class NotEmptyPlugin extends Plugin
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
+		int groupId = WidgetInfo.TO_GROUP(event.getActionParam1());
+		if (WidgetID.INVENTORY_GROUP_ID != groupId)
+		{
+			return;
+		}
+
 		MenuEntry[] menuEntries = client.getMenuEntries();
 		List<MenuEntry> cleaned = new ArrayList<>();
 
@@ -49,9 +57,13 @@ public class NotEmptyPlugin extends Plugin
 			String option = entry.getOption().toLowerCase();
 			String target = Text.removeTags(entry.getTarget());
 
-			if (entry.getType() != MenuAction.CC_OP_LOW_PRIORITY
-				|| !"empty".equals(option)
-				|| !Pattern.matches(DRINK_PATTERN, target))
+			if (entry.getType() == MenuAction.CC_OP_LOW_PRIORITY
+				&& "empty".equals(option)
+				&& Pattern.matches(DRINK_PATTERN, target))
+			{
+				continue;
+			}
+			else
 			{
 				cleaned.add(entry);
 			}
