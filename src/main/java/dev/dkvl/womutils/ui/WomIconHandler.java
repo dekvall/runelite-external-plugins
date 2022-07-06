@@ -124,12 +124,14 @@ public class WomIconHandler
 			return;
 		}
 
-		for (int i = 0; i < children.length; i+=3)
+		// Offset because clan/guest clan lists and friends chat list are ordered slightly differently now
+		int start = widgetInfo == WidgetInfo.FRIENDS_CHAT_LIST ? 0 : 1;
+
+		for (int i = start; i < children.length; i+=3)
 		{
 			String name = Text.removeTags(children[i].getText());
 			String sanitized = Text.toJagexName(name);
 			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
-
 			if (!disable && m != null)
 			{
 				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
