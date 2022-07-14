@@ -43,6 +43,7 @@ public class Snapshot
 	Minigame clue_scrolls_elite;
 	Minigame clue_scrolls_master;
 	Minigame last_man_standing;
+	Minigame pvp_arena;
 	Minigame soul_wars_zeal;
 	Minigame guardians_of_the_rift;
 	Boss abyssal_sire;
@@ -179,6 +180,8 @@ public class Snapshot
 				return getClue_scrolls_master();
 			case LAST_MAN_STANDING:
 				return getLast_man_standing();
+			case PVP_ARENA_RANK:
+				return getPvp_arena();
 			case SOUL_WARS_ZEAL:
 				return getSoul_wars_zeal();
 			case RIFTS_CLOSED:
