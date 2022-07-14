@@ -116,6 +116,8 @@ public enum Metric
 	KRIL_TSUTSAROTH(HiscoreSkill.KRIL_TSUTSAROTH),
 	@SerializedName("last_man_standing")
 	LAST_MAN_STANDING(HiscoreSkill.LAST_MAN_STANDING),
+	@SerializedName("pvp_arena")
+	PVP_ARENA(HiscoreSkill.PVP_ARENA_RANK),
 	@SerializedName("league_points")
 	LEAGUE_POINTS(HiscoreSkill.LEAGUE_POINTS),
 	@SerializedName("magic")
