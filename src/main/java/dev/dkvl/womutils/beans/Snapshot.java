@@ -86,6 +86,8 @@ public class Snapshot
 	Boss theatre_of_blood;
 	Boss theatre_of_blood_hard_mode;
 	Boss thermonuclear_smoke_devil;
+	Boss tombs_of_amascut;
+	Boss tombs_of_amascut_expert;
 	Boss tzkal_zuk;
 	Boss tztok_jad;
 	Boss venenatis;
@@ -276,6 +278,10 @@ public class Snapshot
 				return getTheatre_of_blood_hard_mode();
 			case THERMONUCLEAR_SMOKE_DEVIL:
 				return getThermonuclear_smoke_devil();
+			case TOMBS_OF_AMASCUT:
+				return getTombs_of_amascut();
+			case TOMBS_OF_AMASCUT_EXPERT:
+				return getTombs_of_amascut_expert();
 			case TZKAL_ZUK:
 				return getTzkal_zuk();
 			case TZTOK_JAD:
