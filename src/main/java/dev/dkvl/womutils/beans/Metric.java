@@ -168,6 +168,10 @@ public enum Metric
 	THE_GAUNTLET(HiscoreSkill.THE_GAUNTLET),
 	@SerializedName("thermonuclear_smoke_devil")
 	THERMONUCLEAR_SMOKE_DEVIL(HiscoreSkill.THERMONUCLEAR_SMOKE_DEVIL),
+	@SerializedName("tombs_of_amascut")
+	TOMBS_OF_AMASCUT(HiscoreSkill.TOMBS_OF_AMASCUT),
+	@SerializedName("tombs_of_amascut_expert")
+	TOMBS_OF_AMASCUT_EXPERT(HiscoreSkill.TOMBS_OF_AMASCUT_EXPERT),
 	@SerializedName("thieving")
 	THIEVING(HiscoreSkill.THIEVING),
 	@SerializedName("tzkal_zuk")
