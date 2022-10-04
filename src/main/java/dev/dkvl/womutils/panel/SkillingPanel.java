@@ -90,7 +90,7 @@ class SkillingPanel extends JPanel
             HiscoreSkill skill = rp.getSkill();
             TableRow row = rp.getRow();
 
-            row.update(latestSnapshot.getSkill(skill), config.virtualLevels());
+            row.update(latestSnapshot.getData().getSkills().getSkill(skill), config.virtualLevels());
         }
 
         updateTotalLevel(latestSnapshot);
@@ -99,13 +99,13 @@ class SkillingPanel extends JPanel
     private void updateTotalLevel(Snapshot snapshot)
     {
         int totalLevel = 0;
-        Skill overall = snapshot.getSkill(OVERALL);
+        Skill overall = snapshot.getData().getSkills().getSkill(OVERALL);
         long overallExperience = overall.getExperience();
         int overallRank = overall.getRank();
 
         for (HiscoreSkill skill : SKILLS)
         {
-            int experience = (int) snapshot.getSkill(skill).getExperience();
+            int experience = (int) snapshot.getData().getSkills().getSkill(skill).getExperience();
             int level = experience >= 0 ? Experience.getLevelForXp(experience) : 0;
             totalLevel += !config.virtualLevels() && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
         }

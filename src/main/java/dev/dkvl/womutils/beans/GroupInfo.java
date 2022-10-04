@@ -1,8 +1,8 @@
 package dev.dkvl.womutils.beans;
 
-import lombok.Value;
+import lombok.Data;
 
-@Value
+@Data
 public class GroupInfo
 {
     int id;
@@ -10,9 +10,9 @@ public class GroupInfo
     String clanChat;
     String description;
     int homeworld;
-    int score;
     boolean verified;
+    int score;
     String createdAt;
     String updatedAt;
-    MemberInfo[] members;
+    int memberCount;
 }

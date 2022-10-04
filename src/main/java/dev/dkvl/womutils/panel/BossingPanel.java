@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import dev.dkvl.womutils.util.Format;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.Snapshot;
-import dev.dkvl.womutils.beans.VirtualSkill;
+import dev.dkvl.womutils.beans.Computed;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.QuantityFormatter;
 import net.runelite.client.hiscore.HiscoreSkill;
@@ -92,13 +92,13 @@ class BossingPanel extends JPanel
             HiscoreSkill boss = rp.getSkill();
             TableRow row = rp.getRow();
 
-            row.update(latestSnapshot.getBoss(boss), boss);
+            row.update(latestSnapshot.getData().getBosses().getBoss(boss), boss);
         }
 
-        updateTotalEhb(latestSnapshot.getEhb());
+        updateTotalEhb(latestSnapshot.getData().getComputed().getEhb());
     }
 
-    private void updateTotalEhb(VirtualSkill ehb)
+    private void updateTotalEhb(Computed ehb)
     {
         JLabel rankLabel = totalEhbRow.labels.get("rank");
         JLabel ehbLabel = totalEhbRow.labels.get("ehb");

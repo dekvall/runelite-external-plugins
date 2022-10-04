@@ -28,7 +28,7 @@ import dev.dkvl.womutils.util.Format;
 import dev.dkvl.womutils.util.Utils;
 import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.Boss;
-import dev.dkvl.womutils.beans.Minigame;
+import dev.dkvl.womutils.beans.Activity;
 import dev.dkvl.womutils.beans.Skill;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Experience;
@@ -112,6 +112,7 @@ public class TableRow extends JPanel
     void update(Skill skill, boolean virtualLevels)
     {
         long experience = skill.getExperience();
+        int level = skill.getLevel();
         int rank = skill.getRank();
         boolean ranked = rank != -1;
         double ehp = skill.getEhp();
@@ -121,22 +122,9 @@ public class TableRow extends JPanel
         experienceLabel.setToolTipText(experience > 0 ? QuantityFormatter.formatNumber(experience) : "");
 
         JLabel levelLabel = labels.get("level");
-        String levelText;
-        String hoverText;
-        if (experience == -1)
-        {
-            levelText = "--";
-            hoverText = "";
-        }
-        else
-        {
-            int level = Experience.getLevelForXp((int) experience);
-            int levelToDisplay = !virtualLevels && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
-            levelText = String.valueOf(levelToDisplay);
-            hoverText = String.valueOf(levelToDisplay);
-        }
-        levelLabel.setText(levelText);
-        levelLabel.setToolTipText(hoverText);
+        int levelToDisplay = !virtualLevels && level > Experience.MAX_REAL_LEVEL ? Experience.MAX_REAL_LEVEL : level;
+        levelLabel.setText(String.valueOf(levelToDisplay));
+        levelLabel.setToolTipText(String.valueOf(levelToDisplay));
 
         JLabel rankLabel = labels.get("rank");
         rankLabel.setText(ranked ? Format.formatNumber(rank) : "--");
@@ -169,7 +157,7 @@ public class TableRow extends JPanel
         ehbLabel.setToolTipText(QuantityFormatter.formatNumber(ehb));
     }
 
-    void update(Minigame minigame)
+    void update(Activity minigame)
     {
         int score = minigame.getScore();
         int rank = minigame.getRank();

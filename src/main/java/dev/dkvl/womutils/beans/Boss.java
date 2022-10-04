@@ -5,7 +5,8 @@ import lombok.Value;
 @Value
 public class Boss
 {
-	int rank;
+	String metric;
 	int kills;
+	int rank;
 	double ehb;
 }

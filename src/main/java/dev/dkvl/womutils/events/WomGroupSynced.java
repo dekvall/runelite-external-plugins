@@ -1,6 +1,6 @@
 package dev.dkvl.womutils.events;
 
-import dev.dkvl.womutils.beans.MemberInfo;
+import dev.dkvl.womutils.beans.GroupInfoWithMemberships;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -8,11 +8,11 @@ import lombok.Getter;
 @AllArgsConstructor
 public class WomGroupSynced
 {
-	MemberInfo[] members;
+	GroupInfoWithMemberships groupInfo;
 	boolean silent;
 
-	public WomGroupSynced(MemberInfo[] members)
+	public WomGroupSynced(GroupInfoWithMemberships groupInfo)
 	{
-		this(members, false);
+		this(groupInfo, false);
 	}
 }

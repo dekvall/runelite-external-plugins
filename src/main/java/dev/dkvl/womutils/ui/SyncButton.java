@@ -1,9 +1,9 @@
 package dev.dkvl.womutils.ui;
 
 import com.google.common.util.concurrent.Runnables;
+import dev.dkvl.womutils.beans.GroupMembership;
 import dev.dkvl.womutils.web.WomClient;
 import dev.dkvl.womutils.beans.Member;
-import dev.dkvl.womutils.beans.MemberInfo;
 import java.util.HashMap;
 import java.util.Map;
 import net.runelite.api.*;
@@ -26,14 +26,14 @@ public class SyncButton
 
     private final List<Widget> cornersAndEdges = new ArrayList<>();
     private final ClanSettings clanSettings;
-    private final Map<String, MemberInfo> groupMembers;
+    private final Map<String, GroupMembership> groupMembers;
 	private final List<String> ignoredRanks;
 	private final List<String> alwaysIncludedOnSync;
 
 
     public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager,
-					  int parent, Map<String, MemberInfo> groupMembers, List<String> ignoredRanks,
-					  List<String> alwaysIncludedOnSync)
+                      int parent, Map<String, GroupMembership> groupMembers, List<String> ignoredRanks,
+                      List<String> alwaysIncludedOnSync)
     {
         this.client = client;
         this.womClient = womClient;
@@ -122,7 +122,7 @@ public class SyncButton
 
         if (!overwrite)
 		{
-			groupMembers.forEach((k,v) -> clanMembers.put(k, new Member(v.getDisplayName(), v.getRole())));
+			groupMembers.forEach((k,v) -> clanMembers.put(k, new Member(v.getPlayer().getDisplayName(), v.getRole())));
 		}
 
         for (ClanMember clanMember : clanSettings.getMembers())
@@ -134,7 +134,7 @@ public class SyncButton
 
             String memberName = Text.toJagexName(clanMember.getName());
             ClanTitle memberTitle = clanSettings.titleForRank(clanMember.getRank());
-			String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase();
+			String role = memberTitle == null ? "member" : memberTitle.getName().toLowerCase().replaceAll("[-\\s]", "_");
 
 			if (ignoredRanks.contains(role))
 			{

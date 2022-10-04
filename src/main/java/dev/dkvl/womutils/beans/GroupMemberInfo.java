@@ -3,9 +3,8 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class MemberInfo
+public class GroupMemberInfo
 {
-    long exp;
     int id;
     String username;
     String displayName;
@@ -13,14 +12,13 @@ public class MemberInfo
     String build;
     String country;
     boolean flagged;
+    long exp;
     double ehp;
     double ehb;
     double ttm;
     double tt200m;
-    String lastImportedAt;
-    String lastChangedAt;
     String registeredAt;
     String updatedAt;
-    String role;
-    String joinedAt;
+    String lastChangedAt;
+    String lastImportedAt;
 }

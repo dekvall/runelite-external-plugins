@@ -69,7 +69,7 @@ public class ActivitiesPanel extends JPanel
             HiscoreSkill minigame = rp.getSkill();
             TableRow row = rp.getRow();
 
-            row.update(latestSnapshot.getMinigame(minigame));
+            row.update(latestSnapshot.getData().getActivities().getActivity(minigame));
         }
     }
 

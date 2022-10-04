@@ -1,13 +1,14 @@
 package dev.dkvl.womutils.ui;
 
 import dev.dkvl.womutils.WomUtilsConfig;
-import dev.dkvl.womutils.beans.MemberInfo;
-import dev.dkvl.womutils.ui.CountryIcon;
+
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+
+import dev.dkvl.womutils.beans.GroupMembership;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.IndexedSprite;
@@ -75,7 +76,7 @@ public class WomIconHandler
 		clientThread.invokeLater(this::loadCountryIcons);
 	}
 
-	public void handleScriptEvent(ScriptCallbackEvent event, Map<String, MemberInfo> groupMembers)
+	public void handleScriptEvent(ScriptCallbackEvent event, Map<String, GroupMembership> groupMembers)
 	{
 		switch (event.getEventName())
 		{
@@ -85,11 +86,12 @@ public class WomIconHandler
 				final String rsn = stringStack[stringStackSize - 1];
 				final String sanitized = Text.toJagexName(Text.removeTags(rsn).toLowerCase());
 				currentLayouting = sanitized;
-				MemberInfo m = groupMembers.get(sanitized);
+				GroupMembership member = groupMembers.get(sanitized);
 
-				if (m != null)
+				if (member != null)
 				{
-					String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
+					String country = member.getPlayer().getCountry() != null &&
+							config.showFlags() ? member.getPlayer().getCountry().toLowerCase() : "default";
 					CountryIcon icon = CountryIcon.getIcon(country);
 					int iconIdx = modIconsStart + icon.ordinal();
 					stringStack[stringStackSize - 1] = rsn + " <img=" + iconIdx + ">";
@@ -110,7 +112,7 @@ public class WomIconHandler
 		}
 	}
 
-	public void rebuildMemberList(boolean disable, Map<String, MemberInfo> groupMembers, WidgetInfo widgetInfo)
+	public void rebuildMemberList(boolean disable, Map<String, GroupMembership> groupMembers, WidgetInfo widgetInfo)
 	{
 		Widget containerWidget = client.getWidget(widgetInfo);
 		if (containerWidget == null)
@@ -128,11 +130,12 @@ public class WomIconHandler
 		{
 			String name = Text.removeTags(children[i].getText());
 			String sanitized = Text.toJagexName(name);
-			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
+			GroupMembership member = groupMembers.get(sanitized.toLowerCase());
 
-			if (!disable && m != null)
+			if (!disable && member != null)
 			{
-				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
+				String country = member.getPlayer().getCountry() != null &&
+						config.showFlags() ? member.getPlayer().getCountry().toLowerCase() : "default";
 				CountryIcon icon = CountryIcon.getIcon(country);
 				int iconIdx = modIconsStart + icon.ordinal();
 				String spacer = name.charAt(name.length() - 1) != ' ' ? " " : ""; // Stupid
@@ -146,7 +149,7 @@ public class WomIconHandler
 		}
 	}
 
-	public void rebuildSettingsMemberList(boolean disable, Map<String, MemberInfo> groupMembers)
+	public void rebuildSettingsMemberList(boolean disable, Map<String, GroupMembership> groupMembers)
 	{
 		Widget containerWidget = client.getWidget(CLAN_SETTINGS_MEMBERS_WIDGET);
 		if (containerWidget == null)
@@ -164,13 +167,14 @@ public class WomIconHandler
 		{
 			String name = Text.removeTags(children[i].getText());
 			String sanitized = Text.toJagexName(name);
-			MemberInfo m = groupMembers.get(sanitized.toLowerCase());
+			GroupMembership member = groupMembers.get(sanitized.toLowerCase());
 
-			if (!disable && m != null)
+			if (!disable && member != null)
 			{
 				String oldText = children[i].getText();
 
-				String country = m.getCountry() != null && config.showFlags() ? m.getCountry().toLowerCase() : "default";
+				String country = member.getPlayer().getCountry() != null
+						&& config.showFlags() ? member.getPlayer().getCountry().toLowerCase() : "default";
 				CountryIcon icon = CountryIcon.getIcon(country);
 				int iconIdx = modIconsStart + icon.ordinal();
 				String spacer = name.charAt(name.length() - 1) != ' ' ? " " : ""; // Stupid
@@ -200,7 +204,7 @@ public class WomIconHandler
 		}
 	}
 
-	public void rebuildLists(Map<String, MemberInfo> members, boolean showIcons)
+	public void rebuildLists(Map<String, GroupMembership> members, boolean showIcons)
 	{
 		clientThread.invokeLater(() ->
 		{

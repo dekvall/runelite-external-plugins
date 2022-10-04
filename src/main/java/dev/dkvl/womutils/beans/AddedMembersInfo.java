@@ -5,5 +5,6 @@ import lombok.Value;
 @Value
 public class AddedMembersInfo
 {
-	MemberInfo[] members;
+	int count;
+	String message;
 }

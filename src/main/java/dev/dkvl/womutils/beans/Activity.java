@@ -3,8 +3,9 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class Minigame
+public class Activity
 {
-	int rank;
+	String metric;
 	int score;
+	int rank;
 }
