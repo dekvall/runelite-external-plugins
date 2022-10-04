@@ -12,14 +12,14 @@ public class Competition
 	int id;
 	String title;
 	Metric metric;
-	int score;
+	CompetitionType type;
 	Date startsAt;
 	Date endsAt;
-	CompetitionType type;
 	int groupId;
+	int score;
 	Date createdAt;
 	Date updatedAt;
-	String duration;
+	GroupInfo group;
 	int particiantCount;
 
 	public boolean isActive()

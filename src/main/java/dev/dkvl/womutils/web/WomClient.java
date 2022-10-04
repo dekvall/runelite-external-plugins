@@ -3,21 +3,21 @@ package dev.dkvl.womutils.web;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.dkvl.womutils.beans.CompetitionInfo;
+import dev.dkvl.womutils.beans.GroupInfoWithMemberships;
+import dev.dkvl.womutils.beans.GroupMemberInfo;
+import dev.dkvl.womutils.beans.NameChangeEntry;
+import dev.dkvl.womutils.beans.WomStatus;
+import dev.dkvl.womutils.beans.ParticipationWithCompetition;
+import dev.dkvl.womutils.beans.AddedMembersInfo;
+import dev.dkvl.womutils.beans.GroupMemberAddition;
+import dev.dkvl.womutils.beans.Member;
+import dev.dkvl.womutils.beans.GroupMemberRemoval;
+import dev.dkvl.womutils.beans.PlayerInfo;
+import dev.dkvl.womutils.beans.WomPlayer;
 import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.WomUtilsConfig;
-import dev.dkvl.womutils.beans.AddedMembersInfo;
-import dev.dkvl.womutils.beans.GroupInfo;
-import dev.dkvl.womutils.beans.Competition;
-import dev.dkvl.womutils.beans.GroupMemberAddition;
-import dev.dkvl.womutils.beans.GroupMemberRemoval;
-import dev.dkvl.womutils.beans.Member;
-import dev.dkvl.womutils.beans.MemberInfo;
-import dev.dkvl.womutils.beans.NameChangeEntry;
-import dev.dkvl.womutils.beans.PlayerInfo;
-import dev.dkvl.womutils.beans.WomPlayer;
-import dev.dkvl.womutils.beans.WomStatus;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
@@ -129,6 +129,11 @@ public class WomClient
 		{
 			return requestBuilder.put(body).build();
 		}
+		else if (httpMethod == HttpMethod.DELETE)
+		{
+			return requestBuilder.delete(body).build();
+		}
+
 
 		return requestBuilder.post(body).build();
 	}
@@ -156,7 +161,8 @@ public class WomClient
 		}
 		else
 		{
-			urlBuilder.host("api.wiseoldman.net");
+			urlBuilder.host("api.wiseoldman.net")
+					.addPathSegment("v2");
 		}
 
 		for (String pathSegment : pathSegments)
@@ -169,7 +175,7 @@ public class WomClient
 
 	public void importGroupMembers()
 	{
-		Request request = createRequest("groups", "" + config.groupId(), "members");
+		Request request = createRequest("groups", "" + config.groupId());
 		sendRequest(request, this::importMembersCallback);
 	}
 
@@ -180,19 +186,19 @@ public class WomClient
 			return;
 		}
 
-		MemberInfo[] members = parseResponse(response, MemberInfo[].class);
-		eventBus.post(new WomGroupSynced(members, true));
+		GroupInfoWithMemberships groupInfo = parseResponse(response, GroupInfoWithMemberships.class);
+		eventBus.post(new WomGroupSynced(groupInfo, true));
 	}
 
 	private void syncClanMembersCallBack(Response response)
 	{
 		final String message;
-		final Map<String, MemberInfo> newGroup = new HashMap<>();
+		final Map<String, GroupMemberInfo> newGroup = new HashMap<>();
 
 		if (response.isSuccessful())
 		{
-			GroupInfo data = parseResponse(response, GroupInfo.class);
-			eventBus.post(new WomGroupSynced(data.getMembers()));
+			GroupInfoWithMemberships data = parseResponse(response, GroupInfoWithMemberships.class);
+			eventBus.post(new WomGroupSynced(data));
 		}
 		else
 		{
@@ -226,21 +232,8 @@ public class WomClient
 		if (response.isSuccessful())
 		{
 			AddedMembersInfo data = parseResponse(response, AddedMembersInfo.class);
-			MemberInfo memberInfo = null;
-			for (MemberInfo m : data.getMembers())
-			{
-				if (username.toLowerCase().equals(m.getUsername()))
-				{
-					memberInfo = m;
-					break;
-				}
-			}
 
-			if (memberInfo == null)
-			{
-				log.warn("Info for {} could not be added because there is none in the group", username);
-			}
-			eventBus.post(new WomGroupMemberAdded(username, memberInfo));
+			eventBus.post(new WomGroupMemberAdded(username));
 		}
 		else
 		{
@@ -254,7 +247,7 @@ public class WomClient
 	{
 		if (response.isSuccessful())
 		{
-			Competition[] comps = parseResponse(response, Competition[].class);
+			ParticipationWithCompetition[] comps = parseResponse(response, ParticipationWithCompetition[].class);
 			eventBus.post(new WomPlayerCompetitionsFetched(username, comps));
 		}
 		else
@@ -330,20 +323,20 @@ public class WomClient
 		memberToAdd.add(new Member(username.toLowerCase(), "member"));
 
 		GroupMemberAddition payload = new GroupMemberAddition(config.verificationCode(), memberToAdd);
-		Request request = createRequest(payload, "groups", "" + config.groupId(), "add-members");
+		Request request = createRequest(payload, "groups", "" + config.groupId(), "members");
 		sendRequest(request, r -> addMemberCallback(r, username));
 	}
 
 	public void removeGroupMember(String username)
 	{
 		GroupMemberRemoval payload = new GroupMemberRemoval(config.verificationCode(), new String[] {username.toLowerCase()});
-		Request request = createRequest(payload,"groups", "" + config.groupId(), "remove-members");
+		Request request = createRequest(payload, HttpMethod.DELETE,"groups", "" + config.groupId(), "members");
 		sendRequest(request, r -> removeMemberCallback(r, username));
 	}
 
 	public void commandLookup(String username, WomCommand command, ChatMessage chatMessage)
 	{
-		Request request = createRequest("players", "username", username);
+		Request request = createRequest("players", username);
 		sendRequest(request, r -> commandCallback(r, command, chatMessage));
 	}
 
@@ -389,7 +382,7 @@ public class WomClient
 
 	public void fetchPlayerCompetitions(String username)
 	{
-		Request request = createRequest("players", "username", username, "competitions");
+		Request request = createRequest("players", username, "competitions");
 		sendRequest(request, r -> playerCompetitionsCallback(username, r));
 	}
 
@@ -408,7 +401,7 @@ public class WomClient
 	public CompletableFuture<PlayerInfo> lookupAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
-		Request request = createRequest("players", "username", username);
+		Request request = createRequest("players", username);
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}
@@ -416,7 +409,7 @@ public class WomClient
 	public CompletableFuture<PlayerInfo> updateAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
-		Request request = createRequest(new WomPlayer(username), "players", "track");
+		Request request = createRequest(new WomPlayer(username), "players", username);
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}

@@ -5,7 +5,9 @@ import lombok.Value;
 @Value
 public class Skill
 {
-	int rank;
+	String metric;
 	long experience;
+	int rank;
+	int level;
 	double ehp;
 }

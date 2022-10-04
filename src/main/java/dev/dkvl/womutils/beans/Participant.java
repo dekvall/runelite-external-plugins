@@ -6,23 +6,11 @@ import lombok.Data;
 @Data
 public class Participant
 {
-	long exp;
-	int id;
-	String username;
-	String displayName;
-	PlayerType type;
-	PlayerBuild build;
-	String country;
-	boolean flagged;
-	double ehp;
-	double ehb;
-	double ttm;
-	double tt200m;
-	Date lastImportedAt;
-	Date lastChangedAt;
-	Date registeredAt;
-	Date updatedAt;
+	int playerId;
+	int competitionId;
 	String teamName;
+	Date createdAt;
+	Date updatedAt;
+	PlayerInfo player;
 	CompetitionProgress progress;
-	CompetitionHistoryEntry[] history;
 }

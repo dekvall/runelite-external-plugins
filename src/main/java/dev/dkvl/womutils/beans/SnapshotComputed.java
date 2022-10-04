@@ -3,8 +3,8 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class VirtualSkill
+public class SnapshotComputed
 {
-    int rank;
-    double value;
+    Computed ehp;
+    Computed ehb;
 }

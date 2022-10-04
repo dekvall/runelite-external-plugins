@@ -11,10 +11,11 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.CompetitionInfo;
-import dev.dkvl.womutils.beans.MemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.Participant;
 import dev.dkvl.womutils.beans.RankedParticipant;
+import dev.dkvl.womutils.beans.GroupMembership;
+import dev.dkvl.womutils.beans.ParticipationWithCompetition;
 import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
@@ -236,8 +237,8 @@ public class WomUtilsPlugin extends Plugin
 
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
-	private Map<String, MemberInfo> groupMembers = new HashMap<>();
-	private List<Competition> playerCompetitions = new ArrayList<>();
+	private Map<String, GroupMembership> groupMembers = new HashMap<>();
+	private List<ParticipationWithCompetition> playerCompetitions = new ArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
@@ -557,16 +558,16 @@ public class WomUtilsPlugin extends Plugin
 			return;
 		}
 
-		String name = Text.toJagexName(Text.removeTags(event.getTarget()).toLowerCase());
+		String name = Text.toJagexName(Text.removeTags(event.getTarget()));
 
 		if (addModifyMember)
 		{
 			client.createMenuEntry(-offset)
-				.setOption(groupMembers.containsKey(name) ? REMOVE_MEMBER : ADD_MEMBER)
+				.setOption(groupMembers.containsKey(name.toLowerCase()) ? REMOVE_MEMBER : ADD_MEMBER)
 				.setType(MenuAction.RUNELITE)
 				.setTarget(event.getTarget())
 				.onClick(e -> {
-					if (groupMembers.containsKey(name))
+					if (groupMembers.containsKey(name.toLowerCase()))
 					{
 						womClient.removeGroupMember(name);
 					}
@@ -919,7 +920,7 @@ public class WomUtilsPlugin extends Plugin
 	{
 		if (!xpUpdaterConfig.wiseoldman())
 		{
-			// Send update requests even if the user has forgot to enable player updates in the core plugin
+			// Send update requests even if the user has forgotten to enable player updates in the core plugin
 			womClient.updatePlayer(username);
 		}
 	}
@@ -939,12 +940,12 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onWomGroupSynced(WomGroupSynced event)
 	{
-		Map<String, MemberInfo> old = new HashMap<>(groupMembers);
+		Map<String, GroupMembership> old = new HashMap<>(groupMembers);
 
 		groupMembers.clear();
-		for (MemberInfo m : event.getMembers())
+		for (GroupMembership member : event.getGroupInfo().getMemberships())
 		{
-			groupMembers.put(m.getUsername(), m);
+			groupMembers.put(member.getPlayer().getUsername(), member);
 		}
 		onGroupUpdate();
 		if (!event.isSilent())
@@ -958,8 +959,7 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onWomGroupMemberAdded(WomGroupMemberAdded event)
 	{
-		MemberInfo member = event.getMember();
-		groupMembers.put(member.getUsername().toLowerCase(), member);
+		womClient.importGroupMembers();
 		onGroupUpdate();
 
 		String message = "New player added: " + event.getUsername(); // Correctly capitalized
@@ -969,7 +969,7 @@ public class WomUtilsPlugin extends Plugin
 	@Subscribe
 	public void onWomGroupMemberRemoved(WomGroupMemberRemoved event)
 	{
-		groupMembers.remove(event.getUsername().toLowerCase());
+		womClient.importGroupMembers();
 		onGroupUpdate();
 		String message = "Player removed: " + event.getUsername();
 		sendResponseToChat(message, SUCCESS);
@@ -980,8 +980,9 @@ public class WomUtilsPlugin extends Plugin
 	{
 		playerCompetitions = Arrays.asList(event.getCompetitions());
 		playerName = event.getUsername();
-		for (Competition c : playerCompetitions)
+		for (ParticipationWithCompetition pwc : playerCompetitions)
 		{
+			Competition c = pwc.getCompetition();
 			if (!c.hasEnded() && config.competitionLoginMessage())
 			{
 				sendHighlightedMessage(c.getStatus());
@@ -1008,8 +1009,9 @@ public class WomUtilsPlugin extends Plugin
 	private void updateInfoboxes()
 	{
 		clearInfoboxes();
-		for (Competition c : playerCompetitions)
+		for (ParticipationWithCompetition pwc : playerCompetitions)
 		{
+			Competition c = pwc.getCompetition();
 			if (c.isActive() || !c.hasStarted())
 			{
 				RankedParticipant player = getRankedParticipant(c.getId(), playerName);
@@ -1041,9 +1043,9 @@ public class WomUtilsPlugin extends Plugin
 			return null;
 		}
 		int count = 1;
-		for (Participant p : compInfo.getParticipants())
+		for (Participant p : compInfo.getParticipations())
 		{
-			if (p.getUsername().equalsIgnoreCase(username))
+			if (p.getPlayer().getUsername().equalsIgnoreCase(username))
 			{
 				return new RankedParticipant(p, count);
 			}
@@ -1063,8 +1065,9 @@ public class WomUtilsPlugin extends Plugin
 
 		List<DelayedAction> delayedActions = new ArrayList<>();
 
-		for (Competition c : playerCompetitions)
+		for (ParticipationWithCompetition pwc : playerCompetitions)
 		{
+			Competition c = pwc.getCompetition();
 			if (!c.hasStarted())
 			{
 				delayedActions.add(new DelayedAction(c.durationLeft().minusHours(1), () ->
@@ -1123,7 +1126,7 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private String compareChanges(Map<String, MemberInfo> oldMembers, Map<String, MemberInfo> newMembers)
+	private String compareChanges(Map<String, GroupMembership> oldMembers, Map<String, GroupMembership> newMembers)
 	{
 		int membersAdded = 0;
 		int ranksChanged = 0;
