@@ -182,6 +182,8 @@ public class WomUtilsPlugin extends Plugin
 
 	private boolean levelupThisSession = false;
 
+	private static String MESSAGE_PREFIX = "Wom: ";
+
 	@Inject
 	private Client client;
 
@@ -1154,7 +1156,7 @@ public class WomUtilsPlugin extends Plugin
 	private void sendResponseToChat(String message, Color color)
 	{
 		ChatMessageBuilder cmb = new ChatMessageBuilder();
-		cmb.append(color, message);
+		cmb.append(color, MESSAGE_PREFIX + message);
 
 		chatMessageManager.queue(QueuedMessage.builder()
 			.type(ChatMessageType.CONSOLE)
@@ -1166,7 +1168,7 @@ public class WomUtilsPlugin extends Plugin
 	{
 		final String message = new ChatMessageBuilder()
 			.append(ChatColorType.HIGHLIGHT)
-			.append(chatMessage)
+			.append(MESSAGE_PREFIX + chatMessage)
 			.build();
 
 		chatMessageManager.queue(
