@@ -161,9 +161,10 @@ public class WomClient
 		}
 		else
 		{
-			urlBuilder.host("api.wiseoldman.net")
-					.addPathSegment("v2");
+			urlBuilder.host("api.wiseoldman.net");
 		}
+
+		urlBuilder.addPathSegment("v2");
 
 		for (String pathSegment : pathSegments)
 		{
