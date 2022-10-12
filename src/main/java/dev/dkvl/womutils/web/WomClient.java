@@ -377,7 +377,6 @@ public class WomClient
 
 		final MessageNode messageNode = chatMessage.getMessageNode();
 		messageNode.setRuneLiteFormatMessage(message);
-		chatMessageManager.update(messageNode);
 		client.refreshChat();
 	}
 
