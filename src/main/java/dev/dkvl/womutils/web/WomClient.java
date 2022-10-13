@@ -176,8 +176,11 @@ public class WomClient
 
 	public void importGroupMembers()
 	{
-		Request request = createRequest("groups", "" + config.groupId());
-		sendRequest(request, this::importMembersCallback);
+		if (config.groupId() > 0)
+		{
+			Request request = createRequest("groups", "" + config.groupId());
+			sendRequest(request, this::importMembersCallback);
+		}
 	}
 
 	private void importMembersCallback(Response response)
@@ -394,7 +397,7 @@ public class WomClient
 
 	public void updatePlayer(String username)
 	{
-		Request request = createRequest(new WomPlayer(username), "players", "track");
+		Request request = createRequest(new Object(), "players", username);
 		sendRequest(request);
 	}
 
