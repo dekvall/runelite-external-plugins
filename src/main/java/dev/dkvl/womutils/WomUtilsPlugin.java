@@ -446,7 +446,10 @@ public class WomUtilsPlugin extends Plugin
 		String name = nameable.getName();
 		String prev = nameable.getPrevName();
 
-		if (Strings.isNullOrEmpty(prev) || name.equals(prev) || prev.startsWith("[#") || name.startsWith("[#"))
+		if (Strings.isNullOrEmpty(prev)
+			|| name.equals(prev)
+			|| prev.startsWith("[#")
+			|| name.startsWith("[#"))
 		{
 			return;
 		}
