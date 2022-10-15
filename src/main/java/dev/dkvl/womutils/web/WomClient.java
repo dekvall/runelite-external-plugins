@@ -223,7 +223,6 @@ public class WomClient
 		}
 		else
 		{
-
 			message = "Error: " + data.getMessage();
 			sendResponseToChat(message, ERROR);
 		}
@@ -235,8 +234,6 @@ public class WomClient
 
 		if (response.isSuccessful())
 		{
-			AddedMembersInfo data = parseResponse(response, AddedMembersInfo.class);
-
 			eventBus.post(new WomGroupMemberAdded(username));
 		}
 		else
