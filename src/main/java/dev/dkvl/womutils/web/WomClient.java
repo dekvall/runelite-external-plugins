@@ -197,7 +197,6 @@ public class WomClient
 	private void syncClanMembersCallBack(Response response)
 	{
 		final String message;
-		final Map<String, GroupMemberInfo> newGroup = new HashMap<>();
 
 		if (response.isSuccessful())
 		{

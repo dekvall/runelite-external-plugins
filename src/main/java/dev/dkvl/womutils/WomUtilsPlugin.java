@@ -808,7 +808,6 @@ public class WomUtilsPlugin extends Plugin
 				if (!rankIsIgnored)
 				{
 					ignoredRanks.add(rankTitle.toLowerCase());
-
 				}
 				else
 				{
