@@ -240,7 +240,7 @@ public class WomUtilsPlugin extends Plugin
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private Map<String, GroupMembership> groupMembers = new HashMap<>();
-	private List<ParticipationWithCompetition> playerCompetitions = new ArrayList<>();
+	private List<ParticipationWithCompetition> playerCompetitions = new CopyOnWriteArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
