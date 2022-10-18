@@ -19,7 +19,10 @@ public enum PlayerType
     HARDCORE("Hardcore"),
 
     @SerializedName("ultimate")
-    ULTIMATE("Ultimate");
+    ULTIMATE("Ultimate"),
+
+    @SerializedName("fresh_start")
+    FRESH_START("Fresh Start");
 
     private final String type;
 
