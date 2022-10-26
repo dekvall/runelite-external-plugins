@@ -43,6 +43,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -97,6 +98,7 @@ import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.xpupdater.XpUpdaterConfig;
 import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
@@ -216,6 +218,9 @@ public class WomUtilsPlugin extends Plugin
 
 	@Inject
 	private XpUpdaterConfig xpUpdaterConfig;
+
+	@Inject
+	private PluginManager pluginManager;
 
 	@Inject
 	private InfoBoxManager infoBoxManager;
@@ -922,7 +927,9 @@ public class WomUtilsPlugin extends Plugin
 
 	private void update(String username)
 	{
-		if (!xpUpdaterConfig.wiseoldman())
+		final Optional<Plugin> xpUpdaterPlugin = pluginManager.getPlugins().stream().filter(p -> p.getName().equals("XP Updater")).findFirst();
+
+		if (xpUpdaterPlugin.isPresent() && !pluginManager.isPluginEnabled(xpUpdaterPlugin.get()) || !xpUpdaterConfig.wiseoldman())
 		{
 			// Send update requests even if the user has forgotten to enable player updates in the core plugin
 			womClient.updatePlayer(username);
