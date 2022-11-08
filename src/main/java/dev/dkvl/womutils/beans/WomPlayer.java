@@ -5,5 +5,5 @@ import lombok.Value;
 @Value
 public class WomPlayer
 {
-    String username;
+    long accountHash;
 }

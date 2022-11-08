@@ -873,7 +873,7 @@ public class WomUtilsPlugin extends Plugin
 			if (Math.abs(totalXp - lastXp) > XP_THRESHOLD || levelupThisSession)
 			{
 				log.debug("Submitting update for {}", local.getName());
-				update(local.getName());
+				update(lastAccount, local.getName());
 				lastXp = totalXp;
 				levelupThisSession = false;
 			}
@@ -920,12 +920,12 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void update(String username)
+	private void update(long accountHash, String username)
 	{
 		if (!xpUpdaterConfig.wiseoldman())
 		{
 			// Send update requests even if the user has forgotten to enable player updates in the core plugin
-			womClient.updatePlayer(username);
+			womClient.updatePlayer(accountHash, username);
 		}
 	}
 
@@ -1081,7 +1081,7 @@ public class WomUtilsPlugin extends Plugin
 				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
 					{
 						notifier.notify("Competition: " + c.getTitle() + " has started!");
-						womClient.updatePlayer(playerName);
+						womClient.updatePlayer(lastAccount, playerName);
 					})
 				);
 			}
@@ -1093,7 +1093,7 @@ public class WomUtilsPlugin extends Plugin
 					{
 						notifier.notify(c.getStatus());
 						// Update player 15 mins before end so there is at least one final datapoint
-						womClient.updatePlayer(playerName);
+						womClient.updatePlayer(lastAccount, playerName);
 					})
 				);
 				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(4), () ->

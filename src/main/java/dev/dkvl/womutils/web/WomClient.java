@@ -4,11 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.dkvl.womutils.beans.CompetitionInfo;
 import dev.dkvl.womutils.beans.GroupInfoWithMemberships;
-import dev.dkvl.womutils.beans.GroupMemberInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.WomStatus;
 import dev.dkvl.womutils.beans.ParticipationWithCompetition;
-import dev.dkvl.womutils.beans.AddedMembersInfo;
 import dev.dkvl.womutils.beans.GroupMemberAddition;
 import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.GroupMemberRemoval;
@@ -27,8 +25,6 @@ import java.lang.reflect.Field;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import javax.inject.Inject;
@@ -391,9 +387,9 @@ public class WomClient
 		sendRequest(request, this::competitionInfoCallback);
 	}
 
-	public void updatePlayer(String username)
+	public void updatePlayer(long accountHash, String username)
 	{
-		Request request = createRequest(new Object(), "players", username);
+		Request request = createRequest(new WomPlayer(accountHash), "players", username);
 		sendRequest(request);
 	}
 
@@ -408,7 +404,7 @@ public class WomClient
 	public CompletableFuture<PlayerInfo> updateAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
-		Request request = createRequest(new WomPlayer(username), "players", username);
+		Request request = createRequest(new Object(), "players", username);
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}
