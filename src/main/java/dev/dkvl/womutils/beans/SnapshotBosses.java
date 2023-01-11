@@ -37,6 +37,7 @@ public class SnapshotBosses
     Boss nightmare;
     Boss phosanis_nightmare;
     Boss obor;
+    Boss phantom_muspah;
     Boss sarachnis;
     Boss scorpia;
     Boss skotizo;
@@ -123,6 +124,8 @@ public class SnapshotBosses
                 return getPhosanis_nightmare();
             case OBOR:
                 return getObor();
+            case PHANTOM_MUSPAH:
+                return getPhantom_muspah();
             case SARACHNIS:
                 return getSarachnis();
             case SCORPIA:
