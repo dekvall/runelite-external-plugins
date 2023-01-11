@@ -134,6 +134,8 @@ public enum Metric
 	OBOR(HiscoreSkill.OBOR),
 	@SerializedName("overall")
 	OVERALL(HiscoreSkill.OVERALL),
+	@SerializedName("phantom_muspah")
+	PHANTOM_MUSPAH(HiscoreSkill.PHANTOM_MUSPAH),
 	@SerializedName("phosanis_nightmare")
 	PHOSANIS_NIGHTMARE(HiscoreSkill.PHOSANIS_NIGHTMARE),
 	@SerializedName("prayer")
