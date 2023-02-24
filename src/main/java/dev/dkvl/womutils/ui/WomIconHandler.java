@@ -126,8 +126,14 @@ public class WomIconHandler
 			return;
 		}
 
-		for (int i = 0; i < children.length; i+=3)
+		for (int i = 0; i < children.length; i++)
 		{
+			// Username child widget uniquely has fontId and XTextAlignment.
+			if (children[i].getFontId() == -1 || children[i].getXTextAlignment() != 0)
+			{
+				continue;
+			}
+
 			String name = Text.removeTags(children[i].getText());
 			String sanitized = Text.toJagexName(name);
 			GroupMembership member = groupMembers.get(sanitized.toLowerCase());
