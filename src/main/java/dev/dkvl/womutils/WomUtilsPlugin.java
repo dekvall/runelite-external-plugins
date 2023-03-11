@@ -13,14 +13,17 @@ import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.CompetitionInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.Participant;
+import dev.dkvl.womutils.beans.ParticipantWithStanding;
 import dev.dkvl.womutils.beans.RankedParticipant;
 import dev.dkvl.womutils.beans.GroupMembership;
-import dev.dkvl.womutils.beans.ParticipationWithCompetition;
+import dev.dkvl.womutils.beans.ParticipantWithCompetition;
 import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
+import dev.dkvl.womutils.events.WomOngoingPlayerCompetitionsFetched;
 import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
+import dev.dkvl.womutils.events.WomUpcomingPlayerCompetitionsFetched;
 import dev.dkvl.womutils.panel.NameAutocompleter;
 import dev.dkvl.womutils.panel.WomPanel;
 import dev.dkvl.womutils.ui.CodeWordOverlay;
@@ -240,7 +243,9 @@ public class WomUtilsPlugin extends Plugin
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private Map<String, GroupMembership> groupMembers = new HashMap<>();
-	private List<ParticipationWithCompetition> playerCompetitions = new CopyOnWriteArrayList<>();
+	private List<ParticipantWithCompetition> playerCompetitions = new CopyOnWriteArrayList<>();
+	private List<ParticipantWithStanding> playerCompetitionsOngoing = new CopyOnWriteArrayList<>();
+	private List<ParticipantWithCompetition> playerCompetitionsUpcoming = new CopyOnWriteArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
@@ -984,7 +989,7 @@ public class WomUtilsPlugin extends Plugin
 	{
 		playerCompetitions = Arrays.asList(event.getCompetitions());
 		playerName = event.getUsername();
-		for (ParticipationWithCompetition pwc : playerCompetitions)
+		for (ParticipantWithCompetition pwc : playerCompetitions)
 		{
 			Competition c = pwc.getCompetition();
 			if (!c.hasEnded() && config.competitionLoginMessage())
@@ -1003,6 +1008,34 @@ public class WomUtilsPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onWomOngoingPlayerCompetitionsFetched(WomOngoingPlayerCompetitionsFetched event)
+	{
+		playerCompetitionsOngoing = Arrays.asList(event.getCompetitions());
+		for (ParticipantWithStanding pws : playerCompetitionsOngoing)
+		{
+			Competition c = pws.getCompetition();
+			if (config.competitionLoginMessage())
+			{
+				sendHighlightedMessage(c.getStatus());
+			}
+		}
+		updateInfoboxes();
+		updateScheduledNotifications();
+
+		log.debug("Fetched {} ongoing competitions for player {}", event.getCompetitions().length, event.getUsername());
+	}
+
+	@Subscribe
+	public void onWomUpcomingPlayerCompetitionsFetched(WomUpcomingPlayerCompetitionsFetched event)
+	{
+		playerCompetitionsUpcoming = Arrays.asList(event.getCompetitions());
+		updateInfoboxes();
+		updateScheduledNotifications();
+
+		log.debug("Fetched {} upcoming competitions for player {}", event.getCompetitions().length, event.getUsername());
+	}
+
+	@Subscribe
 	public void onWomCompetitionInfoFetched(WomCompetitionInfoFetched event)
 	{
 		CompetitionInfo comp = event.getComp();
@@ -1013,13 +1046,23 @@ public class WomUtilsPlugin extends Plugin
 	private void updateInfoboxes()
 	{
 		clearInfoboxes();
-		for (ParticipationWithCompetition pwc : playerCompetitions)
+		for (ParticipantWithCompetition pwc : playerCompetitionsUpcoming)
 		{
 			Competition c = pwc.getCompetition();
-			if (c.isActive() || !c.hasStarted())
+			if (!c.hasStarted())
 			{
-				RankedParticipant player = getRankedParticipant(c.getId(), playerName);
-				competitionInfoboxes.add(new CompetitionInfobox(c, player, this));
+				competitionInfoboxes.add(new CompetitionInfobox(c, null, this));
+			}
+		}
+		for (ParticipantWithStanding pws : playerCompetitionsOngoing)
+		{
+			Competition c = pws.getCompetition();
+			if (c.isActive())
+			{
+				// TODO: Handle the participant correctly
+				Participant part = new Participant();
+				RankedParticipant rp = new RankedParticipant(part, pws.getRank());
+				competitionInfoboxes.add(new CompetitionInfobox(c, rp, this));
 			}
 		}
 
@@ -1062,45 +1105,46 @@ public class WomUtilsPlugin extends Plugin
 	{
 		cancelNotifications();
 
-		if (!config.sendCompetitionNotification())
-		{
-			return;
-		}
-
 		List<DelayedAction> delayedActions = new ArrayList<>();
 
-		for (ParticipationWithCompetition pwc : playerCompetitions)
+		for (ParticipantWithCompetition pwc : playerCompetitionsUpcoming)
 		{
 			Competition c = pwc.getCompetition();
 			if (!c.hasStarted())
 			{
+				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
+					womClient.updatePlayer(playerName)));
+				if (!config.sendCompetitionNotification())
+				{
+					continue;
+				}
 				delayedActions.add(new DelayedAction(c.durationLeft().minusHours(1), () ->
 					notifier.notify(c.getStatus())));
-				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
+				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15),  () ->
 					notifier.notify(c.getStatus())));
 				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
-					{
-						notifier.notify("Competition: " + c.getTitle() + " has started!");
-						womClient.updatePlayer(playerName);
-					})
-				);
+					notifier.notify("Competition: " + c.getTitle() + " has started!")));
 			}
-			else if (c.isActive())
+		}
+
+		for (ParticipantWithStanding pws : playerCompetitionsOngoing)
+		{
+			Competition c = pws.getCompetition();
+			// Send an update when there are 15 minutes left so that there is at least one datapoint in the end
+			delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
+					womClient.updatePlayer(playerName)));
+			if (!config.sendCompetitionNotification())
 			{
-				delayedActions.add(new DelayedAction(c.durationLeft().minusHours(1), () ->
-					notifier.notify(c.getStatus())));
-				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
-					{
-						notifier.notify(c.getStatus());
-						// Update player 15 mins before end so there is at least one final datapoint
-						womClient.updatePlayer(playerName);
-					})
-				);
-				delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(4), () ->
-					notifier.notify("Competition: " + c.getTitle() + " is ending soon, logout now to record your final datapoint!")));
-				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
-					notifier.notify("Competition: " + c.getTitle() + " is over, thanks for playing!")));
+				continue;
 			}
+			delayedActions.add(new DelayedAction(c.durationLeft().minusHours(1), () ->
+				notifier.notify(c.getStatus())));
+			delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
+				notifier.notify(c.getStatus())));
+			delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(4), () ->
+				notifier.notify("Competition: " + c.getTitle() + " is ending soon, logout now to record your final datapoint!")));
+			delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
+				notifier.notify("Competition: " + c.getTitle() + " is over, thanks for playing!")));
 		}
 
 		for (DelayedAction action : delayedActions)

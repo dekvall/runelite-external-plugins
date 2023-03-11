@@ -3,7 +3,7 @@ package dev.dkvl.womutils.beans;
 import lombok.Value;
 
 @Value
-public class ParticipationWithCompetition
+public class ParticipantWithCompetition
 {
     int playerId;
     int competitionId;
