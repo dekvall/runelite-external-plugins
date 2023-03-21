@@ -1031,10 +1031,7 @@ public class WomUtilsPlugin extends Plugin
 
 	private void clearInfoboxes()
 	{
-		for (CompetitionInfobox b : competitionInfoboxes)
-		{
-			infoBoxManager.removeInfoBox(b);
-		}
+		infoBoxManager.removeIf(CompetitionInfobox.class::isInstance);
 		competitionInfoboxes.clear();
 	}
 
