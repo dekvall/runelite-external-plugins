@@ -18,6 +18,8 @@ public enum Metric
 	AGILITY(HiscoreSkill.AGILITY),
 	@SerializedName("alchemical_hydra")
 	ALCHEMICAL_HYDRA(HiscoreSkill.ALCHEMICAL_HYDRA),
+	@SerializedName("artio")
+	ARTIO(HiscoreSkill.ARTIO),
 	@SerializedName("attack")
 	ATTACK(HiscoreSkill.ATTACK),
 	@SerializedName("barrows_chests")
@@ -30,6 +32,8 @@ public enum Metric
 	BRYOPHYTA(HiscoreSkill.BRYOPHYTA),
 	@SerializedName("callisto")
 	CALLISTO(HiscoreSkill.CALLISTO),
+	@SerializedName("calvarion")
+	CALVARION(HiscoreSkill.CALVARION),
 	@SerializedName("cerberus")
 	CERBERUS(HiscoreSkill.CERBERUS),
 	@SerializedName("chambers_of_xeric_challenge_mode")
@@ -150,6 +154,8 @@ public enum Metric
 	SCORPIA(HiscoreSkill.SCORPIA),
 	@SerializedName("skotizo")
 	SKOTIZO(HiscoreSkill.SKOTIZO),
+	@SerializedName("spindel")
+	SPINDEL(HiscoreSkill.SPINDEL),
 	@SerializedName("slayer")
 	SLAYER(HiscoreSkill.SLAYER),
 	@SerializedName("smithing")
