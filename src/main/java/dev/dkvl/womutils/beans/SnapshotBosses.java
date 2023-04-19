@@ -8,9 +8,11 @@ public class SnapshotBosses
 {
     Boss abyssal_sire;
     Boss alchemical_hydra;
+    Boss artio;
     Boss barrows_chests;
     Boss bryophyta;
     Boss callisto;
+    Boss calvarion;
     Boss cerberus;
     Boss chambers_of_xeric;
     Boss chambers_of_xeric_challenge_mode;
@@ -41,6 +43,7 @@ public class SnapshotBosses
     Boss sarachnis;
     Boss scorpia;
     Boss skotizo;
+    Boss spindel;
     Boss tempoross;
     Boss the_gauntlet;
     Boss the_corrupted_gauntlet;
@@ -66,12 +69,16 @@ public class SnapshotBosses
                 return getAbyssal_sire();
             case ALCHEMICAL_HYDRA:
                 return getAlchemical_hydra();
+            case ARTIO:
+                return getArtio();
             case BARROWS_CHESTS:
                 return getBarrows_chests();
             case BRYOPHYTA:
                 return getBryophyta();
             case CALLISTO:
                 return getCallisto();
+            case CALVARION:
+                return getCalvarion();
             case CERBERUS:
                 return getCerberus();
             case CHAMBERS_OF_XERIC:
@@ -132,6 +139,8 @@ public class SnapshotBosses
                 return getScorpia();
             case SKOTIZO:
                 return getSkotizo();
+            case SPINDEL:
+                return getSpindel();
             case TEMPOROSS:
                 return getTempoross();
             case THE_GAUNTLET:
