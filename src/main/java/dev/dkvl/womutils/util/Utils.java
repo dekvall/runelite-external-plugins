@@ -31,7 +31,7 @@ public class Utils
             case TZTOK_JAD:
                 return 5;
             default:
-                return 15;
+                return 10;
         }
     }
 
