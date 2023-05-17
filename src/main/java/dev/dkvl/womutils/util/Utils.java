@@ -22,16 +22,8 @@ public class Utils
             case MIMIC:
             case TZKAL_ZUK:
                 return 1;
-            case BRYOPHYTA:
-            case CHAMBERS_OF_XERIC_CHALLENGE_MODE:
-            case HESPORI:
-            case OBOR:
-            case SKOTIZO:
-            case THE_CORRUPTED_GAUNTLET:
-            case TZTOK_JAD:
-                return 5;
             default:
-                return 10;
+                return 5;
         }
     }
 
