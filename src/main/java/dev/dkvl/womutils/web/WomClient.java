@@ -2,7 +2,6 @@ package dev.dkvl.womutils.web;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import dev.dkvl.womutils.beans.CompetitionInfo;
 import dev.dkvl.womutils.beans.GroupInfoWithMemberships;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.ParticipantWithStanding;
@@ -13,9 +12,7 @@ import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.GroupMemberRemoval;
 import dev.dkvl.womutils.beans.PlayerInfo;
 import dev.dkvl.womutils.beans.WomPlayer;
-import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomOngoingPlayerCompetitionsFetched;
-import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.events.WomUpcomingPlayerCompetitionsFetched;
 import dev.dkvl.womutils.ui.WomIconHandler;
 import dev.dkvl.womutils.WomUtilsConfig;
@@ -282,36 +279,6 @@ public class WomClient
 	}
 
 
-	private void playerCompetitionsCallback(String username, Response response)
-	{
-		if (response.isSuccessful())
-		{
-			ParticipantWithCompetition[] comps = parseResponse(response, ParticipantWithCompetition[].class);
-			eventBus.post(new WomPlayerCompetitionsFetched(username, comps));
-		}
-		else
-		{
-			WomStatus data = parseResponse(response, WomStatus.class);
-			String message = "Error: " + data.getMessage();
-			sendResponseToChat(message, ERROR);
-		}
-	}
-
-	private void competitionInfoCallback(Response response)
-	{
-		if (response.isSuccessful())
-		{
-			CompetitionInfo comp = parseResponse(response, CompetitionInfo.class);
-			eventBus.post(new WomCompetitionInfoFetched(comp));
-		}
-		else
-		{
-			WomStatus data = parseResponse(response, WomStatus.class);
-			String message = "Error: " + data.getMessage();
-			sendResponseToChat(message, ERROR);
-		}
-	}
-
 	private <T> T parseResponse(Response r, Class<T> clazz)
 	{
 		return parseResponse(r, clazz, false);
@@ -419,12 +386,6 @@ public class WomClient
 		client.refreshChat();
 	}
 
-	public void fetchPlayerCompetitions(String username)
-	{
-		Request request = createRequest("players", username, "competitions");
-		sendRequest(request, r -> playerCompetitionsCallback(username, r));
-	}
-
 	public void fetchUpcomingPlayerCompetitions(String username)
 	{
 		Request request = createRequest("players", username, "competitions", "?status=upcoming");
@@ -435,12 +396,6 @@ public class WomClient
 	{
 		Request request = createRequest("players", username, "competitions", "standings", "?status=ongoing");
 		sendRequest(request, r -> playerOngoingCompetitionsCallback(username, r));
-	}
-
-	public void fetchCompetitionInfo(int id)
-	{
-		Request request = createRequest("competitions", String.valueOf(id));
-		sendRequest(request, this::competitionInfoCallback);
 	}
 
 	public void updatePlayer(String username)

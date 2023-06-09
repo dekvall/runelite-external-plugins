@@ -22,7 +22,6 @@ import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
 import dev.dkvl.womutils.events.WomOngoingPlayerCompetitionsFetched;
-import dev.dkvl.womutils.events.WomPlayerCompetitionsFetched;
 import dev.dkvl.womutils.events.WomUpcomingPlayerCompetitionsFetched;
 import dev.dkvl.womutils.panel.NameAutocompleter;
 import dev.dkvl.womutils.panel.WomPanel;
@@ -243,7 +242,6 @@ public class WomUtilsPlugin extends Plugin
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private Map<String, GroupMembership> groupMembers = new HashMap<>();
-	private List<ParticipantWithCompetition> playerCompetitions = new CopyOnWriteArrayList<>();
 	private List<ParticipantWithStanding> playerCompetitionsOngoing = new CopyOnWriteArrayList<>();
 	private List<ParticipantWithCompetition> playerCompetitionsUpcoming = new CopyOnWriteArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
@@ -898,7 +896,9 @@ public class WomUtilsPlugin extends Plugin
 
 		if(visitedLoginScreen && recentlyLoggedIn && local != null)
 		{
-			womClient.fetchPlayerCompetitions(local.getName());
+			String playerName = local.getName();
+			womClient.fetchOngoingPlayerCompetitions(playerName);
+			womClient.fetchUpcomingPlayerCompetitions(playerName);
 			recentlyLoggedIn = false;
 			visitedLoginScreen = false;
 		}
@@ -982,29 +982,6 @@ public class WomUtilsPlugin extends Plugin
 		onGroupUpdate();
 		String message = "Player removed: " + event.getUsername();
 		sendResponseToChat(message, SUCCESS);
-	}
-
-	@Subscribe
-	public void onWomPlayerCompetitionsFetched(WomPlayerCompetitionsFetched event)
-	{
-		playerCompetitions = Arrays.asList(event.getCompetitions());
-		playerName = event.getUsername();
-		for (ParticipantWithCompetition pwc : playerCompetitions)
-		{
-			Competition c = pwc.getCompetition();
-			if (!c.hasEnded() && config.competitionLoginMessage())
-			{
-				sendHighlightedMessage(c.getStatus());
-			}
-			if (c.isActive())
-			{
-				womClient.fetchCompetitionInfo(c.getId());
-			}
-		}
-		updateInfoboxes();
-		updateScheduledNotifications();
-
-		log.debug("Fetched {} competitions for player {}", event.getCompetitions().length, event.getUsername());
 	}
 
 	@Subscribe
