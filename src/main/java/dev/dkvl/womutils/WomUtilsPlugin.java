@@ -961,7 +961,7 @@ public class WomUtilsPlugin extends Plugin
 		{
 			String message = compareChanges(old, groupMembers);
 			sendResponseToChat(message, SUCCESS);
-			clientThread.invokeLater(() -> iconHandler.rebuildSettingsMemberList(!config.showicons(), groupMembers));
+			iconHandler.rebuildSettingsMemberList(!config.showicons(), groupMembers);
 		}
 	}
 

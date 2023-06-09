@@ -34,6 +34,7 @@ import net.runelite.api.Client;
 import net.runelite.api.MessageNode;
 import net.runelite.api.WorldType;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
@@ -68,6 +69,9 @@ public class WomClient
 
 	@Inject
 	private ChatMessageManager chatMessageManager;
+
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private EventBus eventBus;
@@ -197,7 +201,7 @@ public class WomClient
 		}
 
 		GroupInfoWithMemberships groupInfo = parseResponse(response, GroupInfoWithMemberships.class);
-		eventBus.post(new WomGroupSynced(groupInfo, true));
+		postEvent(new WomGroupSynced(groupInfo, true));
 	}
 
 	private void syncClanMembersCallBack(Response response)
@@ -207,7 +211,7 @@ public class WomClient
 		if (response.isSuccessful())
 		{
 			GroupInfoWithMemberships data = parseResponse(response, GroupInfoWithMemberships.class);
-			eventBus.post(new WomGroupSynced(data));
+			postEvent(new WomGroupSynced(data));
 		}
 		else
 		{
@@ -224,7 +228,7 @@ public class WomClient
 
 		if (response.isSuccessful())
 		{
-			eventBus.post(new WomGroupMemberRemoved(username));
+			postEvent(new WomGroupMemberRemoved(username));
 		}
 		else
 		{
@@ -239,7 +243,7 @@ public class WomClient
 
 		if (response.isSuccessful())
 		{
-			eventBus.post(new WomGroupMemberAdded(username));
+			postEvent(new WomGroupMemberAdded(username));
 		}
 		else
 		{
@@ -254,7 +258,7 @@ public class WomClient
 		if (response.isSuccessful())
 		{
 			ParticipantWithStanding[] comps = parseResponse(response, ParticipantWithStanding[].class);
-			eventBus.post(new WomOngoingPlayerCompetitionsFetched(username, comps));
+			postEvent(new WomOngoingPlayerCompetitionsFetched(username, comps));
 		}
 		else
 		{
@@ -268,7 +272,7 @@ public class WomClient
 		if (response.isSuccessful())
 		{
 			ParticipantWithCompetition[] comps = parseResponse(response, ParticipantWithCompetition[].class);
-			eventBus.post(new WomUpcomingPlayerCompetitionsFetched(username, comps));
+			postEvent(new WomUpcomingPlayerCompetitionsFetched(username, comps));
 		}
 		else
 		{
@@ -384,6 +388,12 @@ public class WomClient
 		final MessageNode messageNode = chatMessage.getMessageNode();
 		messageNode.setRuneLiteFormatMessage(message);
 		client.refreshChat();
+	}
+
+	private void postEvent(Object event)
+	{
+		// Handle callbacks on the client thread
+		clientThread.invokeLater(() -> eventBus.post(event));
 	}
 
 	public void fetchUpcomingPlayerCompetitions(String username)
