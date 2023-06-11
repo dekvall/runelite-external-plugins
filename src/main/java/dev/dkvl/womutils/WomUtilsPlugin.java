@@ -12,12 +12,9 @@ import com.google.inject.Provides;
 import dev.dkvl.womutils.beans.Competition;
 import dev.dkvl.womutils.beans.CompetitionInfo;
 import dev.dkvl.womutils.beans.NameChangeEntry;
-import dev.dkvl.womutils.beans.Participant;
 import dev.dkvl.womutils.beans.ParticipantWithStanding;
-import dev.dkvl.womutils.beans.RankedParticipant;
 import dev.dkvl.womutils.beans.GroupMembership;
 import dev.dkvl.womutils.beans.ParticipantWithCompetition;
-import dev.dkvl.womutils.events.WomCompetitionInfoFetched;
 import dev.dkvl.womutils.events.WomGroupMemberAdded;
 import dev.dkvl.womutils.events.WomGroupMemberRemoved;
 import dev.dkvl.womutils.events.WomGroupSynced;
@@ -51,7 +48,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.Getter;
@@ -242,8 +238,8 @@ public class WomUtilsPlugin extends Plugin
 	private Map<String, String> nameChanges = new HashMap<>();
 	private LinkedBlockingQueue<NameChangeEntry> queue = new LinkedBlockingQueue<>();
 	private Map<String, GroupMembership> groupMembers = new HashMap<>();
-	private List<ParticipantWithStanding> playerCompetitionsOngoing = new CopyOnWriteArrayList<>();
-	private List<ParticipantWithCompetition> playerCompetitionsUpcoming = new CopyOnWriteArrayList<>();
+	private List<ParticipantWithStanding> playerCompetitionsOngoing = new ArrayList<>();
+	private List<ParticipantWithCompetition> playerCompetitionsUpcoming = new ArrayList<>();
 	private List<CompetitionInfobox> competitionInfoboxes = new CopyOnWriteArrayList<>();
 	private List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
 	private Map<Integer, CompetitionInfo> competitionInfoMap = new HashMap<>();
@@ -1012,35 +1008,17 @@ public class WomUtilsPlugin extends Plugin
 		log.debug("Fetched {} upcoming competitions for player {}", event.getCompetitions().length, event.getUsername());
 	}
 
-	@Subscribe
-	public void onWomCompetitionInfoFetched(WomCompetitionInfoFetched event)
-	{
-		CompetitionInfo comp = event.getComp();
-		competitionInfoMap.put(comp.getId(), comp);
-		updateInfoboxes();
-	}
-
 	private void updateInfoboxes()
 	{
 		clearInfoboxes();
 		for (ParticipantWithCompetition pwc : playerCompetitionsUpcoming)
 		{
 			Competition c = pwc.getCompetition();
-			if (!c.hasStarted())
-			{
-				competitionInfoboxes.add(new CompetitionInfobox(c, null, this));
-			}
+			competitionInfoboxes.add(new CompetitionInfobox(c, this));
 		}
 		for (ParticipantWithStanding pws : playerCompetitionsOngoing)
 		{
-			Competition c = pws.getCompetition();
-			if (c.isActive())
-			{
-				// TODO: Handle the participant correctly
-				Participant part = new Participant();
-				RankedParticipant rp = new RankedParticipant(part, pws.getRank());
-				competitionInfoboxes.add(new CompetitionInfobox(c, rp, this));
-			}
+			competitionInfoboxes.add(new CompetitionInfobox(pws, this));
 		}
 
 		for (CompetitionInfobox b: competitionInfoboxes)
@@ -1056,26 +1034,6 @@ public class WomUtilsPlugin extends Plugin
 			infoBoxManager.removeInfoBox(b);
 		}
 		competitionInfoboxes.clear();
-	}
-
-	@Nullable
-	private RankedParticipant getRankedParticipant(int compid, String username)
-	{
-		CompetitionInfo compInfo = competitionInfoMap.getOrDefault(compid, null);
-		if (compInfo == null)
-		{
-			return null;
-		}
-		int count = 1;
-		for (Participant p : compInfo.getParticipations())
-		{
-			if (p.getPlayer().getUsername().equalsIgnoreCase(username))
-			{
-				return new RankedParticipant(p, count);
-			}
-			count++;
-		}
-		return null;
 	}
 
 	private void updateScheduledNotifications()

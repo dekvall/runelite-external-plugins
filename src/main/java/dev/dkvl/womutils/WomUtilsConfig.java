@@ -187,7 +187,7 @@ public interface WomUtilsConfig extends Config
 	@ConfigItem(
 		keyName = "competitionLoginMessage",
 		name = "Login info",
-		description = "Show current and upcoming competition info when logging in",
+		description = "Show ongoing competition info when logging in",
 		position = 1,
 		section = competitionConfig
 	)

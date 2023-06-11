@@ -2,35 +2,47 @@ package dev.dkvl.womutils.ui;
 
 import dev.dkvl.womutils.WomUtilsPlugin;
 import dev.dkvl.womutils.beans.Competition;
+import dev.dkvl.womutils.beans.CompetitionProgress;
 import dev.dkvl.womutils.beans.Metric;
-import dev.dkvl.womutils.beans.Participant;
-import dev.dkvl.womutils.beans.RankedParticipant;
+import dev.dkvl.womutils.beans.ParticipantWithStanding;
 import dev.dkvl.womutils.util.Utils;
 import java.awt.Color;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import net.runelite.api.MenuAction;
+import net.runelite.client.hiscore.HiscoreSkillType;
 import net.runelite.client.ui.overlay.OverlayMenuEntry;
 import net.runelite.client.ui.overlay.infobox.InfoBox;
 import net.runelite.client.util.ColorUtil;
-import net.runelite.client.hiscore.HiscoreSkillType;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
 public class CompetitionInfobox extends InfoBox
 {
 	final Competition competition;
 	final WomUtilsPlugin plugin;
-	final Participant player;
 	final int rank;
+	final CompetitionProgress progress;
 
 	private static final Color ACTIVE_COLOR = new Color(0x51f542);
 
-	public CompetitionInfobox(Competition competition, RankedParticipant rp, WomUtilsPlugin plugin)
+	public CompetitionInfobox(Competition competition, WomUtilsPlugin plugin)
 	{
 		super(competition.getMetric().loadImage(), plugin);
 		this.competition = competition;
-		this.player = rp != null ? rp.getParticipant() : null;
-		this.rank = rp != null ? rp.getCompetitionRank() : -1;
+		this.rank = -1;
+		this.progress = null;
+		this.plugin = plugin;
+
+		this.getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_INFOBOX, WomUtilsPlugin.SHOW_ALL_COMPETITIONS, "Wise Old Man"));
+		this.getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_INFOBOX, WomUtilsPlugin.HIDE_COMPETITION_INFOBOX, competition.getTitle()));
+	}
+
+	public CompetitionInfobox(ParticipantWithStanding pws, WomUtilsPlugin plugin)
+	{
+		super(pws.getCompetition().getMetric().loadImage(), plugin);
+		this.competition = pws.getCompetition();
+		this.rank = pws.getRank();
+		this.progress = pws.getProgress();
 		this.plugin = plugin;
 
 		this.getMenuEntries().add(new OverlayMenuEntry(MenuAction.RUNELITE_INFOBOX, WomUtilsPlugin.SHOW_ALL_COMPETITIONS, "Wise Old Man"));
@@ -45,11 +57,11 @@ public class CompetitionInfobox extends InfoBox
 		sb.append(competition.getTitle()).append("</br>")
 			.append("Metric: ").append(metric.getName()).append("</br>")
 			.append(competition.getTimeStatus());
-		if (player != null)
+		if (progress != null)
 		{
 			sb.append("</br>");
-			double progress = player.getProgress().getGained();
-			if (progress > 0)
+			double gained = progress.getGained();
+			if (gained > 0)
 			{
 				String coloredRank = ColorUtil.wrapWithColorTag(Utils.ordinalOf(rank), Color.GREEN);
 				sb.append("Ranked: ").append(coloredRank);
@@ -65,7 +77,7 @@ public class CompetitionInfobox extends InfoBox
 					df = new DecimalFormat("###,###,###");
 				}
 
-				String formattedProgress = df.format(progress);
+				String formattedProgress = df.format(gained);
 				String coloredProgress = ColorUtil.wrapWithColorTag(formattedProgress, Color.GREEN);
 				sb.append(" (Gained ").append(coloredProgress);
 
