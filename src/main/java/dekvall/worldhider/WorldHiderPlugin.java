@@ -182,7 +182,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void killWorldHopper()
 	{
-		Widget worldHopper = client.getWidget(69, 2);
+		Widget worldHopper = client.getWidget(69, 3);
 
 		if (worldHopper == null)
 		{
@@ -191,7 +191,7 @@ public class WorldHiderPlugin extends Plugin
 
 		worldHopper.setText("Current World - " + (config.randomWorld() ? randomWorld : "XXX"));
 
-		Widget worldList = client.getWidget(69, 17);
+		Widget worldList = client.getWidget(69, 18);
 
 		if (worldList == null)
 		{
@@ -237,8 +237,8 @@ public class WorldHiderPlugin extends Plugin
 		{
 			return;
 		}
-		
-		Widget list = client.getWidget(69, 17);
+
+		Widget list = client.getWidget(69, 19);
 
 		if (list == null)
 		{
@@ -256,27 +256,19 @@ public class WorldHiderPlugin extends Plugin
 			}
 		}
 
-		Widget listLabel = client.getWidget(69, 16);
+		Widget listLabel = client.getWidget(69, 19);
 
 		if (listLabel == null)
 		{
 			return;
 		}
 
-		Widget[] listEntries = listLabel.getDynamicChildren();
-
-		for (Widget entry : listEntries)
-		{
-			entry.setName("XXX");
-		}
-
-		Widget worldTooltip = client.getWidget(69, 24);
-
+		Widget worldTooltip = client.getWidget(69, 26);
 		worldTooltip.setHidden(true);
 
 		if (config.hideScrollbar())
 		{
-			Widget scrollbar = client.getWidget(69, 18);
+			Widget scrollbar = client.getWidget(69, 20);
 
 			if (scrollbar == null)
 			{
