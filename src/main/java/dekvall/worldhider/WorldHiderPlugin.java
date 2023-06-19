@@ -147,11 +147,11 @@ public class WorldHiderPlugin extends Plugin
 				clientThread.invokeLater(this::recolorFriends);
 				break;
 			case WORLD_HOPPER_BUILD:
-				clientThread.invokeLater(this::killWorldHopper);
-				clientThread.invokeLater(this::hideHopperWorlds);
+				clientThread.invoke(this::killWorldHopper);
+				clientThread.invoke(this::hideHopperWorlds);
 				break;
 			case BUILD_CC:
-				clientThread.invokeLater(this::hideClanWorlds);
+				clientThread.invoke(this::hideClanWorlds);
 				break;
 		}
 	}
@@ -189,7 +189,8 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		worldHopper.setText("Current World - " + (config.randomWorld() ? randomWorld : "XXX"));
+		worldHopper.setText("Current world - " + (config.randomWorld() ? randomWorld : "XXX"));
+		worldHopper.setOnVarTransmitListener(null);
 
 		Widget worldList = client.getWidget(69, 18);
 
