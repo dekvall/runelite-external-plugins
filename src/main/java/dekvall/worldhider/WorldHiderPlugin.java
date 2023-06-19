@@ -34,7 +34,6 @@ import net.runelite.api.Friend;
 import net.runelite.api.GameState;
 import net.runelite.api.Ignore;
 import net.runelite.api.NameableContainer;
-import net.runelite.api.VarPlayer;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
@@ -57,6 +56,7 @@ public class WorldHiderPlugin extends Plugin
 	private final static int BUILD_CC = 1658;
 	private final static int MISSING_FLAG_SPRITE = 1132;
 	private final static int FLAG_ORIGINAL_X = 44;
+	private final static int VARP_MEMBERSHIP_DAYS = 1780;
 
 
 	@Inject
@@ -101,7 +101,7 @@ public class WorldHiderPlugin extends Plugin
 	public void onClientTick(ClientTick tick)
 	{
 		// The friends list plugin interferes with this, so i run it a lot
-		final boolean isMember = client.getVar(VarPlayer.MEMBERSHIP_DAYS) > 0;
+		final boolean isMember = client.getVarpValue(VARP_MEMBERSHIP_DAYS) > 0;
 
 		final NameableContainer<Friend> friendContainer = client.getFriendContainer();
 		final int friendCount = friendContainer.getCount();
@@ -190,7 +190,7 @@ public class WorldHiderPlugin extends Plugin
 		}
 
 		worldHopper.setText("Current world - " + (config.randomWorld() ? randomWorld : "XXX"));
-		worldHopper.setOnVarTransmitListener(null);
+		worldHopper.setOnVarTransmitListener((Object[]) null);
 
 		Widget worldList = client.getWidget(69, 18);
 
