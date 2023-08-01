@@ -95,6 +95,7 @@ import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.xpupdater.XpUpdaterConfig;
 import net.runelite.client.plugins.xpupdater.XpUpdaterPlugin;
 import net.runelite.client.task.Schedule;
@@ -214,6 +215,9 @@ public class WomUtilsPlugin extends Plugin
 
 	@Inject
 	private XpUpdaterConfig xpUpdaterConfig;
+
+	@Inject
+	private PluginManager pluginManager;
 
 	@Inject
 	private InfoBoxManager infoBoxManager;
@@ -928,7 +932,11 @@ public class WomUtilsPlugin extends Plugin
 
 	private void updateMostRecentPlayer(boolean always)
 	{
-		if (always || !xpUpdaterConfig.wiseoldman())
+		boolean coreUpdaterIsOff = pluginManager
+				.getPlugins().stream()
+				.noneMatch(p -> p instanceof XpUpdaterPlugin && pluginManager.isPluginEnabled(p));
+
+		if (always || !xpUpdaterConfig.wiseoldman() || coreUpdaterIsOff)
 		{
 			log.debug("Submitting update for {}", playerName);
 			// Send update requests even if the user has forgotten to enable player updates in the core plugin
