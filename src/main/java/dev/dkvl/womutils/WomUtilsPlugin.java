@@ -323,6 +323,7 @@ public class WomUtilsPlugin extends Plugin
 		hiddenCompetitions = gson.fromJson(config.hiddenCompetitionIds(), intListType);
 		showTimerOngoing = config.timerOngoing();
 		showTimerUpcoming = config.timerUpcoming();
+		upcomingInfoboxesMaxDays = config.upcomingMaxDays();
 
 		placeHolderCompetitionInfobox = new PlaceHolderCompetitionInfobox(this);
 		infoBoxManager.addInfoBox(placeHolderCompetitionInfobox);
@@ -989,6 +990,7 @@ public class WomUtilsPlugin extends Plugin
 	public void onWomOngoingPlayerCompetitionsFetched(WomOngoingPlayerCompetitionsFetched event)
 	{
 		playerCompetitionsOngoing = Arrays.asList(event.getCompetitions());
+		log.debug("Fetched {} ongoing competitions for player {}", event.getCompetitions().length, event.getUsername());
 		for (ParticipantWithStanding pws : playerCompetitionsOngoing)
 		{
 			Competition c = pws.getCompetition();
@@ -999,18 +1001,15 @@ public class WomUtilsPlugin extends Plugin
 		}
 		updateInfoboxes();
 		updateScheduledNotifications();
-
-		log.debug("Fetched {} ongoing competitions for player {}", event.getCompetitions().length, event.getUsername());
 	}
 
 	@Subscribe
 	public void onWomUpcomingPlayerCompetitionsFetched(WomUpcomingPlayerCompetitionsFetched event)
 	{
 		playerCompetitionsUpcoming = Arrays.asList(event.getCompetitions());
+		log.debug("Fetched {} upcoming competitions for player {}", event.getCompetitions().length, event.getUsername());
 		updateInfoboxes();
 		updateScheduledNotifications();
-
-		log.debug("Fetched {} upcoming competitions for player {}", event.getCompetitions().length, event.getUsername());
 	}
 
 	private void updateInfoboxes()
@@ -1025,6 +1024,8 @@ public class WomUtilsPlugin extends Plugin
 		{
 			competitionInfoboxes.add(new CompetitionInfobox(pws, this));
 		}
+		log.debug("Adding infoboxes for {} upcoming and {} ongoing competitions",
+				playerCompetitionsUpcoming.size(), playerCompetitionsOngoing.size());
 
 		for (CompetitionInfobox b: competitionInfoboxes)
 		{
