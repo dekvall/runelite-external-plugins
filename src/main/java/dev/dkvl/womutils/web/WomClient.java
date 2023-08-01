@@ -11,7 +11,7 @@ import dev.dkvl.womutils.beans.GroupMemberAddition;
 import dev.dkvl.womutils.beans.Member;
 import dev.dkvl.womutils.beans.GroupMemberRemoval;
 import dev.dkvl.womutils.beans.PlayerInfo;
-import dev.dkvl.womutils.beans.WomPlayer;
+import dev.dkvl.womutils.beans.WomPlayerUpdate;
 import dev.dkvl.womutils.events.WomOngoingPlayerCompetitionsFetched;
 import dev.dkvl.womutils.events.WomUpcomingPlayerCompetitionsFetched;
 import dev.dkvl.womutils.ui.WomIconHandler;
@@ -408,9 +408,9 @@ public class WomClient
 		sendRequest(request, r -> playerOngoingCompetitionsCallback(username, r));
 	}
 
-	public void updatePlayer(String username)
+	public void updatePlayer(String username, long accountHash)
 	{
-		Request request = createRequest(new Object(), "players", username);
+		Request request = createRequest(new WomPlayerUpdate(accountHash), "players", username);
 		sendRequest(request);
 	}
 
@@ -425,7 +425,7 @@ public class WomClient
 	public CompletableFuture<PlayerInfo> updateAsync(String username)
 	{
 		CompletableFuture<PlayerInfo> future = new CompletableFuture<>();
-		Request request = createRequest(new WomPlayer(username), "players", username);
+		Request request = createRequest(new Object(), "players", username);
 		sendRequest(request, r-> future.complete(parseResponse(r, PlayerInfo.class, true)), future::completeExceptionally);
 		return future;
 	}

@@ -255,12 +255,12 @@ public class WomUtilsPlugin extends Plugin
 	@Getter
 	private int upcomingInfoboxesMaxDays;
 
-	private long lastAccount;
 	private boolean fetchXp;
 	private long lastXp;
 	private boolean visitedLoginScreen = true;
 	private boolean recentlyLoggedIn;
 	private String playerName;
+	private long accountHash;
 
 	private NavigationButton navButton;
 
@@ -850,9 +850,8 @@ public class WomUtilsPlugin extends Plugin
 		GameState state = gameStateChanged.getGameState();
 		if (state == GameState.LOGGED_IN)
 		{
-			if (lastAccount != client.getAccountHash())
+			if (accountHash != client.getAccountHash())
 			{
-				lastAccount = client.getAccountHash();
 				fetchXp = true;
 			}
 
@@ -871,8 +870,7 @@ public class WomUtilsPlugin extends Plugin
 			// Don't submit update unless xp threshold is reached
 			if (Math.abs(totalXp - lastXp) > XP_THRESHOLD || levelupThisSession)
 			{
-				log.debug("Submitting update for {}", local.getName());
-				update(local.getName());
+				updateMostRecentPlayer();
 				lastXp = totalXp;
 				levelupThisSession = false;
 			}
@@ -892,7 +890,8 @@ public class WomUtilsPlugin extends Plugin
 
 		if(visitedLoginScreen && recentlyLoggedIn && local != null)
 		{
-			String playerName = local.getName();
+			playerName = local.getName();
+			accountHash = client.getAccountHash();
 			womClient.fetchOngoingPlayerCompetitions(playerName);
 			womClient.fetchUpcomingPlayerCompetitions(playerName);
 			recentlyLoggedIn = false;
@@ -921,12 +920,18 @@ public class WomUtilsPlugin extends Plugin
 		}
 	}
 
-	private void update(String username)
+	private void updateMostRecentPlayer()
 	{
-		if (!xpUpdaterConfig.wiseoldman())
+		updateMostRecentPlayer(false);
+	}
+
+	private void updateMostRecentPlayer(boolean always)
+	{
+		if (always || !xpUpdaterConfig.wiseoldman())
 		{
+			log.debug("Submitting update for {}", playerName);
 			// Send update requests even if the user has forgotten to enable player updates in the core plugin
-			womClient.updatePlayer(username);
+			womClient.updatePlayer(playerName, accountHash);
 		}
 	}
 
@@ -1045,7 +1050,7 @@ public class WomUtilsPlugin extends Plugin
 			if (!c.hasStarted())
 			{
 				delayedActions.add(new DelayedAction(c.durationLeft().plusSeconds(1), () ->
-					womClient.updatePlayer(playerName)));
+					updateMostRecentPlayer(true)));
 				if (!config.sendCompetitionNotification())
 				{
 					continue;
@@ -1064,7 +1069,7 @@ public class WomUtilsPlugin extends Plugin
 			Competition c = pws.getCompetition();
 			// Send an update when there are 15 minutes left so that there is at least one datapoint in the end
 			delayedActions.add(new DelayedAction(c.durationLeft().minusMinutes(15), () ->
-					womClient.updatePlayer(playerName)));
+					updateMostRecentPlayer(true)));
 			if (!config.sendCompetitionNotification())
 			{
 				continue;
