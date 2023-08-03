@@ -80,6 +80,8 @@ public enum Metric
 	DEFENCE(HiscoreSkill.DEFENCE),
 	@SerializedName("deranged_archaeologist")
 	DERANGED_ARCHAEOLOGIST(HiscoreSkill.DERANGED_ARCHAEOLOGIST),
+	@SerializedName("duke_sucellus")
+	DUKE_SUCELLUS(HiscoreSkill.DUKE_SUCELLUS),
 	@SerializedName("ehb")
 	EHB(null),
 	@SerializedName("ehp")
@@ -172,6 +174,10 @@ public enum Metric
 	THEATRE_OF_BLOOD(HiscoreSkill.THEATRE_OF_BLOOD),
 	@SerializedName("the_corrupted_gauntlet")
 	THE_CORRUPTED_GAUNTLET(HiscoreSkill.THE_CORRUPTED_GAUNTLET),
+	@SerializedName("the_leviathan")
+	THE_LEVIATHAN(HiscoreSkill.THE_LEVIATHAN),
+	@SerializedName("the_whisperer")
+	THE_WHISPERER(HiscoreSkill.THE_WHISPERER),
 	@SerializedName("the_gauntlet")
 	THE_GAUNTLET(HiscoreSkill.THE_GAUNTLET),
 	@SerializedName("thermonuclear_smoke_devil")
@@ -186,6 +192,8 @@ public enum Metric
 	TZKAL_ZUK(HiscoreSkill.TZKAL_ZUK),
 	@SerializedName("tztok_jad")
 	TZTOK_JAD(HiscoreSkill.TZTOK_JAD),
+	@SerializedName("vardorvis")
+	VARDORVIS(HiscoreSkill.VARDORVIS),
 	@SerializedName("venenatis")
 	VENENATIS(HiscoreSkill.VENENATIS),
 	@SerializedName("vetion")

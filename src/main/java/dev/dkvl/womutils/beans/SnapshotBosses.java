@@ -25,6 +25,7 @@ public class SnapshotBosses
     Boss dagannoth_rex;
     Boss dagannoth_supreme;
     Boss deranged_archaeologist;
+    Boss duke_sucellus;
     Boss general_graardor;
     Boss giant_mole;
     Boss grotesque_guardians;
@@ -47,6 +48,8 @@ public class SnapshotBosses
     Boss tempoross;
     Boss the_gauntlet;
     Boss the_corrupted_gauntlet;
+    Boss the_leviathan;
+    Boss the_whisperer;
     Boss theatre_of_blood;
     Boss theatre_of_blood_hard_mode;
     Boss thermonuclear_smoke_devil;
@@ -54,6 +57,7 @@ public class SnapshotBosses
     Boss tombs_of_amascut_expert;
     Boss tzkal_zuk;
     Boss tztok_jad;
+    Boss vardorvis;
     Boss venenatis;
     Boss vetion;
     Boss vorkath;
@@ -103,6 +107,8 @@ public class SnapshotBosses
                 return getDagannoth_supreme();
             case DERANGED_ARCHAEOLOGIST:
                 return getDeranged_archaeologist();
+            case DUKE_SUCELLUS:
+                return getDuke_sucellus();
             case GENERAL_GRAARDOR:
                 return getGeneral_graardor();
             case GIANT_MOLE:
@@ -147,6 +153,10 @@ public class SnapshotBosses
                 return getThe_gauntlet();
             case THE_CORRUPTED_GAUNTLET:
                 return getThe_corrupted_gauntlet();
+            case THE_LEVIATHAN:
+                return getThe_leviathan();
+            case THE_WHISPERER:
+                return getThe_whisperer();
             case THEATRE_OF_BLOOD:
                 return getTheatre_of_blood();
             case THEATRE_OF_BLOOD_HARD_MODE:
@@ -161,6 +171,8 @@ public class SnapshotBosses
                 return getTzkal_zuk();
             case TZTOK_JAD:
                 return getTztok_jad();
+            case VARDORVIS:
+                return getVardorvis();
             case VENENATIS:
                 return getVenenatis();
             case VETION:
