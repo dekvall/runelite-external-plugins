@@ -1,7 +1,6 @@
 package dev.dkvl.womutils.web;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import dev.dkvl.womutils.beans.GroupInfoWithMemberships;
 import dev.dkvl.womutils.beans.NameChangeEntry;
 import dev.dkvl.womutils.beans.ParticipantWithStanding;
@@ -54,9 +53,7 @@ public class WomClient
 	@Inject
 	private OkHttpClient okHttpClient;
 
-	private Gson gson = new GsonBuilder()
-		.setDateFormat(DateFormat.FULL, DateFormat.FULL)
-		.create();
+	private Gson gson;
 
 	@Inject
 	private WomIconHandler iconHandler;
@@ -80,6 +77,14 @@ public class WomClient
 	private static final Color ERROR = new Color(204, 66, 66);
 
 	private static final DecimalFormat NUMBER_FORMAT = new DecimalFormat("#.##");
+
+	@Inject
+	public WomClient(Gson gson)
+	{
+		this.gson = gson.newBuilder()
+				.setDateFormat(DateFormat.FULL, DateFormat.FULL)
+				.create();
+	}
 
 	public void submitNameChanges(NameChangeEntry[] changes)
 	{
