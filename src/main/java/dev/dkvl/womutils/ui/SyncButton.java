@@ -29,6 +29,7 @@ public class SyncButton
     private final Map<String, GroupMembership> groupMembers;
 	private final List<String> ignoredRanks;
 	private final List<String> alwaysIncludedOnSync;
+	private Widget textWidget;
 
 
     public SyncButton(Client client, WomClient womClient, ChatboxPanelManager chatboxPanelManager,
@@ -52,7 +53,7 @@ public class SyncButton
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_EDGE_TOP, 15, 6, 82, 9);
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_EDGE_RIGHT, 97, 15, 9, 5);
         this.createWidgetWithSprite(SpriteID.EQUIPMENT_BUTTON_EDGE_BOTTOM, 15, 20, 82, 9);
-        this.createWidgetWithText();
+        this.textWidget = this.createWidgetWithText();
     }
 
     private void createWidgetWithSprite(int spriteId, int x, int y, int width, int height)
@@ -69,7 +70,7 @@ public class SyncButton
         cornersAndEdges.add(w);
     }
 
-    private void createWidgetWithText()
+    private Widget createWidgetWithText()
     {
         Widget textWidget = this.parent.createChild(-1, WidgetType.TEXT);
         textWidget.setOriginalX(6);
@@ -80,25 +81,18 @@ public class SyncButton
         textWidget.setYPositionMode(WidgetPositionMode.ABSOLUTE_TOP);
         textWidget.setXTextAlignment(WidgetTextAlignment.CENTER);
         textWidget.setYTextAlignment(WidgetTextAlignment.CENTER);
-        textWidget.setText("<col=ffffff>" + "Sync WOM Group" + "</col>");
+        textWidget.setText("<col=9f9f9f>" + "Sync WOM Group" + "</col>");
         textWidget.setFontId(FontID.PLAIN_11);
         textWidget.setTextShadowed(true);
 
         textWidget.setHasListener(true);
         textWidget.setAction(0, "Sync WOM Group");
-        textWidget.setOnOpListener((JavaScriptCallback) e -> {
-            chatboxPanelManager.openTextMenuInput(
-                "Any members not in your clan will be removed" +
-                    "<br>from your WOM group. Proceed?")
-                .option("1. Yes, overwrite WOM group", this::syncMembers)
-				.option("2. No, only add new members", () -> syncMembers(false))
-                .option("3. Cancel", Runnables.doNothing())
-                .build();
-        });
         textWidget.setOnMouseOverListener((JavaScriptCallback) e -> update(true));
         textWidget.setOnMouseLeaveListener((JavaScriptCallback) e -> update(false));
 
         textWidget.revalidate();
+
+		return textWidget;
     }
 
     private void update(boolean hovered)
@@ -155,4 +149,18 @@ public class SyncButton
 
         womClient.syncClanMembers(new ArrayList<>(clanMembers.values()));
     }
+
+	public void setEnabled()
+	{
+		this.textWidget.setText("<col=ffffff>" + "Sync WOM Group" + "</col>");
+		textWidget.setOnOpListener((JavaScriptCallback) e -> {
+			chatboxPanelManager.openTextMenuInput(
+					"Any members not in your clan will be removed" +
+						"<br>from your WOM group. Proceed?")
+				.option("1. Yes, overwrite WOM group", this::syncMembers)
+				.option("2. No, only add new members", () -> syncMembers(false))
+				.option("3. Cancel", Runnables.doNothing())
+				.build();
+		});
+	}
 }
