@@ -26,6 +26,8 @@
 package dekvall.worldhider;
 
 import com.google.inject.Provides;
+
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +60,7 @@ public class WorldHiderPlugin extends Plugin
 	private final static int FLAG_ORIGINAL_X = 44;
 	private final static int VARP_MEMBERSHIP_DAYS = 1780;
 
+	private final static String MENU_ENTRY_HIDDEN = "<col=ff9040>XXX</col>";
 
 	@Inject
 	private Client client;
@@ -257,12 +260,14 @@ public class WorldHiderPlugin extends Plugin
 			}
 		}
 
-		Widget listLabel = client.getWidget(69, 19);
+		Widget worlds = client.getWidget(WidgetInfo.WORLD_SWITCHER_LIST);
 
-		if (listLabel == null)
+		if (worlds == null || worlds.getDynamicChildren() == null)
 		{
 			return;
 		}
+
+		Arrays.stream(worlds.getDynamicChildren()).forEach(w -> w.setName(MENU_ENTRY_HIDDEN));
 
 		Widget worldTooltip = client.getWidget(69, 26);
 		worldTooltip.setHidden(true);
