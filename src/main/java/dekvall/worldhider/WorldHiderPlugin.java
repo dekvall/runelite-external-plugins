@@ -26,7 +26,6 @@
 package dekvall.worldhider;
 
 import com.google.inject.Provides;
-
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.inject.Inject;
@@ -36,16 +35,22 @@ import net.runelite.api.Friend;
 import net.runelite.api.GameState;
 import net.runelite.api.Ignore;
 import net.runelite.api.NameableContainer;
+import net.runelite.api.SpriteID;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.JagexColors;
+import net.runelite.client.util.ColorUtil;
+
+import static net.runelite.api.widgets.WidgetID.WORLD_SWITCHER_GROUP_ID;
 
 @Slf4j
 @PluginDescriptor(
@@ -53,15 +58,23 @@ import net.runelite.client.plugins.PluginDescriptor;
 )
 public class WorldHiderPlugin extends Plugin
 {
-	private final static int WORLD_HOPPER_CURRENT = 7271;
-	private final static int WORLD_HOPPER_BUILD = 892;
-	private final static int DRAW_FRIEND_ENTRIES = 125;
-	private final static int BUILD_CC = 1658;
-	private final static int MISSING_FLAG_SPRITE = 1132;
-	private final static int FLAG_ORIGINAL_X = 44;
+	private final static int SCRIPT_FRIEND_UPDATE = 125;
+	private final static int SCRIPT_WORLD_SWITCHER_DRAW = 892;
+	private final static int SCRIPT_WORLD_SWITCHER_TITLE = 7271;
+
+	private final static int SCRIPT_BUILD_CC = 1658;
 	private final static int VARP_MEMBERSHIP_DAYS = 1780;
 
-	private final static String MENU_ENTRY_HIDDEN = "<col=ff9040>XXX</col>";
+	private final static int[] SPRITE_FLAGS = {
+		SpriteID.WORLD_SWITCHER_REGION_USA,
+		SpriteID.WORLD_SWITCHER_REGION_UK,
+		SpriteID.WORLD_SWITCHER_REGION_AUSTRALIA,
+		SpriteID.WORLD_SWITCHER_REGION_GERMANY,
+		4936, // US WEST
+		4937, // US EAST
+	};
+
+	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + "</col>";
 
 	@Inject
 	private Client client;
@@ -75,13 +88,13 @@ public class WorldHiderPlugin extends Plugin
 	private int randomWorld = getRandomWorld();
 
 	@Override
-	protected void startUp() throws Exception
-    {
+	protected void startUp()
+	{
 		log.info("World Hider started!");
-    }
+	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
 		log.info("World Hider stopped!");
 	}
@@ -147,16 +160,17 @@ public class WorldHiderPlugin extends Plugin
 	{
 		switch (event.getScriptId())
 		{
-			case DRAW_FRIEND_ENTRIES:
+			case SCRIPT_FRIEND_UPDATE:
 				clientThread.invokeLater(this::recolorFriends);
 				break;
-			case WORLD_HOPPER_BUILD:
+			case SCRIPT_WORLD_SWITCHER_DRAW:
 				clientThread.invoke(this::hideHopperWorlds);
+				clientThread.invoke(this::hideConfigurationPanelWorlds);
 				// Fall through
-			case WORLD_HOPPER_CURRENT:
+			case SCRIPT_WORLD_SWITCHER_TITLE:
 				clientThread.invoke(this::killWorldHopper);
 				break;
-			case BUILD_CC:
+			case SCRIPT_BUILD_CC:
 				clientThread.invoke(this::hideClanWorlds);
 				break;
 		}
@@ -188,17 +202,27 @@ public class WorldHiderPlugin extends Plugin
 
 	private void killWorldHopper()
 	{
-		Widget worldHopper = client.getWidget(69, 3);
+		Widget worldHopper = client.getWidget(WORLD_SWITCHER_GROUP_ID, 3);
 
 		if (worldHopper == null)
 		{
 			return;
 		}
 
-		worldHopper.setText("Current world - " + (config.randomWorld() ? randomWorld : "XXX"));
+		Widget configPanel = client.getWidget(821, 0);
+		String title;
+
+		if (configPanel == null || configPanel.isHidden())
+		{
+			title = "Current world - " + (config.randomWorld() ? randomWorld : "XXX");
+		}
+		else
+		{
+			title = ColorUtil.wrapWithColorTag("Configuring...", ColorUtil.fromHex("9F9F9F"));
+		}
 		worldHopper.setOnVarTransmitListener((Object[]) null);
 
-		Widget worldList = client.getWidget(69, 18);
+		Widget worldList = client.getWidget(WORLD_SWITCHER_GROUP_ID, 18);
 
 		if (worldList == null)
 		{
@@ -245,54 +269,92 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		Widget list = client.getWidget(69, 19);
-
-		if (list == null)
-		{
-			return;
-		}
-
-		Widget[] entries = list.getDynamicChildren();
-
-		for (Widget entry : entries)
-		{
-			entry.setText("XXX");
-			if ((entry.getOriginalX() == FLAG_ORIGINAL_X) && config.hideFlags())
-			{
-				entry.setSpriteId(MISSING_FLAG_SPRITE);
-			}
-		}
+		Widget list = client.getWidget(WORLD_SWITCHER_GROUP_ID, 19);
+		hideWorldInfo(list);
 
 		Widget worlds = client.getWidget(WidgetInfo.WORLD_SWITCHER_LIST);
+		hideWorldMenuEntries(worlds);
 
-		if (worlds == null || worlds.getDynamicChildren() == null)
+		Widget scrollbar = client.getWidget(WORLD_SWITCHER_GROUP_ID, 20);
+		hideScrollbar(scrollbar);
+
+		Widget worldTooltip = client.getWidget(WORLD_SWITCHER_GROUP_ID, 26);
+
+		if (worldTooltip != null)
+		{
+			worldTooltip.setHidden(true);
+		}
+	}
+
+	// This is for the interface that opens when
+	// opening the world switcher settings
+	private void hideConfigurationPanelWorlds()
+	{
+		if (!config.hideConfigurationPanel())
 		{
 			return;
 		}
 
-		Arrays.stream(worlds.getDynamicChildren()).forEach(w -> w.setName(MENU_ENTRY_HIDDEN));
+		Widget list = client.getWidget(821, 21);
+		hideWorldInfo(list);
 
-		Widget worldTooltip = client.getWidget(69, 26);
-		worldTooltip.setHidden(true);
+		Widget scrollbar = client.getWidget(821, 22);
+		hideScrollbar(scrollbar);
 
-		if (config.hideScrollbar())
+		Widget worlds = client.getWidget(821, 20);
+		hideWorldMenuEntries(worlds);
+	}
+
+	private void hideWorldMenuEntries(Widget worldList)
+	{
+		if (worldList == null || worldList.getDynamicChildren() == null)
 		{
-			Widget scrollbar = client.getWidget(69, 20);
+			return;
+		}
 
-			if (scrollbar == null)
+		Arrays.stream(worldList.getDynamicChildren()).forEach(w -> w.setName(MENU_ENTRY_HIDDEN));
+	}
+
+	private void hideWorldInfo(Widget worldList)
+	{
+		if (worldList == null)
+		{
+			return;
+		}
+
+		Widget[] world = worldList.getDynamicChildren();
+
+		for (Widget widget : world)
+		{
+			if (widget.getType() == WidgetType.TEXT)
 			{
-				return;
+				widget.setText("XXX");
 			}
-
-			Widget[] scrollEntries = scrollbar.getDynamicChildren();
-
-			for (Widget entry : scrollEntries)
+			else if (widget.getType() == WidgetType.GRAPHIC && Arrays.stream(SPRITE_FLAGS).anyMatch(s -> s == widget.getSpriteId()) && config.hideFlags())
 			{
-				entry.setSpriteId(-1);
+				widget.setSpriteId(SpriteID.WORLD_SWITCHER_REGION_NONE);
 			}
 		}
 	}
 
+	private void hideScrollbar(Widget scrollbar)
+	{
+		if (scrollbar == null || !config.hideScrollbar())
+		{
+			return;
+		}
+
+		Widget[] scrollbarComponents = scrollbar.getDynamicChildren();
+
+		// This widget is expected to have 6 children,
+		// check anyway to prevent potential ArrayIndexOutOfBoundsException
+		if (scrollbarComponents.length == 6)
+		{
+			scrollbarComponents[1].setSpriteId(-1);   // Middle of the scroll thumb
+			scrollbarComponents[2].setSpriteId(-1);   // Top of the scroll thumb
+			scrollbarComponents[3].setSpriteId(-1);   // Bottom of the scroll thumb
+		}
+	}
 
 	private int getRandomWorld()
 	{
