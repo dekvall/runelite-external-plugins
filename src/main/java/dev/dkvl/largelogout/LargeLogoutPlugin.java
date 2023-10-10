@@ -30,7 +30,7 @@ public class LargeLogoutPlugin extends Plugin
 	private static final int ORIG_LOGOUT_BUTTON_HEIGHT = 36;
 	private static final int WIDGET_SPACING = 10;
 
-	private static final int SCRIPT_LOGOUT_LAYOUT_UPDATE = 2176;
+	private static final int SCRIPT_LOGOUT_LAYOUT_UPDATE = 2243;
 
 
 	private static final int WIDGET_LOGOUT_LAYOUT = WidgetInfo.PACK(182, 0);
