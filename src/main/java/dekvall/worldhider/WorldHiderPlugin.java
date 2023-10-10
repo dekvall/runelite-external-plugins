@@ -53,6 +53,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 )
 public class WorldHiderPlugin extends Plugin
 {
+	private final static int WORLD_HOPPER_CURRENT = 7271;
 	private final static int WORLD_HOPPER_BUILD = 892;
 	private final static int DRAW_FRIEND_ENTRIES = 125;
 	private final static int BUILD_CC = 1658;
@@ -150,8 +151,10 @@ public class WorldHiderPlugin extends Plugin
 				clientThread.invokeLater(this::recolorFriends);
 				break;
 			case WORLD_HOPPER_BUILD:
-				clientThread.invoke(this::killWorldHopper);
 				clientThread.invoke(this::hideHopperWorlds);
+				// Fall through
+			case WORLD_HOPPER_CURRENT:
+				clientThread.invoke(this::killWorldHopper);
 				break;
 			case BUILD_CC:
 				clientThread.invoke(this::hideClanWorlds);
