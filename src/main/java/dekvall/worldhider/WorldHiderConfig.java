@@ -81,4 +81,14 @@ public interface WorldHiderConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "hideListConfig",
+		name = "Hide World Panel",
+		description = "Hides the worlds in the configuring panel"
+	)
+	default boolean hideConfigurationPanel()
+	{
+		return false;
+	}
 }
