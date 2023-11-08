@@ -91,4 +91,14 @@ public interface WorldHiderConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "hideFavorites",
+		name = "Hide Favorites",
+		description = "Hides Favorite worlds"
+	)
+	default boolean hideFavorites()
+	{
+		return false;
+	}
 }
