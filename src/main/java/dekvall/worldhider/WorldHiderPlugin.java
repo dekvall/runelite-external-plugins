@@ -39,8 +39,8 @@ import net.runelite.api.SpriteID;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -50,7 +50,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.JagexColors;
 import net.runelite.client.util.ColorUtil;
 
-import static net.runelite.api.widgets.WidgetID.WORLD_SWITCHER_GROUP_ID;
+import static net.runelite.api.widgets.InterfaceID.WORLD_SWITCHER;
 
 @Slf4j
 @PluginDescriptor(
@@ -202,7 +202,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void killWorldHopper()
 	{
-		Widget worldHopper = client.getWidget(WORLD_SWITCHER_GROUP_ID, 3);
+		Widget worldHopper = client.getWidget(WORLD_SWITCHER, 3);
 
 		if (worldHopper == null)
 		{
@@ -222,7 +222,7 @@ public class WorldHiderPlugin extends Plugin
 		}
 		worldHopper.setOnVarTransmitListener((Object[]) null);
 
-		Widget worldList = client.getWidget(WORLD_SWITCHER_GROUP_ID, 18);
+		Widget worldList = client.getWidget(WORLD_SWITCHER, 18);
 
 		if (worldList == null)
 		{
@@ -240,7 +240,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideClanWorlds()
 	{
-		Widget clan = client.getWidget(WidgetInfo.FRIENDS_CHAT_LIST);
+		Widget clan = client.getWidget(ComponentID.FRIENDS_CHAT_LIST);
 
 		if (clan == null)
 		{
@@ -269,16 +269,16 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		Widget list = client.getWidget(WORLD_SWITCHER_GROUP_ID, 19);
+		Widget list = client.getWidget(WORLD_SWITCHER, 19);
 		hideWorldInfo(list);
 
-		Widget worlds = client.getWidget(WidgetInfo.WORLD_SWITCHER_LIST);
+		Widget worlds = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
 		hideWorldMenuEntries(worlds);
 
-		Widget scrollbar = client.getWidget(WORLD_SWITCHER_GROUP_ID, 20);
+		Widget scrollbar = client.getWidget(WORLD_SWITCHER, 20);
 		hideScrollbar(scrollbar);
 
-		Widget worldTooltip = client.getWidget(WORLD_SWITCHER_GROUP_ID, 26);
+		Widget worldTooltip = client.getWidget(WORLD_SWITCHER, 26);
 
 		if (worldTooltip != null)
 		{
@@ -363,7 +363,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void setFriendsListTitle(final String title)
 	{
-		Widget friendListTitleWidget = client.getWidget(WidgetInfo.FRIEND_CHAT_TITLE);
+		Widget friendListTitleWidget = client.getWidget(ComponentID.FRIEND_LIST_TITLE);
 		if (friendListTitleWidget != null)
 		{
 			friendListTitleWidget.setText(title);
@@ -372,7 +372,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void setIgnoreListTitle(final String title)
 	{
-		Widget ignoreTitleWidget = client.getWidget(WidgetInfo.IGNORE_TITLE);
+		Widget ignoreTitleWidget = client.getWidget(ComponentID.IGNORE_LIST_TITLE);
 		if (ignoreTitleWidget != null)
 		{
 			ignoreTitleWidget.setText(title);
