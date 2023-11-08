@@ -276,6 +276,8 @@ public class WorldHiderPlugin extends Plugin
 
 		Widget scrollbar = client.getWidget(WORLD_SWITCHER, 20);
 		hideScrollbar(scrollbar);
+		Widget bottomContainer = client.getWidget(WORLD_SWITCHER, 21);
+		hideFavorites(bottomContainer);
 
 		Widget worldTooltip = client.getWidget(WORLD_SWITCHER, 26);
 
@@ -302,6 +304,8 @@ public class WorldHiderPlugin extends Plugin
 
 		Widget scrollbar = client.getWidget(821, 22);
 		hideScrollbar(scrollbar);
+		Widget favorites = client.getWidget(821, 23);
+		hideFavorites(favorites);
 	}
 
 	private void hideWorldMenuEntries(Widget worldList, boolean hidden)
@@ -369,6 +373,20 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
+	private void hideFavorites(Widget widget)
+	{
+		if (widget == null || !config.hideFavorites())
+		{
+			return;
+		}
+
+		Widget[] favorites = widget.getStaticChildren();
+
+		for (Widget world : favorites)
+		{
+			hideWorldInfo(world);
+		}
+	}
 	private int getRandomWorld()
 	{
 		return ThreadLocalRandom.current().nextInt(301, 500);
