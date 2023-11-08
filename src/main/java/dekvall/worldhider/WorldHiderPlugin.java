@@ -47,6 +47,7 @@ import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.JagexColors;
@@ -61,8 +62,11 @@ import static net.runelite.api.widgets.InterfaceID.WORLD_SWITCHER;
 public class WorldHiderPlugin extends Plugin
 {
 	private final static int SCRIPT_FRIEND_UPDATE = 125;
+	private final static int SCRIPT_GROUPING_REBUILD = 435;
 	private final static int SCRIPT_WORLD_SWITCHER_DRAW = 892;
 	private final static int SCRIPT_WORLD_SWITCHER_TITLE = 7271;
+
+	private final static int COMPONENT_WORLD_SWITCHER_PANEL = 821;
 
 	private final static int[] SPRITE_FLAGS = {
 		SpriteID.WORLD_SWITCHER_REGION_USA,
@@ -74,6 +78,7 @@ public class WorldHiderPlugin extends Plugin
 	};
 
 	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + ColorUtil.CLOSING_COLOR_TAG;
+	private static final String WORLD_REGEX = "^W\\d{1,3}$";
 
 	@Inject
 	private Client client;
@@ -86,22 +91,62 @@ public class WorldHiderPlugin extends Plugin
 
 	private int randomWorld = getRandomWorld();
 
+	private Widget worldSwitcher;
+	private Widget worldSwitcherScrollbar;
+	private Widget worldSwitcherPanel;
+	private Widget worldSwitcherPanelScrollbar;
+
 	@Override
 	protected void startUp()
 	{
 		log.info("World Hider started!");
+
+		if (client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		clientThread.invokeLater(() ->
+		{
+			updateInterface(worldSwitcher);
+			updateInterface(worldSwitcherPanel);
+		});
 	}
 
 	@Override
 	protected void shutDown()
 	{
 		log.info("World Hider stopped!");
+
+		clientThread.invokeLater(() ->
+		{
+			updateInterface(worldSwitcher);
+			updateInterface(worldSwitcherPanel);
+			resetWorldSwitcherTitle();
+		});
+		hideScrollbar(false);
 	}
 
 	@Provides
 	WorldHiderConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(WorldHiderConfig.class);
+	}
+
+	@Subscribe
+	private void onConfigChanged(ConfigChanged event)
+	{
+		if (!event.getKey().equals("worldhider") && client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		clientThread.invokeLater(() ->
+		{
+			updateInterface(worldSwitcher);
+			updateInterface(worldSwitcherPanel);
+		});
+		hideScrollbar(config.hideScrollbar());
 	}
 
 	@Subscribe
@@ -160,24 +205,27 @@ public class WorldHiderPlugin extends Plugin
 		switch (event.getScriptId())
 		{
 			case SCRIPT_FRIEND_UPDATE:
-				clientThread.invokeLater(this::recolorFriends);
+				recolorFriends();
 				break;
 			case SCRIPT_WORLD_SWITCHER_DRAW:
-				clientThread.invoke(this::hideHopperWorlds);
-				clientThread.invoke(this::hideConfigurationPanelWorlds);
+				getWidgets();
+				hideHopperWorlds();
+				hideConfigurationPanelWorlds();
 				// Fall through
 			case SCRIPT_WORLD_SWITCHER_TITLE:
-				clientThread.invoke(this::killWorldHopper);
+				killWorldHopper();
 				break;
+			case SCRIPT_GROUPING_REBUILD:
+			case ScriptID.CLAN_SIDEPANEL_DRAW:
 			case ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD:
-				clientThread.invoke(this::hideClanWorlds);
+				hideCommunityLists();
 				break;
 		}
 	}
 
 	private void recolorFriends()
 	{
-		Widget friendsList = client.getWidget(429, 11);
+		Widget friendsList = client.getWidget(ComponentID.FRIEND_LIST_TITLE);
 
 		if (friendsList == null)
 		{
@@ -208,7 +256,7 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		Widget configPanel = client.getWidget(821, 0);
+		Widget configPanel = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 0);
 		String title;
 
 		if (configPanel == null || configPanel.isHidden())
@@ -237,26 +285,44 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideClanWorlds()
+	private void hideCommunityLists()
 	{
-		Widget clan = client.getWidget(ComponentID.FRIENDS_CHAT_LIST);
+		// Default group channel for game activities
+		Widget grouping = client.getWidget(76, 16);
+		hideCommunityWorlds(grouping);
 
-		if (clan == null)
+		// Guest clan chat channel
+		Widget guestChannel = client.getWidget(ComponentID.CLAN_GUEST_MEMBERS);
+		hideCommunityWorlds(guestChannel);
+
+		// Clan chat channel
+		Widget clanChannel = client.getWidget(ComponentID.CLAN_MEMBERS);
+		hideCommunityWorlds(clanChannel);
+
+		// Friends chat channel
+		Widget chatChannel = client.getWidget(ComponentID.FRIENDS_CHAT_LIST);
+		hideCommunityWorlds(chatChannel);
+	}
+
+	private void hideCommunityWorlds(Widget widget)
+	{
+		if (widget == null)
 		{
 			return;
 		}
 
-		Widget[] entries = clan.getDynamicChildren();
+		Widget[] entries = widget.getDynamicChildren();
+		final int COLOR = widget.getId() == ComponentID.FRIENDS_CHAT_LIST ? 0xFFFF64 : 0xFFFF00;
 
 		for (Widget entry : entries)
 		{
-			if (entry.getText().startsWith("W"))
+			if (entry.getText().matches(WORLD_REGEX) && entry.getType() == WidgetType.TEXT)
 			{
 				if (config.massHide())
 				{
 					entry.setText("WXXX");
 				}
-				entry.setTextColor(0xFFFF64);
+				entry.setTextColor(COLOR);
 			}
 		}
 	}
@@ -274,8 +340,9 @@ public class WorldHiderPlugin extends Plugin
 		Widget list = client.getWidget(WORLD_SWITCHER, 19);
 		hideWorldInfo(list);
 
-		Widget scrollbar = client.getWidget(WORLD_SWITCHER, 20);
-		hideScrollbar(scrollbar);
+		worldSwitcherScrollbar = client.getWidget(WORLD_SWITCHER, 20);
+		hideScrollbar(config.hideScrollbar());
+
 		Widget bottomContainer = client.getWidget(WORLD_SWITCHER, 21);
 		hideFavorites(bottomContainer);
 
@@ -287,11 +354,9 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	// This is for the interface that opens when
-	// opening the world switcher settings
 	private void hideConfigurationPanelWorlds()
 	{
-		Widget worlds = client.getWidget(821, 20);
+		Widget worlds = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 20);
 		hideWorldMenuEntries(worlds, config.hideConfigurationPanel());
 
 		if (!config.hideConfigurationPanel())
@@ -299,12 +364,13 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		Widget list = client.getWidget(821, 21);
+		Widget list = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 21);
 		hideWorldInfo(list);
 
-		Widget scrollbar = client.getWidget(821, 22);
-		hideScrollbar(scrollbar);
-		Widget favorites = client.getWidget(821, 23);
+		worldSwitcherPanelScrollbar = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 22);
+		hideScrollbar(config.hideScrollbar());
+
+		Widget favorites = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 23);
 		hideFavorites(favorites);
 	}
 
@@ -354,22 +420,28 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideScrollbar(Widget scrollbar)
+	private void hideScrollbar(boolean hidden)
 	{
-		if (scrollbar == null || !config.hideScrollbar())
+		hideScrollbar(worldSwitcherScrollbar, (hidden && config.hideList()));
+		hideScrollbar(worldSwitcherPanelScrollbar, (hidden && config.hideConfigurationPanel()));
+	}
+
+	private void hideScrollbar(Widget widget, boolean hidden)
+	{
+		if (widget == null)
 		{
 			return;
 		}
 
-		Widget[] scrollbarComponents = scrollbar.getDynamicChildren();
+		Widget[] scrollbarComponents = widget.getDynamicChildren();
 
 		// This widget is expected to have 6 children,
 		// check anyway to prevent potential ArrayIndexOutOfBoundsException
 		if (scrollbarComponents.length == 6)
 		{
-			scrollbarComponents[1].setSpriteId(-1);   // Middle of the scroll thumb
-			scrollbarComponents[2].setSpriteId(-1);   // Top of the scroll thumb
-			scrollbarComponents[3].setSpriteId(-1);   // Bottom of the scroll thumb
+			scrollbarComponents[1].setSpriteId(hidden ? -1 : SpriteID.SCROLLBAR_THUMB_MIDDLE);  // Middle of the scroll thumb
+			scrollbarComponents[2].setSpriteId(hidden ? -1 : SpriteID.SCROLLBAR_THUMB_TOP);     // Top of the scroll thumb
+			scrollbarComponents[3].setSpriteId(hidden ? -1 : SpriteID.SCROLLBAR_THUMB_BOTTOM);  // Bottom of the scroll thumb
 		}
 	}
 
@@ -387,6 +459,44 @@ public class WorldHiderPlugin extends Plugin
 			hideWorldInfo(world);
 		}
 	}
+
+	private void updateInterface(Widget component)
+	{
+		if (component == null || component.isHidden())
+		{
+			return;
+		}
+
+		clientThread.invokeLater(() ->
+		{
+			Object[] args = component.getOnVarTransmitListener();
+			client.runScript(args);
+		});
+	}
+
+	private void resetWorldSwitcherTitle()
+	{
+		Widget worldSwitcherTitle = client.getWidget(WORLD_SWITCHER, 3);
+
+		if (worldSwitcherTitle == null)
+		{
+			return;
+		}
+
+		// Hardcoded because the ops are set to null while the plugin is enabled
+		// So running the script with args pulled from the component would equal to nop
+		final int SCRIPT_UPDATE_CURRENT_WORLD_TITLE = 7270;
+		final int COMPONENT = 4521987;
+
+		client.runScript(SCRIPT_UPDATE_CURRENT_WORLD_TITLE, COMPONENT);
+	}
+
+	private void getWidgets()
+	{
+		worldSwitcher = client.getWidget(WORLD_SWITCHER, 0);
+		worldSwitcherPanel = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 1);
+	}
+
 	private int getRandomWorld()
 	{
 		return ThreadLocalRandom.current().nextInt(301, 500);
