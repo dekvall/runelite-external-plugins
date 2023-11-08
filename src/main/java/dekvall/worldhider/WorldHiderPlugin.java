@@ -35,7 +35,9 @@ import net.runelite.api.Friend;
 import net.runelite.api.GameState;
 import net.runelite.api.Ignore;
 import net.runelite.api.NameableContainer;
+import net.runelite.api.ScriptID;
 import net.runelite.api.SpriteID;
+import net.runelite.api.VarPlayer;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
@@ -62,9 +64,6 @@ public class WorldHiderPlugin extends Plugin
 	private final static int SCRIPT_WORLD_SWITCHER_DRAW = 892;
 	private final static int SCRIPT_WORLD_SWITCHER_TITLE = 7271;
 
-	private final static int SCRIPT_BUILD_CC = 1658;
-	private final static int VARP_MEMBERSHIP_DAYS = 1780;
-
 	private final static int[] SPRITE_FLAGS = {
 		SpriteID.WORLD_SWITCHER_REGION_USA,
 		SpriteID.WORLD_SWITCHER_REGION_UK,
@@ -74,7 +73,7 @@ public class WorldHiderPlugin extends Plugin
 		4937, // US EAST
 	};
 
-	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + "</col>";
+	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + ColorUtil.CLOSING_COLOR_TAG;
 
 	@Inject
 	private Client client;
@@ -118,7 +117,7 @@ public class WorldHiderPlugin extends Plugin
 	public void onClientTick(ClientTick tick)
 	{
 		// The friends list plugin interferes with this, so i run it a lot
-		final boolean isMember = client.getVarpValue(VARP_MEMBERSHIP_DAYS) > 0;
+		final boolean isMember = client.getVarpValue(VarPlayer.MEMBERSHIP_DAYS) > 0;
 
 		final NameableContainer<Friend> friendContainer = client.getFriendContainer();
 		final int friendCount = friendContainer.getCount();
@@ -170,7 +169,7 @@ public class WorldHiderPlugin extends Plugin
 			case SCRIPT_WORLD_SWITCHER_TITLE:
 				clientThread.invoke(this::killWorldHopper);
 				break;
-			case SCRIPT_BUILD_CC:
+			case ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD:
 				clientThread.invoke(this::hideClanWorlds);
 				break;
 		}
@@ -264,6 +263,9 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideHopperWorlds()
 	{
+		Widget worlds = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
+		hideWorldMenuEntries(worlds, config.hideList());
+
 		if (!config.hideList())
 		{
 			return;
@@ -271,9 +273,6 @@ public class WorldHiderPlugin extends Plugin
 
 		Widget list = client.getWidget(WORLD_SWITCHER, 19);
 		hideWorldInfo(list);
-
-		Widget worlds = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
-		hideWorldMenuEntries(worlds);
 
 		Widget scrollbar = client.getWidget(WORLD_SWITCHER, 20);
 		hideScrollbar(scrollbar);
@@ -290,6 +289,9 @@ public class WorldHiderPlugin extends Plugin
 	// opening the world switcher settings
 	private void hideConfigurationPanelWorlds()
 	{
+		Widget worlds = client.getWidget(821, 20);
+		hideWorldMenuEntries(worlds, config.hideConfigurationPanel());
+
 		if (!config.hideConfigurationPanel())
 		{
 			return;
@@ -300,19 +302,28 @@ public class WorldHiderPlugin extends Plugin
 
 		Widget scrollbar = client.getWidget(821, 22);
 		hideScrollbar(scrollbar);
-
-		Widget worlds = client.getWidget(821, 20);
-		hideWorldMenuEntries(worlds);
 	}
 
-	private void hideWorldMenuEntries(Widget worldList)
+	private void hideWorldMenuEntries(Widget worldList, boolean hidden)
 	{
 		if (worldList == null || worldList.getDynamicChildren() == null)
 		{
 			return;
 		}
 
-		Arrays.stream(worldList.getDynamicChildren()).forEach(w -> w.setName(MENU_ENTRY_HIDDEN));
+		Arrays.stream(worldList.getDynamicChildren()).forEach(w ->
+		{
+			if (hidden)
+			{
+				w.setName(MENU_ENTRY_HIDDEN);
+			}
+			else
+			{
+				int world = Arrays.asList(worldList.getDynamicChildren()).indexOf(w);
+				String menuEntry = JagexColors.MENU_TARGET_TAG + world + ColorUtil.CLOSING_COLOR_TAG;
+				w.setName(menuEntry);
+			}
+		});
 	}
 
 	private void hideWorldInfo(Widget worldList)
@@ -330,7 +341,9 @@ public class WorldHiderPlugin extends Plugin
 			{
 				widget.setText("XXX");
 			}
-			else if (widget.getType() == WidgetType.GRAPHIC && Arrays.stream(SPRITE_FLAGS).anyMatch(s -> s == widget.getSpriteId()) && config.hideFlags())
+			else if (config.hideFlags()
+				&& widget.getType() == WidgetType.GRAPHIC
+				&& Arrays.stream(SPRITE_FLAGS).anyMatch(s -> s == widget.getSpriteId()))
 			{
 				widget.setSpriteId(SpriteID.WORLD_SWITCHER_REGION_NONE);
 			}
