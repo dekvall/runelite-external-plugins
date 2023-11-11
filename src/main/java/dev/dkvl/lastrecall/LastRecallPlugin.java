@@ -137,7 +137,6 @@ public class LastRecallPlugin extends Plugin
 			final String message = node.getValue();
 			String newMessage = message.replace(region, namedRegion.getName());
 			node.setValue(newMessage);
-			chatMessageManager.update(node);
 			client.refreshChat();
 		}
 	}
