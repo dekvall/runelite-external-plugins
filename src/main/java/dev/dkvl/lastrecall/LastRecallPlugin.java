@@ -34,7 +34,7 @@ public class LastRecallPlugin extends Plugin
 	private static final Joiner pipe = Joiner.on("|");
 	private static final List<String> REGIONS = Stream.of(RegionShield.values()).map(RegionShield::getRegion).collect(Collectors.toList());
 	private static final Pattern LAST_RECALL_STORE_PATTERN = Pattern.compile("Your Crystal of memories stores a memory of your last teleport from <col=ff0000>(" + pipe.join(REGIONS) + ")</col>.");
-	private static final Pattern LAST_RECALL_MEMORY_PATTERN = Pattern.compile("You Sigil of Last Recall contains a memory of teleporting from (" + pipe.join(REGIONS) +").");
+	private static final Pattern LAST_RECALL_MEMORY_PATTERN = Pattern.compile("You have a memory of teleporting from (" + pipe.join(REGIONS) +") stored in your Crystal of memories.");
 
 	private static final String LAST_RECALL_FORGET_MESSAGE = "You rub the Crystal of memories and it brings you back to a place you remember.";
 	private static final String LAST_RECALL_FORGOTTEN_MESSAGE = "You don't remember teleporting anywhere recently, try teleporting somewhere to store a new memory.";
