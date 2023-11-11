@@ -6,8 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.api.widgets.WidgetPositionMode;
 import net.runelite.api.widgets.WidgetSizeMode;
 import net.runelite.client.callback.ClientThread;
@@ -33,12 +33,12 @@ public class LargeLogoutPlugin extends Plugin
 	private static final int SCRIPT_LOGOUT_LAYOUT_UPDATE = 2243;
 
 
-	private static final int WIDGET_LOGOUT_LAYOUT = WidgetInfo.PACK(182, 0);
-	private static final int WIDGET_BUTTON_PANE = WidgetInfo.PACK(182, 1);
-	private static final int WIDGET_INFO_TEXT = WidgetInfo.PACK(182, 2);
-	private static final int WIDGET_SWITCH_BUTTON = WidgetInfo.PACK(182, 3);
-	private static final int WIDGET_LOGOUT_BUTTON = WidgetInfo.PACK(182, 8);
-	private static final int WIDGET_REVIEW_PANE = WidgetInfo.PACK(182, 13);
+	private static final int WIDGET_LOGOUT_LAYOUT = PACK(InterfaceID.LOGOUT_PANEL, 0);
+	private static final int WIDGET_BUTTON_PANE = PACK(InterfaceID.LOGOUT_PANEL, 1);
+	private static final int WIDGET_INFO_TEXT = PACK(InterfaceID.LOGOUT_PANEL, 2);
+	private static final int WIDGET_SWITCH_BUTTON = PACK(InterfaceID.LOGOUT_PANEL, 3);
+	private static final int WIDGET_LOGOUT_BUTTON = PACK(InterfaceID.LOGOUT_PANEL, 8);
+	private static final int WIDGET_REVIEW_PANE = PACK(InterfaceID.LOGOUT_PANEL, 13);
 
 	@Inject
 	private Client client;
@@ -180,6 +180,11 @@ public class LargeLogoutPlugin extends Plugin
 			.setOriginalWidth(width)
 			.setSpriteTiling(false)
 			.revalidate();
+	}
+
+	private static int PACK(int groupId, int childId)
+	{
+		return groupId << 16 | childId;
 	}
 
 	@Provides
