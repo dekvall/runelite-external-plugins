@@ -17,8 +17,8 @@ class LastRecallWorldMapPoint extends WorldMapPoint
 	{
 		super(worldPoint, null);
 
-		image = ImageUtil.getResourceStreamFromClass(getClass(), "map-icon.png");
-		arrowIcon = ImageUtil.getResourceStreamFromClass(getClass(), "arrow-icon.png");
+		image = ImageUtil.loadImageResource(getClass(), "map-icon.png");
+		arrowIcon = ImageUtil.loadImageResource(getClass(), "arrow-icon.png");
 		point = new Point(arrowIcon.getWidth() / 2, arrowIcon.getHeight());
 		name = NamedRegion.fromWorldPoint(worldPoint).getName();
 

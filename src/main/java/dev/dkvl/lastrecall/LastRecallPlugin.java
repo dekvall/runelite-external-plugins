@@ -1,7 +1,6 @@
 package dev.dkvl.lastrecall;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Provides;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -21,7 +20,6 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 
@@ -59,7 +57,7 @@ public class LastRecallPlugin extends Plugin
 	private MemoryOverlay memoryOverlay;
 
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
 		log.info("Last Recall started!");
 		WorldPoint recallPoint = config.location();
@@ -68,7 +66,7 @@ public class LastRecallPlugin extends Plugin
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
 		worldMapPointManager.removeIf(LastRecallWorldMapPoint.class::isInstance);
 		overlayManager.remove(memoryOverlay);
