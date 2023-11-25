@@ -267,6 +267,8 @@ public class WorldHiderPlugin extends Plugin
 		{
 			title = ColorUtil.wrapWithColorTag("Configuring...", ColorUtil.fromHex("9F9F9F"));
 		}
+
+		worldHopper.setText(title);
 		worldHopper.setOnVarTransmitListener((Object[]) null);
 
 		Widget worldList = client.getWidget(WORLD_SWITCHER, 18);
