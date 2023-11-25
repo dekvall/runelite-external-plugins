@@ -125,6 +125,7 @@ public class WorldHiderPlugin extends Plugin
 			resetWorldSwitcherTitle();
 		});
 		hideScrollbar(false);
+		hideToolTip(false);
 	}
 
 	@Provides
@@ -348,11 +349,16 @@ public class WorldHiderPlugin extends Plugin
 		Widget bottomContainer = client.getWidget(WORLD_SWITCHER, 21);
 		hideFavorites(bottomContainer);
 
+		hideToolTip(true);
+	}
+
+	private void hideToolTip(boolean hidden)
+	{
 		Widget worldTooltip = client.getWidget(WORLD_SWITCHER, 26);
 
 		if (worldTooltip != null)
 		{
-			worldTooltip.setHidden(true);
+			worldTooltip.setHidden(hidden);
 		}
 	}
 
