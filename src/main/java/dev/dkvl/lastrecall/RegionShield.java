@@ -17,7 +17,8 @@ enum RegionShield
 	DESERT("Kharidian Desert", 2734),
 	MORYTANIA("Morytania", 2735),
 	TIRANNWN("Tirannwn", 2739),
-	WILDERNESS("Wilderness", 2736);
+	WILDERNESS("Wilderness", 2736),
+	KOUREND("Great Kourend and Kebos Lowlands", 5468);
 
 	private static Map<String, Integer> SHIELDS;
 
