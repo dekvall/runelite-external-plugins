@@ -11,7 +11,7 @@ class LastRecallWorldMapPoint extends WorldMapPoint
 	private final BufferedImage image;
 	private final BufferedImage arrowIcon;
 	private final Point point;
-	private final String name;
+	private static final String NAME = "Last recall teleport location";
 
 	LastRecallWorldMapPoint(final WorldPoint worldPoint)
 	{
@@ -20,9 +20,8 @@ class LastRecallWorldMapPoint extends WorldMapPoint
 		image = ImageUtil.loadImageResource(getClass(), "map-icon.png");
 		arrowIcon = ImageUtil.loadImageResource(getClass(), "arrow-icon.png");
 		point = new Point(arrowIcon.getWidth() / 2, arrowIcon.getHeight());
-		name = NamedRegion.fromWorldPoint(worldPoint).getName();
 
-		this.setName(name);
+		this.setName(NAME);
 		this.setSnapToEdge(true);
 		this.setJumpOnClick(true);
 		this.setImage(arrowIcon);
