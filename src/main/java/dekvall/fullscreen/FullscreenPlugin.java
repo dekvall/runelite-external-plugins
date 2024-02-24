@@ -36,6 +36,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ContainableFrame;
+import net.runelite.client.util.OSType;
 
 @Slf4j
 @PluginDescriptor(
@@ -70,7 +71,7 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
-		if (!gd.isFullScreenSupported())
+		if (!gd.isFullScreenSupported() || OSType.getOSType() == OSType.MacOS)
 		{
 			log.info("Fullscreen is not supported on your device, sorry :(");
 			SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(tempParent,
