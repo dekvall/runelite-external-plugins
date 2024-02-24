@@ -53,6 +53,8 @@ public class FullscreenPlugin extends Plugin
 	private ConfigManager configManager;
 
 	private GraphicsDevice gd;
+	private Frame clientFrame;
+	private int prevExtState;
 
 	@Override
 	protected void startUp() throws Exception
@@ -73,29 +75,42 @@ public class FullscreenPlugin extends Plugin
 
 		if (!gd.isFullScreenSupported() || OSType.getOSType() == OSType.MacOS)
 		{
-			log.info("Fullscreen is not supported on your device, sorry :(");
+			log.info("Fullscreen is not supported on your device");
 			SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(tempParent,
-				"Fullscreen is not supported on your device, sorry :(",
+				"Fullscreen is not supported on your device",
 				"Could not enter fullscreen mode",
 				JOptionPane.ERROR_MESSAGE));
 			return;
 		}
 
-		//Dirty hack
+		clientFrame = getClientFrame();
+		if (clientFrame == null) return;
+		prevExtState = clientFrame.getExtendedState();
+
+		gd.setFullScreenWindow(clientFrame);
+		clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+	}
+
+	private Frame getClientFrame()
+	{
+		Frame clientFrame = null;
+		// Dirty hack
 		Frame[] frames = Frame.getFrames();
 		for (Frame frame : frames)
 		{
 			if (frame instanceof ContainableFrame)
 			{
-				gd.setFullScreenWindow(frame);
-				return;
+				clientFrame = frame;
+				break;
 			}
 		}
+		return clientFrame;
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
+		clientFrame.setExtendedState(prevExtState);
 		gd.setFullScreenWindow(null);
 		log.info("Fullscreen stopped!");
 	}
