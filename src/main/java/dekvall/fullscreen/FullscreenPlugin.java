@@ -35,12 +35,14 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.RuneLiteConfig;
+import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ContainableFrame;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.OSType;
 
@@ -59,6 +61,8 @@ public class FullscreenPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 	@Inject
+	private KeyManager keyManager;
+	@Inject
 	private FullscreenConfig config;
 	@Inject
 	private ClientToolbar clientToolbar;
@@ -69,6 +73,22 @@ public class FullscreenPlugin extends Plugin
 	private GraphicsConfiguration gc;
 	private Mode activatedMode;
 	private boolean isActivated;
+
+	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.fullscreenHotKey())
+	{
+		@Override
+		public void hotkeyPressed()
+		{
+			if (!isActivated)
+			{
+				enableFullscreen();
+			}
+			else
+			{
+				disableFullscreen();
+			}
+		}
+	};
 
 	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
 	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
@@ -95,6 +115,8 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
+		keyManager.registerKeyListener(hotkeyListener);
+
 		if (!isActivated)
 		{
 			clientToolbar.addNavigation(navButtonEnable);
@@ -114,7 +136,7 @@ public class FullscreenPlugin extends Plugin
 
 		prevExtState = clientFrame.getExtendedState();
 		prevBounds = clientFrame.getBounds();
-		activatedMode = config.FullscreenMode();
+		activatedMode = config.fullscreenMode();
 
 		if (activatedMode == Mode.EXCLUSIVE)
 		{
@@ -131,6 +153,11 @@ public class FullscreenPlugin extends Plugin
 	}
 
 	private void disableFullscreen()
+	{
+		disableFullscreen(false);
+	}
+
+	private void disableFullscreen(boolean force)
 	{
 		if (isActivated && client.isGpu() && activatedMode == Mode.BORDERLESS)
 		{
@@ -159,13 +186,13 @@ public class FullscreenPlugin extends Plugin
 			return false;
 		}
 
-		if (config.FullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
+		if (config.fullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
 		{
 			showError("Fullscreen exclusive mode is not available on your device");
 			return false;
 		}
 
-		if (client.isGpu() && config.FullscreenMode() == Mode.BORDERLESS)
+		if (client.isGpu() && config.fullscreenMode() == Mode.BORDERLESS)
 		{
 			showError("GPU plugins must be disabled when toggling borderless fullscreen, ex. 117HD, GPU or Region Locker");
 			return false;
@@ -257,10 +284,11 @@ public class FullscreenPlugin extends Plugin
 	{
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
+		keyManager.unregisterKeyListener(hotkeyListener);
 
 		if (isActivated)
 		{
-			disableFullscreen();
+			disableFullscreen(true);
 		}
 	}
 
