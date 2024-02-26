@@ -3,5 +3,5 @@ package dekvall.fullscreen;
 public enum Mode
 {
 	EXCLUSIVE,
-	SIMULATED
+	BORDERLESS
 }

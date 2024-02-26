@@ -92,7 +92,7 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
-		if (client.isGpu() && config.FullscreenMode() == Mode.SIMULATED)
+		if (client.isGpu() && config.FullscreenMode() == Mode.BORDERLESS)
 		{
 			showError("GPU plugins must be disabled when toggling fullscreen, ex. 117HD, GPU or Region Locker");
 			return;
