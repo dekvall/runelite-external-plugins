@@ -27,7 +27,6 @@ package dekvall.fullscreen;
 import com.google.inject.Provides;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsDevice;
 import java.awt.Rectangle;
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
@@ -57,43 +56,32 @@ public class FullscreenPlugin extends Plugin
 	private ConfigManager configManager;
 	@Inject
 	private FullscreenConfig config;
-	private GraphicsDevice gd;
 	private Frame frame;
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
 	private GraphicsConfiguration gc;
 	private Mode activatedMode;
+	private boolean isActivated;
 
 	@Override
 	protected void startUp() throws Exception
 	{
-		log.info("Fullscreen started!");
-		gd = clientUI.getGraphicsConfiguration().getDevice();
 		gc = clientUI.getGraphicsConfiguration();
-
 		frame = Frame.getFrames()[0];
-
-		if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
-		{
-			showError("You must disable custom chrome to enable fullscreen");
-			return;
-		}
-
-		if (config.FullscreenMode() == Mode.EXCLUSIVE && (!gd.isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
-		{
-			showError("Fullscreen exclusive mode is not available on your device");
-			return;
-		}
-
-		if (client.isGpu() && config.FullscreenMode() == Mode.BORDERLESS)
-		{
-			showError("GPU plugins must be disabled when toggling fullscreen, ex. 117HD, GPU or Region Locker");
-			return;
-		}
 
 		clientFrame = getClientFrame();
 		if (clientFrame == null)
+		{
+			return;
+		}
+
+		enableFullscreen();
+	}
+
+	private void enableFullscreen()
+	{
+		if (!canEnable())
 		{
 			return;
 		}
@@ -108,8 +96,50 @@ public class FullscreenPlugin extends Plugin
 		}
 		else
 		{
-			enableSimulated();
+			enableBorderless();
 		}
+
+		isActivated = true;
+	}
+
+	private void disableFullscreen()
+	{
+		if (isActivated && client.isGpu() && activatedMode == Mode.BORDERLESS)
+		{
+			return;
+		}
+
+		if (activatedMode == Mode.EXCLUSIVE)
+		{
+			disableExclusive();
+		}
+		else
+		{
+			disableBorderless();
+		}
+		isActivated = false;
+	}
+
+	private boolean canEnable()
+	{
+		if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
+		{
+			showError("You must disable custom chrome to enable fullscreen");
+			return false;
+		}
+
+		if (config.FullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
+		{
+			showError("Fullscreen exclusive mode is not available on your device");
+			return false;
+		}
+
+		if (isActivated && activatedMode == Mode.BORDERLESS || client.isGpu() && config.FullscreenMode() == Mode.BORDERLESS)
+		{
+			showError("GPU plugins must be disabled when toggling borderless fullscreen, ex. 117HD, GPU or Region Locker");
+			return false;
+		}
+		return true;
 	}
 
 	private void showError(String message)
@@ -123,16 +153,16 @@ public class FullscreenPlugin extends Plugin
 	private void enableExclusive()
 	{
 		clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
-		gd.setFullScreenWindow(clientFrame);
+		gc.getDevice().setFullScreenWindow(clientFrame);
 	}
 
 	private void disableExclusive()
 	{
-		gd.setFullScreenWindow(null);
+		gc.getDevice().setFullScreenWindow(null);
 		clientFrame.setExtendedState(prevExtState);
 	}
 
-	private void enableSimulated()
+	private void enableBorderless()
 	{
 		if (client.isGpu())
 		{
@@ -155,7 +185,7 @@ public class FullscreenPlugin extends Plugin
 		clientUI.requestFocus();
 	}
 
-	private void disableSimulated()
+	private void disableBorderless()
 	{
 		if (client.isGpu())
 		{
@@ -194,16 +224,7 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		if (activatedMode == Mode.EXCLUSIVE)
-		{
-			disableExclusive();
-		}
-		else
-		{
-			disableSimulated();
-		}
-
-		log.info("Fullscreen stopped!");
+		disableFullscreen();
 	}
 
 	@Provides
