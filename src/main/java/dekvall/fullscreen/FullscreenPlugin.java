@@ -80,13 +80,7 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
-		if (OSType.getOSType() == OSType.MacOS)
-		{
-			showError("Fullscreen is not supported on your device");
-			return;
-		}
-
-		if (!gd.isFullScreenSupported() && config.FullscreenMode() == Mode.EXCLUSIVE)
+		if (config.FullscreenMode() == Mode.EXCLUSIVE && (!gd.isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
 		{
 			showError("Fullscreen exclusive mode is not available on your device");
 			return;
