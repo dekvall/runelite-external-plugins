@@ -92,12 +92,12 @@ public class FullscreenPlugin extends Plugin
 
 	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
 	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
-	private NavigationButton navButtonEnable = NavigationButton.builder()
+	private final NavigationButton navButtonEnable = NavigationButton.builder()
 		.tooltip("Enable fullscreen")
 		.icon(iconEnable)
 		.onClick(this::enableFullscreen)
 		.build();
-	private NavigationButton navButtonDisable = NavigationButton.builder()
+	private final NavigationButton navButtonDisable = NavigationButton.builder()
 		.tooltip("Disable fullscreen")
 		.icon(iconDisable)
 		.onClick(this::disableFullscreen)
@@ -153,11 +153,6 @@ public class FullscreenPlugin extends Plugin
 	}
 
 	private void disableFullscreen()
-	{
-		disableFullscreen(false);
-	}
-
-	private void disableFullscreen(boolean force)
 	{
 		if (isActivated && client.isGpu() && activatedMode == Mode.BORDERLESS)
 		{
@@ -288,7 +283,7 @@ public class FullscreenPlugin extends Plugin
 
 		if (isActivated)
 		{
-			disableFullscreen(true);
+			disableFullscreen();
 		}
 	}
 
