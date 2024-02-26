@@ -24,12 +24,15 @@
  */
 package dekvall.fullscreen;
 
+import com.google.inject.Provides;
 import java.awt.Frame;
+import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
+import java.awt.Rectangle;
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.plugins.Plugin;
@@ -48,47 +51,134 @@ public class FullscreenPlugin extends Plugin
 {
 	@Inject
 	private ClientUI clientUI;
-
+	@Inject
+	private Client client;
 	@Inject
 	private ConfigManager configManager;
-
+	@Inject
+	private FullscreenConfig config;
 	private GraphicsDevice gd;
+	private Frame frame;
 	private Frame clientFrame;
 	private int prevExtState;
+	private Rectangle prevBounds;
+	private GraphicsConfiguration gc;
+	private Mode activatedMode;
 
 	@Override
 	protected void startUp() throws Exception
 	{
 		log.info("Fullscreen started!");
 		gd = clientUI.getGraphicsConfiguration().getDevice();
-		Frame tempParent = Frame.getFrames()[0];
+		gc = clientUI.getGraphicsConfiguration();
+
+		frame = Frame.getFrames()[0];
 
 		if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
 		{
-			log.info("You must disable custom chrome to enable fullscreen");
-			SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(tempParent,
-				"You must disable custom chrome to enable fullscreen",
-				"Could not enter fullscreen mode",
-				JOptionPane.ERROR_MESSAGE));
+			showError("You must disable custom chrome to enable fullscreen");
 			return;
 		}
 
-		if (!gd.isFullScreenSupported() || OSType.getOSType() == OSType.MacOS)
+		if (OSType.getOSType() == OSType.MacOS)
 		{
-			log.info("Fullscreen is not supported on your device");
-			SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(tempParent,
-				"Fullscreen is not supported on your device",
-				"Could not enter fullscreen mode",
-				JOptionPane.ERROR_MESSAGE));
+			showError("Fullscreen is not supported on your device");
+			return;
+		}
+
+		if (!gd.isFullScreenSupported() && config.FullscreenMode() == Mode.EXCLUSIVE)
+		{
+			showError("Fullscreen exclusive mode is not available on your device");
+			return;
+		}
+
+		if (client.isGpu() && config.FullscreenMode() == Mode.SIMULATED)
+		{
+			showError("GPU plugins must be disabled when toggling fullscreen, ex. 117HD, GPU or Region Locker");
 			return;
 		}
 
 		clientFrame = getClientFrame();
-		if (clientFrame == null) return;
-		prevExtState = clientFrame.getExtendedState();
+		if (clientFrame == null)
+		{
+			return;
+		}
 
-		gd.setFullScreenWindow(clientFrame);
+		prevExtState = clientFrame.getExtendedState();
+		prevBounds = clientFrame.getBounds();
+		activatedMode = config.FullscreenMode();
+
+		if (activatedMode == Mode.EXCLUSIVE)
+		{
+			enableExclusive();
+		}
+		else
+		{
+			enableSimulated();
+		}
+	}
+
+	private void showError(String message)
+	{
+		JOptionPane.showMessageDialog(frame, message,
+			"Could not enter fullscreen mode",
+			JOptionPane.ERROR_MESSAGE);
+		log.info(message);
+	}
+
+	private void enableExclusive()
+	{
 		clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+		gd.setFullScreenWindow(clientFrame);
+	}
+
+	private void disableExclusive()
+	{
+		gd.setFullScreenWindow(null);
+		clientFrame.setExtendedState(prevExtState);
+	}
+
+	private void enableSimulated()
+	{
+		if (client.isGpu())
+		{
+			return;
+		}
+
+		if (clientFrame.isDisplayable())
+		{
+			clientFrame.dispose();
+		}
+
+		clientFrame.setUndecorated(true);
+		clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+		clientFrame.setAlwaysOnTop(true);
+		clientFrame.setResizable(false);
+		clientFrame.setSize(gc.getBounds().getSize());
+		clientFrame.setLocation(gc.getBounds().getLocation());
+		clientFrame.pack();
+		clientFrame.setVisible(true);
+		clientUI.requestFocus();
+	}
+
+	private void disableSimulated()
+	{
+		if (client.isGpu())
+		{
+			return;
+		}
+
+		clientFrame.dispose();
+		clientFrame.setExtendedState(prevExtState);
+		clientFrame.setUndecorated(false);
+		clientFrame.setAlwaysOnTop(false);
+		clientFrame.setResizable(true);
+		clientFrame.pack();
+		clientFrame.setVisible(true);
+		clientFrame.setBounds(prevBounds);
+		clientFrame.setLocation(prevBounds.getLocation());
+
+		clientUI.requestFocus();
 	}
 
 	private Frame getClientFrame()
@@ -110,8 +200,21 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		clientFrame.setExtendedState(prevExtState);
-		gd.setFullScreenWindow(null);
+		if (activatedMode == Mode.EXCLUSIVE)
+		{
+			disableExclusive();
+		}
+		else
+		{
+			disableSimulated();
+		}
+
 		log.info("Fullscreen stopped!");
+	}
+
+	@Provides
+	FullscreenConfig provideConfig(ConfigManager configManager)
+	{
+		return configManager.getConfig(FullscreenConfig.class);
 	}
 }
