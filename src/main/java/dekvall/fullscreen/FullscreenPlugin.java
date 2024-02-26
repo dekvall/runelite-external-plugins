@@ -28,6 +28,7 @@ import com.google.inject.Provides;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
 import lombok.extern.slf4j.Slf4j;
@@ -36,8 +37,11 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ContainableFrame;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.OSType;
 
 @Slf4j
@@ -56,6 +60,8 @@ public class FullscreenPlugin extends Plugin
 	private ConfigManager configManager;
 	@Inject
 	private FullscreenConfig config;
+	@Inject
+	private ClientToolbar clientToolbar;
 	private Frame frame;
 	private Frame clientFrame;
 	private int prevExtState;
@@ -63,6 +69,19 @@ public class FullscreenPlugin extends Plugin
 	private GraphicsConfiguration gc;
 	private Mode activatedMode;
 	private boolean isActivated;
+
+	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
+	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
+	private NavigationButton navButtonEnable = NavigationButton.builder()
+		.tooltip("Enable fullscreen")
+		.icon(iconEnable)
+		.onClick(this::enableFullscreen)
+		.build();
+	private NavigationButton navButtonDisable = NavigationButton.builder()
+		.tooltip("Disable fullscreen")
+		.icon(iconDisable)
+		.onClick(this::disableFullscreen)
+		.build();
 
 	@Override
 	protected void startUp() throws Exception
@@ -76,7 +95,14 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
-		enableFullscreen();
+		if (!isActivated)
+		{
+			clientToolbar.addNavigation(navButtonEnable);
+		}
+		else
+		{
+			clientToolbar.addNavigation(navButtonDisable);
+		}
 	}
 
 	private void enableFullscreen()
@@ -100,12 +126,15 @@ public class FullscreenPlugin extends Plugin
 		}
 
 		isActivated = true;
+		clientToolbar.removeNavigation(navButtonEnable);
+		clientToolbar.addNavigation(navButtonDisable);
 	}
 
 	private void disableFullscreen()
 	{
 		if (isActivated && client.isGpu() && activatedMode == Mode.BORDERLESS)
 		{
+			showError("GPU plugins must be disabled when toggling borderless fullscreen, ex. 117HD, GPU or Region Locker");
 			return;
 		}
 
@@ -118,6 +147,8 @@ public class FullscreenPlugin extends Plugin
 			disableBorderless();
 		}
 		isActivated = false;
+		clientToolbar.removeNavigation(navButtonDisable);
+		clientToolbar.addNavigation(navButtonEnable);
 	}
 
 	private boolean canEnable()
@@ -134,7 +165,7 @@ public class FullscreenPlugin extends Plugin
 			return false;
 		}
 
-		if (isActivated && activatedMode == Mode.BORDERLESS || client.isGpu() && config.FullscreenMode() == Mode.BORDERLESS)
+		if (client.isGpu() && config.FullscreenMode() == Mode.BORDERLESS)
 		{
 			showError("GPU plugins must be disabled when toggling borderless fullscreen, ex. 117HD, GPU or Region Locker");
 			return false;
@@ -224,7 +255,13 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		disableFullscreen();
+		clientToolbar.removeNavigation(navButtonEnable);
+		clientToolbar.removeNavigation(navButtonDisable);
+
+		if (isActivated)
+		{
+			disableFullscreen();
+		}
 	}
 
 	@Provides
