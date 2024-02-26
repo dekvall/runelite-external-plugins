@@ -198,7 +198,7 @@ public class FullscreenPlugin extends Plugin
 	private void showError(String message)
 	{
 		JOptionPane.showMessageDialog(frame, message,
-			"Could not enter fullscreen mode",
+			"Unable to toggle fullscreen mode",
 			JOptionPane.ERROR_MESSAGE);
 		log.info(message);
 	}
