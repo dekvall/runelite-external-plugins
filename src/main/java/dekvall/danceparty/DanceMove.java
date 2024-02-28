@@ -19,6 +19,7 @@ enum DanceMove implements Move
     CHICKEN_DANCE(1835),
     AIR_GUITAR(4751, 1239),
     GOBLIN_SALUTE(2128),
+    PARTY(10031),
     ;
 
     private int animId;
