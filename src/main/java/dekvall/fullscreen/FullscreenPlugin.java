@@ -29,15 +29,23 @@ import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginInstantiationException;
+import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.gpu.GpuPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ContainableFrame;
@@ -49,7 +57,7 @@ import net.runelite.client.util.OSType;
 @Slf4j
 @PluginDescriptor(
 	name = "Fullscreen",
-	description = "Requires custom chrome being off.",
+	description = "Requires custom custom chrome to be disabled",
 	enabledByDefault = false
 )
 public class FullscreenPlugin extends Plugin
@@ -66,11 +74,15 @@ public class FullscreenPlugin extends Plugin
 	private FullscreenConfig config;
 	@Inject
 	private ClientToolbar clientToolbar;
+	@Inject
+	private ClientThread clientThread;
+	@Inject
+	PluginManager pluginManager;
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
 	private GraphicsConfiguration gc;
-	private Mode activatedMode;
+	private Mode fullscreenMode;
 	private boolean isActivated;
 
 	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.fullscreenHotKey())
@@ -105,8 +117,6 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		gc = clientUI.getGraphicsConfiguration();
-
 		clientFrame = getClientFrame();
 		if (clientFrame == null)
 		{
@@ -114,15 +124,8 @@ public class FullscreenPlugin extends Plugin
 		}
 
 		keyManager.registerKeyListener(hotkeyListener);
-
-		if (!isActivated)
-		{
-			clientToolbar.addNavigation(navButtonEnable);
-		}
-		else
-		{
-			clientToolbar.addNavigation(navButtonDisable);
-		}
+		clientToolbar.addNavigation(navButtonEnable);
+		gc = clientUI.getGraphicsConfiguration();
 	}
 
 	private void enableFullscreen()
@@ -132,11 +135,12 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
+		gc = clientUI.getGraphicsConfiguration();
 		prevExtState = clientFrame.getExtendedState();
 		prevBounds = clientFrame.getBounds();
-		activatedMode = config.fullscreenMode();
+		fullscreenMode = config.fullscreenMode();
 
-		if (activatedMode == Mode.EXCLUSIVE)
+		if (fullscreenMode == Mode.EXCLUSIVE)
 		{
 			enableExclusive();
 		}
@@ -152,13 +156,8 @@ public class FullscreenPlugin extends Plugin
 
 	private void disableFullscreen()
 	{
-		if (isActivated && client.isGpu() && activatedMode == Mode.BORDERLESS)
-		{
-			showError("GPU plugins must be disabled when toggling borderless fullscreen, ex. 117HD, GPU or Region Locker");
-			return;
-		}
-
-		if (activatedMode == Mode.EXCLUSIVE)
+		gc = clientUI.getGraphicsConfiguration();
+		if (fullscreenMode == Mode.EXCLUSIVE)
 		{
 			disableExclusive();
 		}
@@ -175,21 +174,16 @@ public class FullscreenPlugin extends Plugin
 	{
 		if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
 		{
-			showError("You must disable custom chrome to enable fullscreen");
+			showError("You must disable custom chrome to in 'RuneLite' settings to enable fullscreen");
 			return false;
 		}
 
 		if (config.fullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
 		{
-			showError("Fullscreen 'Exclusive' mode is not available on your device");
+			showError("Fullscreen mode 'Exclusive' is not available on your device");
 			return false;
 		}
 
-		if (client.isGpu() && config.fullscreenMode() == Mode.BORDERLESS)
-		{
-			showError("GPU plugins must be disabled when toggling 'Borderless' fullscreen, ex 117HD, GPU or Region Locker");
-			return false;
-		}
 		return true;
 	}
 
@@ -203,60 +197,131 @@ public class FullscreenPlugin extends Plugin
 
 	private void enableExclusive()
 	{
-		clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
 		gc.getDevice().setFullScreenWindow(clientFrame);
 	}
 
 	private void disableExclusive()
 	{
 		gc.getDevice().setFullScreenWindow(null);
-		clientFrame.setExtendedState(prevExtState);
 	}
 
 	private void enableBorderless()
 	{
-		if (client.isGpu())
+		stopGpuPlugins();
+		clientThread.invokeLater(() ->
 		{
-			return;
-		}
+			if (client.isGpu())
+			{
+				return false;
+			}
 
-		if (clientFrame.isDisplayable())
-		{
-			clientFrame.dispose();
-		}
+			SwingUtilities.invokeLater(() ->
+			{
+				clientFrame.dispose();
+				clientFrame.setUndecorated(true);
+				clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+				clientFrame.setAlwaysOnTop(true);
+				clientFrame.setResizable(false);
+				clientFrame.setSize(gc.getBounds().getSize());
+				clientFrame.setLocation(gc.getBounds().getLocation());
+				clientFrame.pack();
+				clientFrame.setVisible(true);
 
-		clientFrame.setUndecorated(true);
-		clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
-		clientFrame.setAlwaysOnTop(true);
-		clientFrame.setResizable(false);
-		clientFrame.setSize(gc.getBounds().getSize());
-		clientFrame.setLocation(gc.getBounds().getLocation());
-		clientFrame.pack();
-		clientFrame.setVisible(true);
-		clientUI.requestFocus();
+				restoreGpuPlugins();
+			});
+
+			return true;
+		});
 	}
 
 	private void disableBorderless()
 	{
-		if (client.isGpu())
+		stopGpuPlugins();
+		clientThread.invokeLater(() ->
 		{
-			return;
-		}
+			if (client.isGpu())
+			{
+				return false;
+			}
 
-		clientFrame.dispose();
-		clientFrame.setExtendedState(prevExtState);
-		clientFrame.setUndecorated(false);
-		clientFrame.setAlwaysOnTop(false);
-		clientFrame.setResizable(true);
-		clientFrame.pack();
-		clientFrame.setVisible(true);
-		clientFrame.setBounds(prevBounds);
-		clientFrame.setLocation(prevBounds.getLocation());
+			SwingUtilities.invokeLater(() ->
+			{
+				clientFrame.dispose();
+				clientFrame.setUndecorated(false);
+				clientFrame.setExtendedState(prevExtState);
+				clientFrame.setAlwaysOnTop(false);
+				clientFrame.setResizable(true);
+				clientFrame.pack();
+				clientFrame.setVisible(true);
 
-		clientUI.requestFocus();
+				clientFrame.setBounds(prevBounds);
+				clientFrame.setLocation(prevBounds.getLocation());
+
+				restoreGpuPlugins();
+			});
+
+			return true;
+		});
 	}
 
-	private Frame getClientFrame()
+	private void restoreGpuPlugins()
+	{
+		for (Plugin p : getPluginsUsingGpu())
+		{
+			boolean isEnabled = pluginManager.isPluginEnabled(p);
+			if (isEnabled)
+			{
+				try
+				{
+					pluginManager.startPlugin(p);
+				}
+				catch (PluginInstantiationException ex)
+				{
+					log.error("Error starting plugin", ex);
+				}
+			}
+		}
+	}
+
+	private void stopGpuPlugins()
+	{
+		for (Plugin p : getPluginsUsingGpu())
+		{
+			try
+			{
+				pluginManager.stopPlugin(p);
+			}
+			catch (PluginInstantiationException ex)
+			{
+				log.error("Error stopping plugin", ex);
+			}
+		}
+	}
+
+	private List<Plugin> getPluginsUsingGpu()
+	{
+		GpuPlugin gpuPlugin = getCoreGpuPlugin();
+		List<Plugin> conflicts = pluginManager.conflictsForPlugin(gpuPlugin);
+
+		List<Plugin> pluginsUsingGpu = new ArrayList<>();
+		pluginsUsingGpu.add(gpuPlugin);
+		pluginsUsingGpu.addAll(conflicts);
+		return pluginsUsingGpu;
+	}
+
+	private GpuPlugin getCoreGpuPlugin()
+	{
+		for (Plugin p : pluginManager.getPlugins())
+		{
+			if (p instanceof GpuPlugin)
+			{
+				return (GpuPlugin) p;
+			}
+		}
+		return null;
+	}
+
+	private static Frame getClientFrame()
 	{
 		Frame clientFrame = null;
 		Frame[] frames = Frame.getFrames();
@@ -274,14 +339,15 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		clientToolbar.removeNavigation(navButtonEnable);
-		clientToolbar.removeNavigation(navButtonDisable);
-		keyManager.unregisterKeyListener(hotkeyListener);
-
 		if (isActivated)
 		{
 			disableFullscreen();
+			isActivated = false;
 		}
+
+		clientToolbar.removeNavigation(navButtonEnable);
+		clientToolbar.removeNavigation(navButtonDisable);
+		keyManager.unregisterKeyListener(hotkeyListener);
 	}
 
 	@Provides
