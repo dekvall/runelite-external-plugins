@@ -66,7 +66,6 @@ public class FullscreenPlugin extends Plugin
 	private FullscreenConfig config;
 	@Inject
 	private ClientToolbar clientToolbar;
-	private Frame frame;
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
@@ -104,10 +103,9 @@ public class FullscreenPlugin extends Plugin
 		.build();
 
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
 		gc = clientUI.getGraphicsConfiguration();
-		frame = Frame.getFrames()[0];
 
 		clientFrame = getClientFrame();
 		if (clientFrame == null)
@@ -183,13 +181,13 @@ public class FullscreenPlugin extends Plugin
 
 		if (config.fullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
 		{
-			showError("Fullscreen exclusive mode is not available on your device");
+			showError("Fullscreen 'Exclusive' mode is not available on your device");
 			return false;
 		}
 
 		if (client.isGpu() && config.fullscreenMode() == Mode.BORDERLESS)
 		{
-			showError("GPU plugins must be disabled when toggling borderless fullscreen, ex. 117HD, GPU or Region Locker");
+			showError("GPU plugins must be disabled when toggling 'Borderless' fullscreen, ex 117HD, GPU or Region Locker");
 			return false;
 		}
 		return true;
@@ -197,7 +195,7 @@ public class FullscreenPlugin extends Plugin
 
 	private void showError(String message)
 	{
-		JOptionPane.showMessageDialog(frame, message,
+		JOptionPane.showMessageDialog(clientFrame, message,
 			"Unable to toggle fullscreen mode",
 			JOptionPane.ERROR_MESSAGE);
 		log.info(message);
@@ -261,7 +259,6 @@ public class FullscreenPlugin extends Plugin
 	private Frame getClientFrame()
 	{
 		Frame clientFrame = null;
-		// Dirty hack
 		Frame[] frames = Frame.getFrames();
 		for (Frame frame : frames)
 		{
@@ -275,7 +272,7 @@ public class FullscreenPlugin extends Plugin
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
