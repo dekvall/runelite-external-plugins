@@ -83,21 +83,7 @@ public class FullscreenPlugin extends Plugin
 	private Mode fullscreenMode;
 	private boolean isActivated;
 
-	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.fullscreenHotKey())
-	{
-		@Override
-		public void hotkeyPressed()
-		{
-			if (!isActivated)
-			{
-				enableFullscreen();
-			}
-			else
-			{
-				disableFullscreen();
-			}
-		}
-	};
+	private HotkeyListener hotkeyListener = createHotkeyListener();
 
 	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
 	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
@@ -224,7 +210,12 @@ public class FullscreenPlugin extends Plugin
 				clientFrame.setLocation(gc.getBounds().getLocation());
 				clientFrame.pack();
 				clientFrame.setVisible(true);
+				clientUI.forceFocus();
 
+				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
+				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
+				// There are probably better ways to handle this, but this is for the hub!
+				swapOutHotkeyListener();
 				restoreGpuPlugins();
 			});
 
@@ -254,7 +245,12 @@ public class FullscreenPlugin extends Plugin
 
 				clientFrame.setBounds(prevBounds);
 				clientFrame.setLocation(prevBounds.getLocation());
+				clientUI.forceFocus();
 
+				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
+				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
+				// There are probably better ways to handle this, but this is for the hub!
+				swapOutHotkeyListener();
 				restoreGpuPlugins();
 			});
 
@@ -346,6 +342,32 @@ public class FullscreenPlugin extends Plugin
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
 		keyManager.unregisterKeyListener(hotkeyListener);
+	}
+
+	private void swapOutHotkeyListener()
+	{
+		keyManager.unregisterKeyListener(hotkeyListener);
+		hotkeyListener = createHotkeyListener();
+		keyManager.registerKeyListener(hotkeyListener);
+	}
+
+	private HotkeyListener createHotkeyListener()
+	{
+		return new HotkeyListener(() -> config.fullscreenHotKey())
+		{
+			@Override
+			public void hotkeyPressed()
+			{
+				if (!isActivated)
+				{
+					enableFullscreen();
+				}
+				else
+				{
+					disableFullscreen();
+				}
+			}
+		};
 	}
 
 	@Provides
