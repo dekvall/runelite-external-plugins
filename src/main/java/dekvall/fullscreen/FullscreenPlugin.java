@@ -210,13 +210,13 @@ public class FullscreenPlugin extends Plugin
 				clientFrame.setLocation(gc.getBounds().getLocation());
 				clientFrame.pack();
 				clientFrame.setVisible(true);
-				clientUI.forceFocus();
 
 				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
 				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
 				// There are probably better ways to handle this, but this is for the hub!
 				swapOutHotkeyListener();
 				restoreGpuPlugins();
+				clientUI.forceFocus();
 			});
 
 			return true;
@@ -245,13 +245,13 @@ public class FullscreenPlugin extends Plugin
 
 				clientFrame.setBounds(prevBounds);
 				clientFrame.setLocation(prevBounds.getLocation());
-				clientUI.forceFocus();
 
 				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
 				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
 				// There are probably better ways to handle this, but this is for the hub!
 				swapOutHotkeyListener();
 				restoreGpuPlugins();
+				clientUI.forceFocus();
 			});
 
 			return true;
