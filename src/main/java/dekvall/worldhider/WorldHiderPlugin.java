@@ -106,6 +106,7 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
+		getWidgets();
 		clientThread.invokeLater(() ->
 		{
 			updateInterface(worldSwitcher);
