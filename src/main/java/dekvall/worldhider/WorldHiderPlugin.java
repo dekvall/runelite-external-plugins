@@ -125,6 +125,7 @@ public class WorldHiderPlugin extends Plugin
 			updateInterface(worldSwitcherPanel);
 			resetWorldSwitcherTitle();
 		});
+		hideWorldMenuEntries(false);
 		hideScrollbar(false);
 		hideToolTip(false);
 	}
@@ -333,8 +334,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideHopperWorlds()
 	{
-		Widget worlds = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
-		hideWorldMenuEntries(worlds, config.hideList());
+		hideWorldMenuEntries(config.hideList());
 
 		if (!config.hideList())
 		{
@@ -365,8 +365,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideConfigurationPanelWorlds()
 	{
-		Widget worlds = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 20);
-		hideWorldMenuEntries(worlds, config.hideConfigurationPanel());
+		hideWorldMenuEntries(config.hideConfigurationPanel());
 
 		if (!config.hideConfigurationPanel())
 		{
@@ -383,8 +382,10 @@ public class WorldHiderPlugin extends Plugin
 		hideFavorites(favorites);
 	}
 
-	private void hideWorldMenuEntries(Widget worldList, boolean hidden)
+	private void hideWorldMenuEntries(boolean hidden)
 	{
+		Widget worldList = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
+
 		if (worldList == null || worldList.getDynamicChildren() == null)
 		{
 			return;
@@ -471,7 +472,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void updateInterface(Widget component)
 	{
-		if (component == null || component.isHidden())
+		if (component == null)
 		{
 			return;
 		}
