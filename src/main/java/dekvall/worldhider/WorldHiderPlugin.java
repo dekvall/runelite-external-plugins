@@ -319,8 +319,16 @@ public class WorldHiderPlugin extends Plugin
 		Widget[] entries = widget.getDynamicChildren();
 		final int COLOR = widget.getId() == ComponentID.FRIENDS_CHAT_LIST ? 0xFFFF64 : 0xFFFF00;
 
-		for (Widget entry : entries)
+		for (int i = 0; i < entries.length; i++)
 		{
+			// The world text is the 2nd index per row (player),
+			// and there are 4 widgets per row (player) in the list
+			if (i % 4 != 1)
+			{
+				continue;
+			}
+
+			Widget entry = entries[i];
 			if (entry.getText().matches(WORLD_REGEX) && entry.getType() == WidgetType.TEXT)
 			{
 				if (config.massHide())
