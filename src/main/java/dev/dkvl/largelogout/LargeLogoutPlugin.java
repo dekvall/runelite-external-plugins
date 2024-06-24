@@ -1,18 +1,43 @@
+/*
+ * Copyright (c) 2020, dekvall
+ * Copyright (c) 2024, Macweese <https://github.com/Macweese>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package dev.dkvl.largelogout;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.Varbits;
 import net.runelite.api.events.ScriptPostFired;
-import net.runelite.api.widgets.InterfaceID;
-import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetPositionMode;
-import net.runelite.api.widgets.WidgetSizeMode;
+import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -22,169 +47,137 @@ import net.runelite.client.plugins.PluginDescriptor;
 )
 public class LargeLogoutPlugin extends Plugin
 {
-	private static final int ORIG_CORNER_SIDE = 36;
-	private static final int ORIG_BUTTONS_PANE_HEIGHT = 132;
-	private static final int ORIG_BUTTONS_PANE_Y_OFFSET = 16;
+	enum State
+	{
+		HIDDEN,
+		VISIBLE,
+		SHUTDOWN
+	}
 
-	private static final int ORIG_LOGOUT_BUTTON_WIDTH = 144;
-	private static final int ORIG_LOGOUT_BUTTON_HEIGHT = 36;
-	private static final int WIDGET_SPACING = 10;
-
-	private static final int SCRIPT_LOGOUT_LAYOUT_UPDATE = 2243;
-
-
-	private static final int WIDGET_LOGOUT_LAYOUT = PACK(InterfaceID.LOGOUT_PANEL, 0);
-	private static final int WIDGET_BUTTON_PANE = PACK(InterfaceID.LOGOUT_PANEL, 1);
-	private static final int WIDGET_INFO_TEXT = PACK(InterfaceID.LOGOUT_PANEL, 2);
-	private static final int WIDGET_SWITCH_BUTTON = PACK(InterfaceID.LOGOUT_PANEL, 3);
-	private static final int WIDGET_LOGOUT_BUTTON = PACK(InterfaceID.LOGOUT_PANEL, 8);
-	private static final int WIDGET_REVIEW_PANE = PACK(InterfaceID.LOGOUT_PANEL, 13);
+	boolean hasFavorite1;
+	boolean hasFavorite2;
 
 	@Inject
 	private Client client;
 
 	@Inject
+	@Getter
 	private LargeLogoutConfig config;
 
 	@Inject
 	private ClientThread clientThread;
 
+	private static InterfaceManager interfaceManager;
+
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
-		if (client.getGameState() == GameState.LOGGED_IN)
+		if (client.getGameState() != GameState.LOGGED_IN)
 		{
-			clientThread.invokeLater(this::enlargeLogoutButton);
+			return;
 		}
+
+		interfaceManager = new InterfaceManager(client, this);
+		clientThread.invokeLater(() ->
+		{
+			hasFavorite1 = client.getVarbitValue(Varbits.WORLDHOPPER_FAVORITE_1) != 0;
+			hasFavorite2 = client.getVarbitValue(Varbits.WORLDHOPPER_FAVORITE_2) != 0;
+			interfaceManager.enlargeLogoutButton();
+			interfaceManager.enlargeLogoutWorldSwitcher();
+			interfaceManager.redraw();
+			interfaceManager.refreshScrollbar();
+		});
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
-		if (client.getGameState() == GameState.LOGGED_IN)
+		if (client.getGameState() != GameState.LOGGED_IN)
 		{
-			clientThread.invokeLater(this::restoreLogoutLayout);
+			return;
 		}
+
+		if (interfaceManager == null)
+		{
+			interfaceManager = new InterfaceManager(client, this);
+		}
+		clientThread.invokeLater(() ->
+		{
+			interfaceManager.restoreLogout();
+			interfaceManager.restoreLogoutWorldSwitcher();
+			interfaceManager.restoreWidget(client.getWidget(Widgets.WORLD_SWITCHER_FAVORITE_1), WidgetProperty.WORLD_SWITCHER_FAVORITE_1, State.SHUTDOWN);
+			interfaceManager.restoreWidget(client.getWidget(Widgets.WORLD_SWITCHER_FAVORITE_2), WidgetProperty.WORLD_SWITCHER_FAVORITE_2, State.SHUTDOWN);
+			interfaceManager.redraw();
+			interfaceManager.refreshScrollbar();
+		});
+	}
+
+	@Subscribe
+	private void onConfigChanged(ConfigChanged event)
+	{
+		if (!event.getGroup().equals("largelogout") || client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		clientThread.invokeLater(() ->
+		{
+			interfaceManager.restoreLogoutWorldSwitcher();
+			interfaceManager.enlargeLogoutWorldSwitcher();
+			interfaceManager.redraw();
+			interfaceManager.refreshScrollbar();
+		});
 	}
 
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired event)
 	{
-		if (event.getScriptId() == SCRIPT_LOGOUT_LAYOUT_UPDATE)
+		// The order of these events matter
+		if (event.getScriptId() == Scripts.LOGOUT_LAYOUT_UPDATE)
 		{
-			enlargeLogoutButton();
+			if (interfaceManager == null)
+			{
+				interfaceManager = new InterfaceManager(client, this);
+			}
+			interfaceManager.enlargeLogoutButton();
+			interfaceManager.restoreLogoutWorldSwitcher();
+		}
+		if (event.getScriptId() == Scripts.WORLD_SWITCHER_DRAW
+			|| event.getScriptId() == Scripts.WORLD_SWITCHER_INIT
+			|| event.getScriptId() == Scripts.WORLD_SWITCHER_LOADED)
+		{
+			if (interfaceManager == null)
+			{
+				interfaceManager = new InterfaceManager(client, this);
+			}
+			interfaceManager.enlargeLogoutWorldSwitcher();
 		}
 	}
 
-
-	private void restoreLogoutLayout()
+	@Subscribe
+	private void onVarbitChanged(VarbitChanged event)
 	{
-		if (client.getWidget(WIDGET_LOGOUT_LAYOUT) == null)
+		if (event.getVarbitId() == Varbits.WORLDHOPPER_FAVORITE_1 || event.getVarbitId() == Varbits.WORLDHOPPER_FAVORITE_2)
 		{
-			return;
+			hasFavorite1 = client.getVarbitValue(Varbits.WORLDHOPPER_FAVORITE_1) != 0;
+			hasFavorite2 = client.getVarbitValue(Varbits.WORLDHOPPER_FAVORITE_2) != 0;
+
+			if (interfaceManager == null)
+			{
+				interfaceManager = new InterfaceManager(client, this);
+			}
+
+			if (hasFavorite1 || hasFavorite2)
+			{
+				interfaceManager.restoreLogoutWorldSwitcher();
+				if (config.enlargeWorldSwitcherLogout() == WorldSwitcherMode.NO_FAVORITES)
+				{
+					return;
+				}
+			}
+
+			interfaceManager.enlargeLogoutWorldSwitcher();
 		}
-
-		client.getWidget(WIDGET_REVIEW_PANE).setHidden(false);
-		client.getWidget(WIDGET_INFO_TEXT).setHidden(false);
-
-		client.getWidget(WIDGET_BUTTON_PANE)
-			.setHeightMode(WidgetSizeMode.ABSOLUTE)
-			.setOriginalHeight(ORIG_BUTTONS_PANE_HEIGHT)
-			.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
-			.setOriginalY(ORIG_BUTTONS_PANE_Y_OFFSET)
-			.revalidate();
-
-		client.getWidget(WIDGET_SWITCH_BUTTON).
-			setYPositionMode(WidgetPositionMode.ABSOLUTE_CENTER)
-			.setOriginalY(0)
-			.revalidate();
-
-		Widget logoutButton = client.getWidget(WIDGET_LOGOUT_BUTTON);
-
-		logoutButton
-			.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
-			.setHeightMode(WidgetSizeMode.ABSOLUTE)
-			.setOriginalHeight(ORIG_LOGOUT_BUTTON_HEIGHT)
-			.setWidthMode(WidgetSizeMode.ABSOLUTE)
-			.setOriginalWidth(ORIG_LOGOUT_BUTTON_WIDTH)
-			.revalidate();
-
-		scaleButton(logoutButton, ORIG_CORNER_SIDE);
-	}
-
-	private void enlargeLogoutButton()
-	{
-		if (client.getWidget(WIDGET_LOGOUT_LAYOUT) == null)
-		{
-			return;
-		}
-
-		client.getWidget(WIDGET_REVIEW_PANE).setHidden(true);
-		client.getWidget(WIDGET_INFO_TEXT).setHidden(true);
-
-		fillParentWith(client.getWidget(WIDGET_BUTTON_PANE));
-
-		client.getWidget(WIDGET_SWITCH_BUTTON)
-			.setYPositionMode(WidgetPositionMode.ABSOLUTE_TOP)
-			.setOriginalY(WIDGET_SPACING)
-			.revalidate();
-
-		Widget logoutButton = client.getWidget(WIDGET_LOGOUT_BUTTON);
-
-		logoutButton.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
-			.setHeightMode(WidgetSizeMode.MINUS)
-			.setOriginalHeight(ORIG_LOGOUT_BUTTON_HEIGHT + 2 * WIDGET_SPACING)
-			.setWidthMode(WidgetSizeMode.MINUS)
-			.setOriginalWidth(0)
-			.revalidate();
-
-		scaleButton(logoutButton, logoutButton.getWidth() * 5 / 6);
-	}
-
-	private void fillParentWith(Widget w)
-	{
-		w.setHeightMode(WidgetSizeMode.MINUS)
-		.setOriginalHeight(0)
-		.setWidthMode(WidgetSizeMode.MINUS)
-		.setOriginalWidth(0)
-		.setOriginalX(0)
-		.setOriginalY(0)
-		.revalidate();
-	}
-
-	private void scaleButton(Widget button, int cornerWidth)
-	{
-		Widget[] children = button.getStaticChildren();
-		Widget middle = children[0];
-		Widget left = children[1];
-		Widget right = children[2];
-		Widget textbox = children[3];
-
-		middle.setHeightMode(WidgetSizeMode.ABSOLUTE)
-			.setYPositionMode(WidgetPositionMode.ABSOLUTE_CENTER)
-			.revalidate();
-
-		fillParentWith(textbox);
-
-		stretchCorner(left, cornerWidth, WidgetPositionMode.ABSOLUTE_LEFT);
-		stretchCorner(right, cornerWidth, WidgetPositionMode.ABSOLUTE_RIGHT);
-	}
-
-	private void stretchCorner(Widget corner, int width, int positionMode)
-	{
-		corner.setXPositionMode(positionMode)
-			.setOriginalX(0)
-			.setHeightMode(WidgetSizeMode.MINUS)
-			.setOriginalHeight(0)
-			.setWidthMode(WidgetSizeMode.ABSOLUTE)
-			.setOriginalWidth(width)
-			.setSpriteTiling(false)
-			.revalidate();
-	}
-
-	private static int PACK(int groupId, int childId)
-	{
-		return groupId << 16 | childId;
 	}
 
 	@Provides
