@@ -78,7 +78,7 @@ public class WorldHiderPlugin extends Plugin
 	};
 
 	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + ColorUtil.CLOSING_COLOR_TAG;
-	private static final String WORLD_REGEX = "^W\\d{1,3}$";
+	private static final String WORLD_REGEX = "^W\\d{3}$";
 
 	@Inject
 	private Client client;
