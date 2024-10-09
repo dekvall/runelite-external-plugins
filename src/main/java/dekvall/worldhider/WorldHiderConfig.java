@@ -97,15 +97,4 @@ public interface WorldHiderConfig extends Config
 	{
 		return false;
 	}
-
-	@ConfigItem(
-		keyName = "randomWorld",
-		name = "Random World",
-		description = "Display a random world instead of hiding it",
-		position = 6
-	)
-	default boolean randomWorld()
-	{
-		return false;
-	}
 }

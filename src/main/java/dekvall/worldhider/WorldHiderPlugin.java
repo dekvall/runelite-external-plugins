@@ -27,7 +27,6 @@ package dekvall.worldhider;
 
 import com.google.inject.Provides;
 import java.util.Arrays;
-import java.util.concurrent.ThreadLocalRandom;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -84,8 +83,6 @@ public class WorldHiderPlugin extends Plugin
 
 	@Inject
 	private ClientThread clientThread;
-
-	private int randomWorld = getRandomWorld();
 
 	private Widget worldSwitcher;
 	private Widget worldSwitcherScrollbar;
@@ -151,15 +148,6 @@ public class WorldHiderPlugin extends Plugin
 			updateInterface(worldSwitcherPanel);
 		});
 		hideScrollbar(config.hideScrollbar());
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() == GameState.LOGGED_IN)
-		{
-			randomWorld = getRandomWorld();
-		}
 	}
 
 	@Subscribe(priority = -2.2F)
@@ -230,7 +218,7 @@ public class WorldHiderPlugin extends Plugin
 
 		if (configPanel == null || configPanel.isHidden())
 		{
-			title = "Current world - " + (config.randomWorld() ? randomWorld : "XXX");
+			title = "Current world - XXX";
 		}
 		else
 		{
@@ -479,11 +467,6 @@ public class WorldHiderPlugin extends Plugin
 	{
 		worldSwitcher = client.getWidget(WORLD_SWITCHER, 0);
 		worldSwitcherPanel = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 1);
-	}
-
-	private int getRandomWorld()
-	{
-		return ThreadLocalRandom.current().nextInt(301, 500);
 	}
 
 	private void updateFriendsListTitle(boolean hidden)
