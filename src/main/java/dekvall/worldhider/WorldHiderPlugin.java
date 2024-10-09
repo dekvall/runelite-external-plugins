@@ -33,7 +33,6 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.ScriptID;
 import net.runelite.api.SpriteID;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
@@ -182,14 +181,14 @@ public class WorldHiderPlugin extends Plugin
 
 	private void recolorFriends()
 	{
-		Widget friendsList = client.getWidget(ComponentID.FRIEND_LIST_TITLE);
+		Widget namesContainer = client.getWidget(ComponentID.FRIEND_LIST_NAMES_CONTAINER);
 
-		if (friendsList == null)
+		if (namesContainer == null)
 		{
 			return;
 		}
 
-		Widget[] friends = friendsList.getDynamicChildren();
+		Widget[] friends = namesContainer.getDynamicChildren();
 
 		for (int i = 0; i < friends.length; i+=2)
 		{
