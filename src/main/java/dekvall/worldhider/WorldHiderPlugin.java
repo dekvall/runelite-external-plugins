@@ -70,7 +70,7 @@ public class WorldHiderPlugin extends Plugin
 		4937, // US EAST
 	};
 
-	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + ColorUtil.CLOSING_COLOR_TAG;
+	private static final String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + ColorUtil.CLOSING_COLOR_TAG;
 	private static final String WORLD_REGEX = "\\bW\\d{3}\\b";
 	private static final String WORLD_REGEX_LONG = "\\bWorld \\d{3}\\b";
 
@@ -120,7 +120,9 @@ public class WorldHiderPlugin extends Plugin
 			updateInterface(worldSwitcherPanel);
 			resetWorldSwitcherTitle();
 		});
-		hideWorldMenuEntries(false);
+
+		hideWorldSwitcherMenuEntries(false);
+		hideWorldSwitcherPanelMenuEntries(false);
 		hideScrollbar(false);
 		hideToolTip(false);
 		updateFriendsListTitle(false);
@@ -295,7 +297,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideWorldSwitcherWorlds()
 	{
-		hideWorldMenuEntries(config.hideList());
+		hideWorldSwitcherMenuEntries(config.hideList());
 
 		if (!config.hideList())
 		{
@@ -326,7 +328,7 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideConfigurationPanelWorlds()
 	{
-		hideWorldMenuEntries(config.hideConfigurationPanel());
+		hideWorldSwitcherPanelMenuEntries(config.hideConfigurationPanel());
 
 		if (!config.hideConfigurationPanel())
 		{
@@ -343,28 +345,34 @@ public class WorldHiderPlugin extends Plugin
 		hideFavorites(favorites);
 	}
 
-	private void hideWorldMenuEntries(boolean hidden)
+	private void hideWorldSwitcherMenuEntries(boolean hidden)
 	{
 		Widget worldList = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
+		updateMenuEntriesOfDynamicChildren(worldList, hidden);
+	}
 
-		if (worldList == null || worldList.getDynamicChildren() == null)
+	private void hideWorldSwitcherPanelMenuEntries(boolean hidden)
+	{
+		Widget clickableList = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 20);
+		updateMenuEntriesOfDynamicChildren(clickableList, hidden);
+	}
+
+	private void updateMenuEntriesOfDynamicChildren(Widget container, boolean hidden)
+	{
+		if (container != null && container.getDynamicChildren() != null)
 		{
-			return;
+			Widget[] children = container.getDynamicChildren();
+			for (int i = 0; i < children.length; i++)
+			{
+				Widget w = children[i];
+				if (w == null) continue;
+
+				String name = hidden
+					? MENU_ENTRY_HIDDEN
+					: JagexColors.MENU_TARGET_TAG + i + ColorUtil.CLOSING_COLOR_TAG;
+				w.setName(name);
+			}
 		}
-
-		Arrays.stream(worldList.getDynamicChildren()).forEach(w ->
-		{
-			if (hidden)
-			{
-				w.setName(MENU_ENTRY_HIDDEN);
-			}
-			else
-			{
-				int world = Arrays.asList(worldList.getDynamicChildren()).indexOf(w);
-				String menuEntry = JagexColors.MENU_TARGET_TAG + world + ColorUtil.CLOSING_COLOR_TAG;
-				w.setName(menuEntry);
-			}
-		});
 	}
 
 	private void hideWorldInfo(Widget worldList)
