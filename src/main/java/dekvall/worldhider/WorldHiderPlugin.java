@@ -31,14 +31,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.Friend;
 import net.runelite.api.GameState;
-import net.runelite.api.Ignore;
-import net.runelite.api.NameableContainer;
 import net.runelite.api.ScriptID;
 import net.runelite.api.SpriteID;
-import net.runelite.api.VarPlayer;
-import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.ComponentID;
@@ -78,7 +73,8 @@ public class WorldHiderPlugin extends Plugin
 	};
 
 	private final static String MENU_ENTRY_HIDDEN = JagexColors.MENU_TARGET_TAG + "XXX" + ColorUtil.CLOSING_COLOR_TAG;
-	private static final String WORLD_REGEX = "^W\\d{3}$";
+	private static final String WORLD_REGEX = "\\bW\\d{3}\\b";
+	private static final String WORLD_REGEX_LONG = "\\bWorld \\d{3}\\b";
 
 	@Inject
 	private Client client;
@@ -112,6 +108,9 @@ public class WorldHiderPlugin extends Plugin
 			updateInterface(worldSwitcher);
 			updateInterface(worldSwitcherPanel);
 		});
+
+		updateFriendsListTitle(true);
+		updateIgnoreListTitle(true);
 	}
 
 	@Override
@@ -128,6 +127,8 @@ public class WorldHiderPlugin extends Plugin
 		hideWorldMenuEntries(false);
 		hideScrollbar(false);
 		hideToolTip(false);
+		updateFriendsListTitle(false);
+		updateIgnoreListTitle(false);
 	}
 
 	@Provides
@@ -161,52 +162,17 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	@Subscribe
-	public void onClientTick(ClientTick tick)
-	{
-		// The friends list plugin interferes with this, so i run it a lot
-		final boolean isMember = client.getVarpValue(VarPlayer.MEMBERSHIP_DAYS) > 0;
-
-		final NameableContainer<Friend> friendContainer = client.getFriendContainer();
-		final int friendCount = friendContainer.getCount();
-		if (friendCount >= 0)
-		{
-			final int limit = isMember ? 400 : 200;
-
-			final String title = "Friends - W" +
-				(config.randomWorld() ? randomWorld : "XXX") +
-				" (" +
-				friendCount +
-				"/" +
-				limit +
-				")";
-
-			setFriendsListTitle(title);
-		}
-
-		final NameableContainer<Ignore> ignoreContainer = client.getIgnoreContainer();
-		final int ignoreCount = ignoreContainer.getCount();
-		if (ignoreCount >= 0)
-		{
-			final int limit = isMember ? 400 : 200;
-
-			final String title = "Ignores - W" +
-				(config.randomWorld() ? randomWorld : "XXX") +
-				" (" +
-				ignoreCount +
-				"/" +
-				limit +
-				")";
-
-			setIgnoreListTitle(title);
-		}
-	}
-
-	@Subscribe
+	@Subscribe(priority = -2.2F)
 	public void onScriptPostFired(ScriptPostFired event)
 	{
 		switch (event.getScriptId())
 		{
+			case ScriptID.FRIENDS_UPDATE:
+				updateFriendsListTitle(true);
+				break;
+			case ScriptID.IGNORE_UPDATE:
+				updateIgnoreListTitle(true);
+				break;
 			case SCRIPT_FRIEND_UPDATE:
 				recolorFriends();
 				break;
@@ -329,7 +295,7 @@ public class WorldHiderPlugin extends Plugin
 			}
 
 			Widget entry = entries[i];
-			if (entry.getText().matches(WORLD_REGEX) && entry.getType() == WidgetType.TEXT)
+			if (entry.getType() == WidgetType.TEXT && entry.getText().matches(WORLD_REGEX))
 			{
 				if (config.massHide())
 				{
@@ -520,21 +486,42 @@ public class WorldHiderPlugin extends Plugin
 		return ThreadLocalRandom.current().nextInt(301, 500);
 	}
 
-	private void setFriendsListTitle(final String title)
+	private void updateFriendsListTitle(boolean hidden)
 	{
 		Widget friendListTitleWidget = client.getWidget(ComponentID.FRIEND_LIST_TITLE);
 		if (friendListTitleWidget != null)
 		{
-			friendListTitleWidget.setText(title);
+			String title = friendListTitleWidget.getText();
+			String newTitle = createNewPlayerListTitle(title, hidden);
+			friendListTitleWidget.setText(newTitle);
 		}
 	}
 
-	private void setIgnoreListTitle(final String title)
+	private void updateIgnoreListTitle(boolean hidden)
 	{
-		Widget ignoreTitleWidget = client.getWidget(ComponentID.IGNORE_LIST_TITLE);
-		if (ignoreTitleWidget != null)
+		Widget ignoreListTitleWidget = client.getWidget(ComponentID.IGNORE_LIST_TITLE);
+		if (ignoreListTitleWidget != null)
 		{
-			ignoreTitleWidget.setText(title);
+			String title = ignoreListTitleWidget.getText();
+			String newTitle = createNewPlayerListTitle(title, hidden);
+			ignoreListTitleWidget.setText(newTitle);
 		}
+	}
+
+	private String createNewPlayerListTitle(String title, boolean hidden)
+	{
+		final String newTitle;
+		if (!hidden)
+		{
+			int world = client.getWorld();
+			newTitle = title.replaceFirst("WXXX", "W" + world)
+				.replaceFirst("World XXX", "World " + world);
+		}
+		else
+		{
+			newTitle = title.replaceFirst(WORLD_REGEX, "WXXX")
+				.replaceFirst(WORLD_REGEX_LONG, "World XXX");
+		}
+		return newTitle;
 	}
 }
