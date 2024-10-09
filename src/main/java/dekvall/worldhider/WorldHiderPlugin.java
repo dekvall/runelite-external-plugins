@@ -165,11 +165,11 @@ public class WorldHiderPlugin extends Plugin
 				break;
 			case SCRIPT_WORLD_SWITCHER_DRAW:
 				getWidgets();
-				hideHopperWorlds();
+				hideWorldSwitcherWorlds();
 				hideConfigurationPanelWorlds();
 				// Fall through
 			case SCRIPT_WORLD_SWITCHER_TITLE:
-				killWorldHopper();
+				hideWorldSwitcher();
 				break;
 			case SCRIPT_GROUPING_REBUILD:
 			case ScriptID.CLAN_SIDEPANEL_DRAW:
@@ -203,11 +203,11 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void killWorldHopper()
+	private void hideWorldSwitcher()
 	{
-		Widget worldHopper = client.getWidget(WORLD_SWITCHER, 3);
+		Widget worldSwitcher = client.getWidget(WORLD_SWITCHER, 3);
 
-		if (worldHopper == null)
+		if (worldSwitcher == null)
 		{
 			return;
 		}
@@ -224,8 +224,8 @@ public class WorldHiderPlugin extends Plugin
 			title = ColorUtil.wrapWithColorTag("Configuring...", ColorUtil.fromHex("9F9F9F"));
 		}
 
-		worldHopper.setText(title);
-		worldHopper.setOnVarTransmitListener((Object[]) null);
+		worldSwitcher.setText(title);
+		worldSwitcher.setOnVarTransmitListener((Object[]) null);
 
 		Widget worldList = client.getWidget(WORLD_SWITCHER, 18);
 
@@ -293,7 +293,7 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideHopperWorlds()
+	private void hideWorldSwitcherWorlds()
 	{
 		hideWorldMenuEntries(config.hideList());
 
