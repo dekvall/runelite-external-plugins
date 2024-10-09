@@ -137,7 +137,7 @@ public class WorldHiderPlugin extends Plugin
 	@Subscribe
 	private void onConfigChanged(ConfigChanged event)
 	{
-		if (!(event.getGroup().equals("worldhider") && client.getGameState() == GameState.LOGGED_IN))
+		if (!event.getGroup().equals("worldhider") || client.getGameState() != GameState.LOGGED_IN)
 		{
 			return;
 		}
