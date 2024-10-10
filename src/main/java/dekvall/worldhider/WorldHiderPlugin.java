@@ -59,7 +59,9 @@ public class WorldHiderPlugin extends Plugin
 	private final static int SCRIPT_WORLD_SWITCHER_DRAW = 892;
 	private final static int SCRIPT_WORLD_SWITCHER_TITLE = 7271;
 
+	private final static int COMPONENT_WORLD_SWITCHER = 69;
 	private final static int COMPONENT_WORLD_SWITCHER_PANEL = 821;
+	private final static int COMPONENT_FRIENDS_LIST = 429;
 
 	private final static int[] SPRITE_FLAGS = {
 		SpriteID.WORLD_SWITCHER_REGION_USA,
@@ -83,9 +85,7 @@ public class WorldHiderPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
-	private Widget worldSwitcher;
 	private Widget worldSwitcherScrollbar;
-	private Widget worldSwitcherPanel;
 	private Widget worldSwitcherPanelScrollbar;
 
 	@Override
@@ -98,15 +98,7 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		getWidgets();
-		clientThread.invokeLater(() ->
-		{
-			updateInterface(worldSwitcher);
-			updateInterface(worldSwitcherPanel);
-		});
-
-		updateFriendsListTitle(true);
-		updateIgnoreListTitle(true);
+		updateInterfaces();
 	}
 
 	@Override
@@ -114,12 +106,7 @@ public class WorldHiderPlugin extends Plugin
 	{
 		log.info("World Hider stopped!");
 
-		clientThread.invokeLater(() ->
-		{
-			updateInterface(worldSwitcher);
-			updateInterface(worldSwitcherPanel);
-			resetWorldSwitcherTitle();
-		});
+		updateInterfaces();
 
 		hideWorldSwitcherMenuEntries(false);
 		hideWorldSwitcherPanelMenuEntries(false);
@@ -143,11 +130,7 @@ public class WorldHiderPlugin extends Plugin
 			return;
 		}
 
-		clientThread.invokeLater(() ->
-		{
-			updateInterface(worldSwitcher);
-			updateInterface(worldSwitcherPanel);
-		});
+		updateInterfaces();
 		hideScrollbar(config.hideScrollbar());
 	}
 
@@ -166,7 +149,6 @@ public class WorldHiderPlugin extends Plugin
 				recolorFriends();
 				break;
 			case SCRIPT_WORLD_SWITCHER_DRAW:
-				getWidgets();
 				hideWorldSwitcherWorlds();
 				hideConfigurationPanelWorlds();
 				// Fall through
@@ -227,7 +209,6 @@ public class WorldHiderPlugin extends Plugin
 		}
 
 		worldSwitcher.setText(title);
-		worldSwitcher.setOnVarTransmitListener((Object[]) null);
 
 		Widget worldList = client.getWidget(WORLD_SWITCHER, 18);
 
@@ -439,8 +420,20 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void updateInterface(Widget component)
+	private void updateInterfaces()
 	{
+		clientThread.invokeLater(() ->
+		{
+			updateInterface(COMPONENT_WORLD_SWITCHER, 0);
+			updateInterface(COMPONENT_WORLD_SWITCHER, 3);
+			updateInterface(COMPONENT_WORLD_SWITCHER_PANEL, 1);
+			updateInterface(COMPONENT_FRIENDS_LIST, 0);
+		});
+	}
+
+	private void updateInterface(int group, int child)
+	{
+		Widget component = client.getWidget(group, child);
 		if (component == null)
 		{
 			return;
@@ -451,29 +444,6 @@ public class WorldHiderPlugin extends Plugin
 			Object[] args = component.getOnVarTransmitListener();
 			client.runScript(args);
 		});
-	}
-
-	private void resetWorldSwitcherTitle()
-	{
-		Widget worldSwitcherTitle = client.getWidget(WORLD_SWITCHER, 3);
-
-		if (worldSwitcherTitle == null)
-		{
-			return;
-		}
-
-		// Hardcoded because the ops are set to null while the plugin is enabled
-		// So running the script with args pulled from the component would equal to nop
-		final int SCRIPT_UPDATE_CURRENT_WORLD_TITLE = 7270;
-		final int COMPONENT = 4521987;
-
-		client.runScript(SCRIPT_UPDATE_CURRENT_WORLD_TITLE, COMPONENT);
-	}
-
-	private void getWidgets()
-	{
-		worldSwitcher = client.getWidget(WORLD_SWITCHER, 0);
-		worldSwitcherPanel = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 1);
 	}
 
 	private void updateFriendsListTitle(boolean hidden)
