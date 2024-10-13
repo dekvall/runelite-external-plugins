@@ -89,11 +89,11 @@ public interface WorldHiderConfig extends Config
 
 	@ConfigItem(
 		keyName = "massHide",
-		name = "Mass hide",
-		description = "Hide world of friends and clanmates",
+		name = "Hide Friends",
+		description = "Hides worlds of friends and clanmates",
 		position = 5
 	)
-	default boolean massHide()
+	default boolean hideFriends()
 	{
 		return false;
 	}

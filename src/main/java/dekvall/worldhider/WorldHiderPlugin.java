@@ -177,7 +177,7 @@ public class WorldHiderPlugin extends Plugin
 		{
 			if (!friends[i].getText().contains("Offline") && friends[i].getName().isEmpty())
 			{
-				if (config.massHide())
+				if (config.hideFriends())
 				{
 					friends[i].setText("World XXX");
 				}
@@ -251,7 +251,7 @@ public class WorldHiderPlugin extends Plugin
 			Widget entry = entries[i];
 			if (entry.getType() == WidgetType.TEXT && entry.getText().matches(WORLD_REGEX))
 			{
-				if (config.massHide())
+				if (config.hideFriends())
 				{
 					entry.setText("WXXX");
 				}
