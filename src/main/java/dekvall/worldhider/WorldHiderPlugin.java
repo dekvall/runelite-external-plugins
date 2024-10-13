@@ -85,13 +85,13 @@ public class WorldHiderPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
-	private Widget worldSwitcherScrollbar;
-	private Widget worldSwitcherPanelScrollbar;
+	private volatile boolean isShuttingDown = false;
 
 	@Override
 	protected void startUp()
 	{
 		log.info("World Hider started!");
+		isShuttingDown = false;
 
 		if (client.getGameState() != GameState.LOGGED_IN)
 		{
@@ -104,16 +104,11 @@ public class WorldHiderPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		log.info("World Hider stopped!");
-
+		isShuttingDown = true;
+		hideWorldSwitcherWorlds();
+		hideWorldSwitcherTooltips();
 		updateInterfaces();
-
-		hideWorldSwitcherMenuEntries(false);
-		hideWorldSwitcherPanelMenuEntries(false);
-		hideScrollbar(false);
-		hideToolTip(false);
-		updateFriendsListTitle(false);
-		updateIgnoreListTitle(false);
+		log.info("World Hider stopped!");
 	}
 
 	@Provides
@@ -131,7 +126,7 @@ public class WorldHiderPlugin extends Plugin
 		}
 
 		updateInterfaces();
-		hideScrollbar(config.hideScrollbar());
+		hideWorldSwitcherScrollbars();
 	}
 
 	@Subscribe(priority = -2.2F)
@@ -140,20 +135,19 @@ public class WorldHiderPlugin extends Plugin
 		switch (event.getScriptId())
 		{
 			case ScriptID.FRIENDS_UPDATE:
-				updateFriendsListTitle(true);
+				updateFriendsListTitle();
 				break;
 			case ScriptID.IGNORE_UPDATE:
-				updateIgnoreListTitle(true);
+				updateIgnoreListTitle();
 				break;
 			case SCRIPT_FRIEND_UPDATE:
 				recolorFriends();
 				break;
 			case SCRIPT_WORLD_SWITCHER_DRAW:
 				hideWorldSwitcherWorlds();
-				hideConfigurationPanelWorlds();
 				// Fall through
 			case SCRIPT_WORLD_SWITCHER_TITLE:
-				hideWorldSwitcher();
+				hideWorldSwitcherTitle();
 				break;
 			case SCRIPT_GROUPING_REBUILD:
 			case ScriptID.CLAN_SIDEPANEL_DRAW:
@@ -165,6 +159,11 @@ public class WorldHiderPlugin extends Plugin
 
 	private void recolorFriends()
 	{
+		if (isShuttingDown)
+		{
+			return;
+		}
+
 		Widget namesContainer = client.getWidget(ComponentID.FRIEND_LIST_NAMES_CONTAINER);
 
 		if (namesContainer == null)
@@ -187,7 +186,7 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideWorldSwitcher()
+	private void hideWorldSwitcherTitle()
 	{
 		Widget worldSwitcher = client.getWidget(WORLD_SWITCHER, 3);
 
@@ -209,21 +208,6 @@ public class WorldHiderPlugin extends Plugin
 		}
 
 		worldSwitcher.setText(title);
-
-		Widget worldList = client.getWidget(WORLD_SWITCHER, 18);
-
-		if (worldList == null)
-		{
-			return;
-		}
-
-		for (Widget entry : worldList.getDynamicChildren())
-		{
-			if (entry.getTextColor() == 0xDC10D)
-			{
-				entry.setTextColor(0);
-			}
-		}
 	}
 
 	private void hideCommunityLists()
@@ -278,64 +262,38 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideWorldSwitcherWorlds()
 	{
-		hideWorldSwitcherMenuEntries(config.hideList());
-
-		if (!config.hideList())
-		{
-			return;
-		}
-
-		Widget list = client.getWidget(WORLD_SWITCHER, 19);
-		hideWorldInfo(list);
-
-		worldSwitcherScrollbar = client.getWidget(WORLD_SWITCHER, 20);
-		hideScrollbar(config.hideScrollbar());
-
-		Widget bottomContainer = client.getWidget(WORLD_SWITCHER, 21);
-		hideFavorites(bottomContainer);
-
-		hideToolTip(true);
+		hideWorldSwitcherMenuEntries();
+		hideWorldSwitcherWorldLists();
+		hideWorldSwitcherFavorites();
+		hideWorldSwitcherTooltips();
 	}
 
-	private void hideToolTip(boolean hidden)
+	private void hideWorldSwitcherWorldLists()
+	{
+		Widget worldSwitcherWorlds = client.getWidget(WORLD_SWITCHER, 19);
+		hideWorldListEntries(worldSwitcherWorlds, config.hideList());
+
+		Widget worldSwitcherPanelWorlds = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 21);
+		hideWorldListEntries(worldSwitcherPanelWorlds, config.hideConfigurationPanel());
+	}
+
+	private void hideWorldSwitcherTooltips()
 	{
 		Widget worldTooltip = client.getWidget(WORLD_SWITCHER, 26);
 
 		if (worldTooltip != null)
 		{
-			worldTooltip.setHidden(hidden);
+			worldTooltip.setHidden(!isShuttingDown);
 		}
 	}
 
-	private void hideConfigurationPanelWorlds()
-	{
-		hideWorldSwitcherPanelMenuEntries(config.hideConfigurationPanel());
-
-		if (!config.hideConfigurationPanel())
-		{
-			return;
-		}
-
-		Widget list = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 21);
-		hideWorldInfo(list);
-
-		worldSwitcherPanelScrollbar = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 22);
-		hideScrollbar(config.hideScrollbar());
-
-		Widget favorites = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 23);
-		hideFavorites(favorites);
-	}
-
-	private void hideWorldSwitcherMenuEntries(boolean hidden)
+	private void hideWorldSwitcherMenuEntries()
 	{
 		Widget worldList = client.getWidget(ComponentID.WORLD_SWITCHER_WORLD_LIST);
-		updateMenuEntriesOfDynamicChildren(worldList, hidden);
-	}
+		updateMenuEntriesOfDynamicChildren(worldList, config.hideList());
 
-	private void hideWorldSwitcherPanelMenuEntries(boolean hidden)
-	{
 		Widget clickableList = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 20);
-		updateMenuEntriesOfDynamicChildren(clickableList, hidden);
+		updateMenuEntriesOfDynamicChildren(clickableList, config.hideConfigurationPanel());
 	}
 
 	private void updateMenuEntriesOfDynamicChildren(Widget container, boolean hidden)
@@ -348,7 +306,7 @@ public class WorldHiderPlugin extends Plugin
 				Widget w = children[i];
 				if (w == null) continue;
 
-				String name = hidden
+				String name = !isShuttingDown && hidden
 					? MENU_ENTRY_HIDDEN
 					: JagexColors.MENU_TARGET_TAG + i + ColorUtil.CLOSING_COLOR_TAG;
 				w.setName(name);
@@ -356,9 +314,9 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideWorldInfo(Widget worldList)
+	private void hideWorldListEntries(Widget worldList, boolean hidden)
 	{
-		if (worldList == null)
+		if (!hidden || worldList == null)
 		{
 			return;
 		}
@@ -367,6 +325,12 @@ public class WorldHiderPlugin extends Plugin
 
 		for (Widget widget : world)
 		{
+			// Current world green recolor
+			if (widget.getTextColor() == 0x0DC10D)
+			{
+				widget.setTextColor(0);
+			}
+
 			if (widget.getType() == WidgetType.TEXT)
 			{
 				widget.setText("XXX");
@@ -380,13 +344,16 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideScrollbar(boolean hidden)
+	private void hideWorldSwitcherScrollbars()
 	{
-		hideScrollbar(worldSwitcherScrollbar, (hidden && config.hideList()));
-		hideScrollbar(worldSwitcherPanelScrollbar, (hidden && config.hideConfigurationPanel()));
+		Widget worldSwitcherScrollbar = client.getWidget(WORLD_SWITCHER, 20);
+		hideWorldSwitcherScrollbar(worldSwitcherScrollbar, config.hideScrollbar() && config.hideList());
+
+		Widget worldSwitcherPanelScrollbar = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 22);
+		hideWorldSwitcherScrollbar(worldSwitcherPanelScrollbar, config.hideScrollbar() && config.hideConfigurationPanel());
 	}
 
-	private void hideScrollbar(Widget widget, boolean hidden)
+	private void hideWorldSwitcherScrollbar(Widget widget, boolean hidden)
 	{
 		if (widget == null)
 		{
@@ -395,8 +362,7 @@ public class WorldHiderPlugin extends Plugin
 
 		Widget[] scrollbarComponents = widget.getDynamicChildren();
 
-		// This widget is expected to have 6 children,
-		// check anyway to prevent potential ArrayIndexOutOfBoundsException
+		// This widget is expected to have 6 children, but check anyway
 		if (scrollbarComponents.length == 6)
 		{
 			scrollbarComponents[1].setSpriteId(hidden ? -1 : SpriteID.SCROLLBAR_THUMB_MIDDLE);  // Middle of the scroll thumb
@@ -405,30 +371,36 @@ public class WorldHiderPlugin extends Plugin
 		}
 	}
 
-	private void hideFavorites(Widget widget)
+	private void hideWorldSwitcherFavorites()
 	{
-		if (widget == null || !config.hideFavorites())
+		Widget worldSwitcherFavorites = client.getWidget(WORLD_SWITCHER, 21);
+		hideWorldSwitcherFavorites(worldSwitcherFavorites);
+
+		Widget worldSwitcherPanelFavorites = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 23);
+		hideWorldSwitcherFavorites(worldSwitcherPanelFavorites);
+	}
+
+	private void hideWorldSwitcherFavorites(Widget parent)
+	{
+		if (parent == null)
 		{
 			return;
 		}
 
-		Widget[] favorites = widget.getStaticChildren();
+		Widget[] favorites = parent.getStaticChildren();
 
 		for (Widget world : favorites)
 		{
-			hideWorldInfo(world);
+			hideWorldListEntries(world, config.hideFavorites());
 		}
 	}
 
 	private void updateInterfaces()
 	{
-		clientThread.invokeLater(() ->
-		{
-			updateInterface(COMPONENT_WORLD_SWITCHER, 0);
-			updateInterface(COMPONENT_WORLD_SWITCHER, 3);
-			updateInterface(COMPONENT_WORLD_SWITCHER_PANEL, 1);
-			updateInterface(COMPONENT_FRIENDS_LIST, 0);
-		});
+		updateInterface(COMPONENT_WORLD_SWITCHER, 0);
+		updateInterface(COMPONENT_WORLD_SWITCHER, 3);
+		updateInterface(COMPONENT_WORLD_SWITCHER_PANEL, 1);
+		updateInterface(COMPONENT_FRIENDS_LIST, 0);
 	}
 
 	private void updateInterface(int group, int child)
@@ -446,42 +418,38 @@ public class WorldHiderPlugin extends Plugin
 		});
 	}
 
-	private void updateFriendsListTitle(boolean hidden)
+	private void updateFriendsListTitle()
 	{
 		Widget friendListTitleWidget = client.getWidget(ComponentID.FRIEND_LIST_TITLE);
 		if (friendListTitleWidget != null)
 		{
 			String title = friendListTitleWidget.getText();
-			String newTitle = createNewPlayerListTitle(title, hidden);
+			String newTitle = createNewPlayerListTitle(title);
 			friendListTitleWidget.setText(newTitle);
 		}
 	}
 
-	private void updateIgnoreListTitle(boolean hidden)
+	private void updateIgnoreListTitle()
 	{
 		Widget ignoreListTitleWidget = client.getWidget(ComponentID.IGNORE_LIST_TITLE);
 		if (ignoreListTitleWidget != null)
 		{
 			String title = ignoreListTitleWidget.getText();
-			String newTitle = createNewPlayerListTitle(title, hidden);
+			String newTitle = createNewPlayerListTitle(title);
 			ignoreListTitleWidget.setText(newTitle);
 		}
 	}
 
-	private String createNewPlayerListTitle(String title, boolean hidden)
+	private String createNewPlayerListTitle(String title)
 	{
-		final String newTitle;
-		if (!hidden)
+		if (isShuttingDown)
 		{
-			int world = client.getWorld();
-			newTitle = title.replaceFirst("WXXX", "W" + world)
-				.replaceFirst("World XXX", "World " + world);
+			return title;
 		}
 		else
 		{
-			newTitle = title.replaceFirst(WORLD_REGEX, "WXXX")
+			return title.replaceFirst(WORLD_REGEX, "WXXX")
 				.replaceFirst(WORLD_REGEX_LONG, "World XXX");
 		}
-		return newTitle;
 	}
 }
