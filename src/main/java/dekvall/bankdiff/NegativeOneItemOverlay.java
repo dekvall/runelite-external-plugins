@@ -2,7 +2,7 @@ package dekvall.bankdiff;
 
 import com.google.inject.Inject;
 import net.runelite.api.Point;
-import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.WidgetItem;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.WidgetItemOverlay;
@@ -26,7 +26,7 @@ public class NegativeOneItemOverlay extends WidgetItemOverlay {
     public void renderItemOverlay(Graphics2D g, int itemId, WidgetItem itemWidget) {
         if (!config.diffViewToggled()
                 || !plugin.getNegativeOneCounts().contains(itemId)
-                || itemWidget.getWidget().getParentId() != WidgetInfo.BANK_ITEM_CONTAINER.getId())
+                || itemWidget.getWidget().getParentId() != ComponentID.BANK_ITEM_CONTAINER)
         {
             return;
         }

@@ -9,9 +9,10 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
+import net.runelite.api.widgets.ComponentID;
+import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
@@ -28,10 +29,8 @@ import java.util.*;
 public class BankDiffPlugin extends Plugin
 {
 	static final String CONFIG_GROUP = "bankdiff";
-	private static final Gson gson = new Gson();
 
 	private static final int BANKSPACE_ITEM = 6512;
-	private static final int MAX_BANK_SLOTS = 816;
 	@Inject
 	private Client client;
 
@@ -49,6 +48,9 @@ public class BankDiffPlugin extends Plugin
 
 	@Inject
 	private NegativeOneItemOverlay negativeOneItemOverlay;
+
+	@Inject
+	private Gson gson;
 
 	private final Map<Integer, Integer> snapshot = new HashMap<>();
 
@@ -112,7 +114,7 @@ public class BankDiffPlugin extends Plugin
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
 		if (event.getType() != MenuAction.CC_OP.getId() || !event.getOption().equals("Show menu")
-				|| (event.getActionParam1() >> 16) != WidgetID.BANK_GROUP_ID)
+				|| (event.getActionParam1() >> 16) != InterfaceID.BANK)
 		{
 			return;
 		}
@@ -139,20 +141,13 @@ public class BankDiffPlugin extends Plugin
 			.setType(MenuAction.RUNELITE)
 			.setIdentifier(event.getIdentifier())
 			.setParam0(event.getActionParam0())
-			.setParam1(event.getActionParam1());
+			.setParam1(event.getActionParam1())
+			.onClick(this::onClickEvent);
 	}
 
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked event)
+	private void onClickEvent(MenuEntry entry)
 	{
-		if ((event.getMenuAction() != MenuAction.RUNELITE)
-				|| (event.getWidgetId() >> 16) != WidgetID.BANK_GROUP_ID
-				|| !(event.getMenuOption().equals(CREATE_SNAPSHOT) || event.getMenuOption().equals(TOGGLE_VIEW)))
-		{
-			return;
-		}
-
-		if (event.getMenuOption().equals(CREATE_SNAPSHOT))
+		if (entry.getOption().equals(CREATE_SNAPSHOT))
 		{
 			ItemContainer bank = client.getItemContainer(InventoryID.BANK);
 
@@ -167,7 +162,7 @@ public class BankDiffPlugin extends Plugin
 
 			configManager.setConfiguration(CONFIG_GROUP, getConfigKey(), gson.toJson(snapshot));
 		}
-		else if (event.getMenuOption().equals(TOGGLE_VIEW))
+		else if (entry.getOption().equals(TOGGLE_VIEW))
 		{
 			config.diffViewToggled(!config.diffViewToggled());
 			layoutBank();
@@ -181,17 +176,21 @@ public class BankDiffPlugin extends Plugin
 
 	private void diffAgainstSnapshot()
 	{
-		Widget bankItems = client.getWidget(WidgetInfo.BANK_ITEM_CONTAINER);
+		Widget bankItems = client.getWidget(ComponentID.BANK_ITEM_CONTAINER);
+		if (bankItems == null)
+		{
+			return;
+		}
+		ItemContainer bank = client.getItemContainer(InventoryID.BANK);
+		if (bank == null)
+		{
+			return;
+		}
 		negativeOneCounts.clear();
-
 		for (Widget widget : bankItems.getDynamicChildren())
 		{
-			if (widget.getIndex() > MAX_BANK_SLOTS - 1)
+			if (widget.getIndex() > bank.size() - 1)
 			{
-				// Apparently the banktag symbols
-				// are around index 844, which is out of the bank anyway.
-				// return so it won't diff those since they have 10k quantity
-				// Although, i don't think it matters.
 				return;
 			}
 
@@ -232,7 +231,7 @@ public class BankDiffPlugin extends Plugin
 
 	public void layoutBank()
 	{
-		Widget bankContainer = client.getWidget(WidgetInfo.BANK_ITEM_CONTAINER);
+		Widget bankContainer = client.getWidget(ComponentID.BANK_ITEM_CONTAINER);
 		if (bankContainer == null || bankContainer.isHidden())
 		{
 			return;
