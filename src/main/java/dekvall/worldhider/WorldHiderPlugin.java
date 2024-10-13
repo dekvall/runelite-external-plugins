@@ -35,6 +35,7 @@ import net.runelite.api.ScriptID;
 import net.runelite.api.SpriteID;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.ComponentID;
+import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
@@ -111,7 +112,6 @@ public class WorldHiderPlugin extends Plugin
 	{
 		isShuttingDown = true;
 		hideWorldSwitcherWorlds();
-		hideWorldSwitcherTooltips();
 		updateInterfaces();
 		log.info("World Hider stopped!");
 	}
@@ -131,7 +131,6 @@ public class WorldHiderPlugin extends Plugin
 		}
 
 		updateInterfaces();
-		hideWorldSwitcherScrollbars();
 	}
 
 	@Subscribe(priority = -2.2F)
@@ -257,6 +256,7 @@ public class WorldHiderPlugin extends Plugin
 		hideWorldSwitcherWorldLists();
 		hideWorldSwitcherFavorites();
 		hideWorldSwitcherTooltips();
+		hideWorldSwitcherScrollbars();
 	}
 
 	private void hideWorldSwitcherWorldLists()
@@ -337,11 +337,11 @@ public class WorldHiderPlugin extends Plugin
 
 	private void hideWorldSwitcherScrollbars()
 	{
-		Widget worldSwitcherScrollbar = client.getWidget(WORLD_SWITCHER, 20);
-		hideWorldSwitcherScrollbar(worldSwitcherScrollbar, config.hideScrollbar() && config.hideList());
+		Widget worldSwitcherScrollbar = client.getWidget(InterfaceID.WORLD_SWITCHER, 20);
+		hideWorldSwitcherScrollbar(worldSwitcherScrollbar, !isShuttingDown && config.hideScrollbar() && config.hideList());
 
 		Widget worldSwitcherPanelScrollbar = client.getWidget(COMPONENT_WORLD_SWITCHER_PANEL, 22);
-		hideWorldSwitcherScrollbar(worldSwitcherPanelScrollbar, config.hideScrollbar() && config.hideConfigurationPanel());
+		hideWorldSwitcherScrollbar(worldSwitcherPanelScrollbar, !isShuttingDown && config.hideScrollbar() && config.hideConfigurationPanel());
 	}
 
 	private void hideWorldSwitcherScrollbar(Widget widget, boolean hidden)
