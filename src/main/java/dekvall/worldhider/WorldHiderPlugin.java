@@ -55,13 +55,18 @@ import static net.runelite.api.widgets.InterfaceID.WORLD_SWITCHER;
 public class WorldHiderPlugin extends Plugin
 {
 	private final static int SCRIPT_FRIEND_UPDATE = 125;
-	private final static int SCRIPT_GROUPING_REBUILD = 435;
+	private final static int SCRIPT_PROC_GROUPING_REBUILD = 435;
 	private final static int SCRIPT_WORLD_SWITCHER_DRAW = 892;
 	private final static int SCRIPT_WORLD_SWITCHER_TITLE = 7271;
+	private final static int SCRIPT_GROUPING_REBUILD = 434;
 
 	private final static int COMPONENT_WORLD_SWITCHER = 69;
 	private final static int COMPONENT_WORLD_SWITCHER_PANEL = 821;
 	private final static int COMPONENT_FRIENDS_LIST = 429;
+	private final static int COMPONENT_FRIENDS_CHAT = 7;
+	private final static int COMPONENT_CLAN_LAYER = 701;
+	private final static int COMPONENT_GROUPING_LAYER = 76;
+
 
 	private final static int[] SPRITE_FLAGS = {
 		SpriteID.WORLD_SWITCHER_REGION_USA,
@@ -149,10 +154,10 @@ public class WorldHiderPlugin extends Plugin
 			case SCRIPT_WORLD_SWITCHER_TITLE:
 				hideWorldSwitcherTitle();
 				break;
-			case SCRIPT_GROUPING_REBUILD:
+			case SCRIPT_PROC_GROUPING_REBUILD:
 			case ScriptID.CLAN_SIDEPANEL_DRAW:
 			case ScriptID.FRIENDS_CHAT_CHANNEL_REBUILD:
-				hideCommunityLists();
+				hideCommunityWorlds();
 				break;
 		}
 	}
@@ -210,23 +215,16 @@ public class WorldHiderPlugin extends Plugin
 		worldSwitcher.setText(title);
 	}
 
-	private void hideCommunityLists()
+	private void hideCommunityWorlds()
 	{
-		// Default group channel for game activities
-		Widget grouping = client.getWidget(76, 16);
-		hideCommunityWorlds(grouping);
+		Widget chatChannel = client.getWidget(ComponentID.FRIENDS_CHAT_LIST);
+		hideCommunityWorlds(chatChannel);
 
-		// Guest clan chat channel
-		Widget guestChannel = client.getWidget(ComponentID.CLAN_GUEST_MEMBERS);
-		hideCommunityWorlds(guestChannel);
-
-		// Clan chat channel
 		Widget clanChannel = client.getWidget(ComponentID.CLAN_MEMBERS);
 		hideCommunityWorlds(clanChannel);
 
-		// Friends chat channel
-		Widget chatChannel = client.getWidget(ComponentID.FRIENDS_CHAT_LIST);
-		hideCommunityWorlds(chatChannel);
+		Widget grouping = client.getWidget(COMPONENT_GROUPING_LAYER, 16);
+		hideCommunityWorlds(grouping);
 	}
 
 	private void hideCommunityWorlds(Widget widget)
@@ -241,15 +239,8 @@ public class WorldHiderPlugin extends Plugin
 
 		for (int i = 0; i < entries.length; i++)
 		{
-			// The world text is the 2nd index per row (player),
-			// and there are 4 widgets per row (player) in the list
-			if (i % 4 != 1)
-			{
-				continue;
-			}
-
 			Widget entry = entries[i];
-			if (entry.getType() == WidgetType.TEXT && entry.getText().matches(WORLD_REGEX))
+			if (entry.getType() == WidgetType.TEXT && entry.getTextColor() != 0xFFFFFF && entry.getText().matches(WORLD_REGEX))
 			{
 				if (config.hideFriends())
 				{
@@ -397,13 +388,21 @@ public class WorldHiderPlugin extends Plugin
 
 	private void updateInterfaces()
 	{
-		updateInterface(COMPONENT_WORLD_SWITCHER, 0);
-		updateInterface(COMPONENT_WORLD_SWITCHER, 3);
-		updateInterface(COMPONENT_WORLD_SWITCHER_PANEL, 1);
-		updateInterface(COMPONENT_FRIENDS_LIST, 0);
+		updateInterface(COMPONENT_WORLD_SWITCHER, 0); // Title
+		updateInterface(COMPONENT_WORLD_SWITCHER, 3); // World list
+		updateInterface(COMPONENT_WORLD_SWITCHER_PANEL, 1); // World list
+		updateInterface(COMPONENT_FRIENDS_LIST, 0); // Friend's list
+		updateInterface(COMPONENT_FRIENDS_CHAT, 0); // Friends chat root
+		updateInterface(COMPONENT_CLAN_LAYER, 0); // Clan layer
+		updateInterface(COMPONENT_GROUPING_LAYER, 0, SCRIPT_GROUPING_REBUILD); // Grouping layer
 	}
 
 	private void updateInterface(int group, int child)
+	{
+		updateInterface(group, child, -1);
+	}
+
+	private void updateInterface(int group, int child, int script)
 	{
 		Widget component = client.getWidget(group, child);
 		if (component == null)
@@ -413,7 +412,7 @@ public class WorldHiderPlugin extends Plugin
 
 		clientThread.invokeLater(() ->
 		{
-			Object[] args = component.getOnVarTransmitListener();
+			Object[] args = script != -1 ? new Object[] { script } : component.getOnVarTransmitListener();
 			client.runScript(args);
 		});
 	}
