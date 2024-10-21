@@ -64,6 +64,7 @@ public class WorldHiderPlugin extends Plugin
 	private final static int COMPONENT_WORLD_SWITCHER = 69;
 	private final static int COMPONENT_WORLD_SWITCHER_PANEL = 821;
 	private final static int COMPONENT_FRIENDS_LIST = 429;
+	private final static int COMPONENT_IGNORE_LIST = 432;
 	private final static int COMPONENT_FRIENDS_CHAT = 7;
 	private final static int COMPONENT_CLAN_LAYER = 701;
 	private final static int COMPONENT_GROUPING_LAYER = 76;
@@ -391,7 +392,8 @@ public class WorldHiderPlugin extends Plugin
 		updateInterface(COMPONENT_WORLD_SWITCHER, 0); // Title
 		updateInterface(COMPONENT_WORLD_SWITCHER, 3); // World list
 		updateInterface(COMPONENT_WORLD_SWITCHER_PANEL, 1); // World list
-		updateInterface(COMPONENT_FRIENDS_LIST, 0); // Friend's list
+		updateInterface(COMPONENT_FRIENDS_LIST, 0); // Friends list
+		updateInterface(COMPONENT_IGNORE_LIST, 0); // Ignore list
 		updateInterface(COMPONENT_FRIENDS_CHAT, 0); // Friends chat root
 		updateInterface(COMPONENT_CLAN_LAYER, 0); // Clan layer
 		updateInterface(COMPONENT_GROUPING_LAYER, 0, SCRIPT_GROUPING_REBUILD); // Grouping layer
