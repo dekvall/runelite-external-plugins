@@ -120,6 +120,36 @@ public class PushNotificationsPlugin extends Plugin
 		sendRequest("Pushover", request);
 	}
 
+	private void handleGotify(NotificationFired event) 
+	{
+		if(Strings.isNullOrEmpty(config.gotify_url()) || Strings.isNullOrEmpty(config.gotify_token()))
+		{
+			return;
+		}
+
+		HttpUrl url = new HttpUrl.Builder()
+			.scheme("https")
+			.host(config.gotify_url())
+			.addPathSegment("message")
+			.build();
+
+		RequestBody push = new FormBody.Builder()
+			.add("token", config.gotify_token())
+			.add("title", event.getMessage())
+			.add("message", event.getMessage())
+			.build();
+		
+		Request request = new Request.Builder()
+			.header("User-Agent", "RuneLite")
+			.header("Content-Type", "application/json")
+			.header("User-Agent", "RuneLite")
+			.post(push)
+			.url(url)
+			.build();
+
+		sendRequest("Gotify", request);
+	}
+
 	private static void sendRequest(String platform, Request request)
 	{
 		RuneLiteAPI.CLIENT.newCall(request).enqueue(new Callback()

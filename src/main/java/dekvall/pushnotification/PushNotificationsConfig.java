@@ -45,4 +45,26 @@ public interface PushNotificationsConfig extends Config
 		section = pushoverSection
 	)
 	String pushover_api();
+
+	@ConfigSection(
+		name = "Gotify",
+		description = "Gotify Settings",
+		position = 2
+	)
+
+	@ConfigItem(
+		keyName = "gotify_url",
+		name = "Gotify URL",
+		description = "URL for Gotify server",
+		section = gotifySection
+	)
+	String gotify_url();
+
+	@ConfigItem(
+		keyName = "gotify_token",
+		name = "Gotify token",
+		description = "Token for Gotify server",
+		section = gotifySection
+	)
+	String gotify_token();
 }
