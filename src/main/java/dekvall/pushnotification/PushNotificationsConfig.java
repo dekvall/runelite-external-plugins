@@ -56,7 +56,7 @@ public interface PushNotificationsConfig extends Config
 	@ConfigItem(
 		keyName = "gotify_url",
 		name = "Gotify URL",
-		description = "URL for Gotify server",
+		description = "URL for Gotify server, example: http://10.0.0.30:8080/message",
 		section = gotifySection
 	)
 	String gotify_url();
@@ -75,5 +75,7 @@ public interface PushNotificationsConfig extends Config
 		description = "Priority for Gotify notification",
 		section = gotifySection
 	)
-	int gotify_priority();
+	default int gotify_priority(
+		return 5;
+	);
 }
