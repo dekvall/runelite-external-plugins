@@ -137,7 +137,7 @@ public class PushNotificationsPlugin extends Plugin
 		RequestBody push = new FormBody.Builder()
 			.add("title", event.getMessage())
 			.add("message", event.getMessage())
-			.add("priority", config.gotify_priority())
+			.add("priority", String.valueOf(config.gotify_priority()))
 			.build();
 
 		Request request = new Request.Builder()
