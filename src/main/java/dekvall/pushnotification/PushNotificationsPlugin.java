@@ -55,6 +55,7 @@ public class PushNotificationsPlugin extends Plugin
 	{
 		handlePushbullet(event);
 		handlePushover(event);
+		handleGotify(event);
 	}
 
 	private void handlePushbullet(NotificationFired event)
@@ -128,17 +129,18 @@ public class PushNotificationsPlugin extends Plugin
 		}
 
 		HttpUrl url = new HttpUrl.Builder()
-			.scheme("https")
+			.scheme("http")
 			.host(config.gotify_url())
 			.addPathSegment("message")
-			.build();
-
-		RequestBody push = new FormBody.Builder()
-			.add("token", config.gotify_token())
-			.add("title", event.getMessage())
-			.add("message", event.getMessage())
+			.addQueryParameter("token", config.gotify_token())
 			.build();
 		
+		RequestBody push = new FormBody.Builder()
+			.add("title", event.getMessage())
+			.add("message", event.getMessage())
+			.add("priority", config.gotify_priority())
+			.build();
+
 		Request request = new Request.Builder()
 			.header("User-Agent", "RuneLite")
 			.header("Content-Type", "application/json")
