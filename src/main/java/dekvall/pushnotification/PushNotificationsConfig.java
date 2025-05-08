@@ -51,6 +51,7 @@ public interface PushNotificationsConfig extends Config
 		description = "Gotify Settings",
 		position = 2
 	)
+	String gotifySection = "gotify";
 
 	@ConfigItem(
 		keyName = "gotify_url",
