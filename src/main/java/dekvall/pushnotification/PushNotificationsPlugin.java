@@ -128,9 +128,8 @@ public class PushNotificationsPlugin extends Plugin
 			return;
 		}
 
-		HttpUrl url = new HttpUrl.Builder()
-			.scheme("http")
-			.host(config.gotify_url())
+		HttpUrl url = HttpUrl.parse(config.gotify_url())
+			.newBuilder()
 			.addPathSegment("message")
 			.addQueryParameter("token", config.gotify_token())
 			.build();
@@ -144,7 +143,6 @@ public class PushNotificationsPlugin extends Plugin
 		Request request = new Request.Builder()
 			.header("User-Agent", "RuneLite")
 			.header("Content-Type", "application/json")
-			.header("User-Agent", "RuneLite")
 			.post(push)
 			.url(url)
 			.build();
