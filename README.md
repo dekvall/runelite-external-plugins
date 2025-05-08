@@ -33,3 +33,7 @@ Gotify server URL format: `http://10.0.0.30:8080/message`
 Gotify token can be created under `Apps/Create Application`
 
 ![create-new-gotify](imgs/create-new-gotify.png)
+
+Example notification
+
+![example-gotify](imgs/gotify-example.png)
