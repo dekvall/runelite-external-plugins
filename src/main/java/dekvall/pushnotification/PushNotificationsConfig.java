@@ -75,7 +75,7 @@ public interface PushNotificationsConfig extends Config
 		description = "Priority for Gotify notification",
 		section = gotifySection
 	)
-	default int gotify_priority(
+	default int gotify_priority() {
 		return 5;
-	);
+	}
 }
