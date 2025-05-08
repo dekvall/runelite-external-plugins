@@ -129,7 +129,7 @@ public class PushNotificationsPlugin extends Plugin
 		}
 
 		HttpUrl parsedUrl = HttpUrl.parse(config.gotify_url())
-			.newBuilder()
+			.newBuilder();
 		if (parsedUrl == null)
 		{
 			log.warn("Invalid Gotify URL, expected format: http or https://<host>:<port>/message");
