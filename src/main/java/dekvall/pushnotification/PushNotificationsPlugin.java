@@ -128,9 +128,15 @@ public class PushNotificationsPlugin extends Plugin
 			return;
 		}
 
-		HttpUrl url = HttpUrl.parse(config.gotify_url())
+		HttpUrl parsedUrl = HttpUrl.parse(config.gotify_url())
 			.newBuilder()
-			.addPathSegment("message")
+		if (parsedUrl == null)
+		{
+			log.warn("Invalid Gotify URL, expected format: http or https://<host>:<port>/message");
+			return;
+		}
+
+		HttpUrl url = parsedUrl.newBuilder()
 			.addQueryParameter("token", config.gotify_token())
 			.build();
 		
