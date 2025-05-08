@@ -67,4 +67,12 @@ public interface PushNotificationsConfig extends Config
 		section = gotifySection
 	)
 	String gotify_token();
+
+	@ConfigItem(
+		keyName = "gotify_priority",
+		name = "Gotify Priority",
+		description = "Priority for Gotify notification",
+		section = gotifySection
+	)
+	int gotify_priority();
 }
