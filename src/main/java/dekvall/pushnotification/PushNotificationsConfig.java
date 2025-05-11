@@ -56,7 +56,7 @@ public interface PushNotificationsConfig extends Config
 	@ConfigItem(
 		keyName = "gotify_url",
 		name = "Gotify URL",
-		description = "URL for Gotify server, example: http://10.0.0.30:8080/message",
+		description = "URL for Gotify server, example: http://10.0.0.30:8080",
 		section = gotifySection
 	)
 	String gotify_url();
