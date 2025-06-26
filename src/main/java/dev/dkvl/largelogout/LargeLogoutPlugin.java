@@ -1,10 +1,12 @@
 package dev.dkvl.largelogout;
 
 import com.google.inject.Provides;
+import java.util.Arrays;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.WorldType;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
@@ -49,7 +51,7 @@ public class LargeLogoutPlugin extends Plugin
 	private ClientThread clientThread;
 
 	@Override
-	protected void startUp() throws Exception
+	protected void startUp()
 	{
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -58,7 +60,7 @@ public class LargeLogoutPlugin extends Plugin
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
@@ -77,7 +79,7 @@ public class LargeLogoutPlugin extends Plugin
 
 	private void restoreLogoutLayout()
 	{
-		if (client.getWidget(WIDGET_LOGOUT_LAYOUT) == null)
+		if (!canResize())
 		{
 			return;
 		}
@@ -112,7 +114,7 @@ public class LargeLogoutPlugin extends Plugin
 
 	private void enlargeLogoutButton()
 	{
-		if (client.getWidget(WIDGET_LOGOUT_LAYOUT) == null)
+		if (!canResize())
 		{
 			return;
 		}
@@ -137,6 +139,33 @@ public class LargeLogoutPlugin extends Plugin
 			.revalidate();
 
 		scaleButton(logoutButton, logoutButton.getWidth() * 5 / 6);
+	}
+
+	private boolean canResize()
+	{
+		boolean layoutIsExpected = layoutIsExpected();
+		boolean isBetaWorld = client.getWorldType().contains(WorldType.BETA_WORLD)
+			|| client.getWorldType().contains(WorldType.NOSAVE_MODE);
+
+		return layoutIsExpected && !isBetaWorld;
+	}
+
+	private boolean layoutIsExpected()
+	{
+		Widget layout = client.getWidget(WIDGET_LOGOUT_LAYOUT);
+		if (layout == null)
+		{
+			return false;
+		}
+
+		Widget[] children = layout.getStaticChildren();
+		if (children == null)
+		{
+			return false;
+		}
+
+		return children.length == 2
+			&& Arrays.stream(children).allMatch(w -> w.getId() == WIDGET_BUTTON_PANE || w.getId() == WIDGET_REVIEW_PANE);
 	}
 
 	private void fillParentWith(Widget w)
