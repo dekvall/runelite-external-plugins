@@ -32,7 +32,6 @@ public class LargeLogoutPlugin extends Plugin
 
 	private static final int SCRIPT_LOGOUT_LAYOUT_UPDATE = 2243;
 
-
 	private static final int WIDGET_LOGOUT_LAYOUT = PACK(InterfaceID.LOGOUT_PANEL, 0);
 	private static final int WIDGET_BUTTON_PANE = PACK(InterfaceID.LOGOUT_PANEL, 1);
 	private static final int WIDGET_INFO_TEXT = PACK(InterfaceID.LOGOUT_PANEL, 2);
@@ -75,7 +74,6 @@ public class LargeLogoutPlugin extends Plugin
 			enlargeLogoutButton();
 		}
 	}
-
 
 	private void restoreLogoutLayout()
 	{
@@ -133,7 +131,7 @@ public class LargeLogoutPlugin extends Plugin
 
 		logoutButton.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
 			.setHeightMode(WidgetSizeMode.MINUS)
-			.setOriginalHeight(ORIG_LOGOUT_BUTTON_HEIGHT + 2 * WIDGET_SPACING)
+			.setOriginalHeight(ORIG_LOGOUT_BUTTON_HEIGHT + WIDGET_SPACING + 4)
 			.setWidthMode(WidgetSizeMode.MINUS)
 			.setOriginalWidth(0)
 			.revalidate();
