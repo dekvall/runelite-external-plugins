@@ -8,7 +8,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.WorldType;
 import net.runelite.api.events.ScriptPostFired;
-import net.runelite.api.widgets.InterfaceID;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
 import net.runelite.api.widgets.WidgetSizeMode;
@@ -34,13 +34,6 @@ public class LargeLogoutPlugin extends Plugin
 	private static final int WIDGET_SPACING = 10;
 
 	private static final int SCRIPT_LOGOUT_LAYOUT_UPDATE = 2243;
-
-	private static final int WIDGET_LOGOUT_LAYOUT = PACK(InterfaceID.LOGOUT_PANEL, 0);
-	private static final int WIDGET_BUTTON_PANE = PACK(InterfaceID.LOGOUT_PANEL, 1);
-	private static final int WIDGET_INFO_TEXT = PACK(InterfaceID.LOGOUT_PANEL, 2);
-	private static final int WIDGET_SWITCH_BUTTON = PACK(InterfaceID.LOGOUT_PANEL, 3);
-	private static final int WIDGET_LOGOUT_BUTTON = PACK(InterfaceID.LOGOUT_PANEL, 8);
-	private static final int WIDGET_REVIEW_PANE = PACK(InterfaceID.LOGOUT_PANEL, 13);
 
 	@Inject
 	private Client client;
@@ -85,22 +78,22 @@ public class LargeLogoutPlugin extends Plugin
 			return;
 		}
 
-		client.getWidget(WIDGET_REVIEW_PANE).setHidden(false);
-		client.getWidget(WIDGET_INFO_TEXT).setHidden(false);
+		client.getWidget(InterfaceID.Logout.SATISFACTION).setHidden(false);
+		client.getWidget(InterfaceID.Logout.LOGOUT_TEXT).setHidden(false);
 
-		client.getWidget(WIDGET_BUTTON_PANE)
+		client.getWidget(InterfaceID.Logout.LOGOUT_BUTTONS)
 			.setHeightMode(WidgetSizeMode.ABSOLUTE)
 			.setOriginalHeight(ORIG_BUTTONS_PANE_HEIGHT)
 			.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
 			.setOriginalY(ORIG_BUTTONS_PANE_Y_OFFSET)
 			.revalidate();
 
-		client.getWidget(WIDGET_SWITCH_BUTTON).
+		client.getWidget(InterfaceID.Logout.WORLD_SWITCHER).
 			setYPositionMode(WidgetPositionMode.ABSOLUTE_CENTER)
 			.setOriginalY(0)
 			.revalidate();
 
-		Widget logoutButton = client.getWidget(WIDGET_LOGOUT_BUTTON);
+		Widget logoutButton = client.getWidget(InterfaceID.Logout.LOGOUT);
 
 		logoutButton
 			.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
@@ -120,17 +113,17 @@ public class LargeLogoutPlugin extends Plugin
 			return;
 		}
 
-		client.getWidget(WIDGET_REVIEW_PANE).setHidden(true);
-		client.getWidget(WIDGET_INFO_TEXT).setHidden(true);
+		client.getWidget(InterfaceID.Logout.SATISFACTION).setHidden(true);
+		client.getWidget(InterfaceID.Logout.LOGOUT_TEXT).setHidden(true);
 
-		fillParentWith(client.getWidget(WIDGET_BUTTON_PANE));
+		fillParentWith(client.getWidget(InterfaceID.Logout.LOGOUT_BUTTONS));
 
-		client.getWidget(WIDGET_SWITCH_BUTTON)
+		client.getWidget(InterfaceID.Logout.WORLD_SWITCHER)
 			.setYPositionMode(WidgetPositionMode.ABSOLUTE_TOP)
 			.setOriginalY(WIDGET_SPACING)
 			.revalidate();
 
-		Widget logoutButton = client.getWidget(WIDGET_LOGOUT_BUTTON);
+		Widget logoutButton = client.getWidget(InterfaceID.Logout.LOGOUT);
 
 		logoutButton.setYPositionMode(WidgetPositionMode.ABSOLUTE_BOTTOM)
 			.setHeightMode(WidgetSizeMode.MINUS)
@@ -153,7 +146,7 @@ public class LargeLogoutPlugin extends Plugin
 
 	private boolean layoutIsExpected()
 	{
-		Widget layout = client.getWidget(WIDGET_LOGOUT_LAYOUT);
+		Widget layout = client.getWidget(InterfaceID.Logout.UNIVERSE);
 		if (layout == null)
 		{
 			return false;
@@ -166,7 +159,8 @@ public class LargeLogoutPlugin extends Plugin
 		}
 
 		return children.length == 2
-			&& Arrays.stream(children).allMatch(w -> w.getId() == WIDGET_BUTTON_PANE || w.getId() == WIDGET_REVIEW_PANE);
+			&& Arrays.stream(children)
+				.allMatch(w -> w.getId() == InterfaceID.Logout.LOGOUT_BUTTONS || w.getId() == InterfaceID.Logout.SATISFACTION);
 	}
 
 	private void fillParentWith(Widget w)
@@ -208,11 +202,6 @@ public class LargeLogoutPlugin extends Plugin
 			.setOriginalWidth(width)
 			.setSpriteTiling(false)
 			.revalidate();
-	}
-
-	private static int PACK(int groupId, int childId)
-	{
-		return groupId << 16 | childId;
 	}
 
 	@Provides
