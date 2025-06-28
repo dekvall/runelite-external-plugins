@@ -15,6 +15,7 @@ import net.runelite.api.widgets.WidgetSizeMode;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -24,6 +25,8 @@ import net.runelite.client.plugins.PluginDescriptor;
 )
 public class LargeLogoutPlugin extends Plugin
 {
+	static final String CONFIG_GROUP = "largelogout";
+
 	private static final int ORIG_CORNER_SIDE = 36;
 	private static final int ORIG_BUTTONS_PANE_HEIGHT = 132;
 	private static final int ORIG_BUTTONS_PANE_Y_OFFSET = 16;
@@ -71,6 +74,32 @@ public class LargeLogoutPlugin extends Plugin
 		if (client.getGameState() == GameState.LOGGED_IN)
 		{
 			clientThread.invokeLater(this::restoreLogoutLayout);
+			clientThread.invokeLater(() ->
+			{
+				restoreWorldSwitcherLayout();
+				updateUniverse(InterfaceID.Worldswitcher.UNIVERSE);
+			});
+		}
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!CONFIG_GROUP.equals(event.getGroup()) || client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		if (config.resizeWorldSwitcherLogout())
+		{
+			clientThread.invokeLater(() ->
+			{
+				enlargeWorldSwitcherLogoutButton();
+				updateUniverse(InterfaceID.Worldswitcher.UNIVERSE);
+			});
+		}
+		else
+		{
 			clientThread.invokeLater(() ->
 			{
 				restoreWorldSwitcherLayout();
@@ -159,6 +188,11 @@ public class LargeLogoutPlugin extends Plugin
 	private void enlargeWorldSwitcherLogoutButton()
 	{
 		if (!canResizeWorldSwitcher())
+		{
+			return;
+		}
+
+		if (!config.resizeWorldSwitcherLogout())
 		{
 			return;
 		}
