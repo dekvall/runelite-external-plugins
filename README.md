@@ -37,3 +37,23 @@ Gotify token can be created under `Apps/Create Application`
 Example notification
 
 ![example-gotify](imgs/gotify-example.png)
+
+# Sending Notifications From Other Plugins
+
+The use case for this is if you only want to trigger push notifications under specific conditions, rather than all notifications.
+
+This prevents you from having to continually enable and disable push notifications plugin.
+
+As an example, the plugin "watchdog" can be configured to send a message to this plugin to trigger a push notification.
+
+Within watchdog, configure a notification of type "Plugin Message" with the namespace "push-notifications" and method "notify".
+
+![example-create-watchdog](imgs/create-new-watchdog.png)
+
+Add the message data as a JSON message: `{"message": "test from watchdog"}`
+
+![example-create-watchdog-1](imgs/create-new-watchdog-1.png)
+
+Test the alert from within watchdog using the potion icon.
+
+![example-pushover-watchdog](imgs/pushover-watchdog-example.png)
