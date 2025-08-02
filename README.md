@@ -1,5 +1,5 @@
 # Push Notifications
-Send notifications to your phone or other devices, currently supports [Pushbullet](https://www.pushbullet.com/), [Pushover](https://pushover.net/) and [Gotify](https://gotify.net).
+Forward notifications to your phone or other devices, currently supports [Pushbullet](https://www.pushbullet.com/), [Pushover](https://pushover.net/) and [Gotify](https://gotify.net).
 
 ## Pushbullet
 You need to provide a pushbullet api key to use this service.
@@ -38,19 +38,20 @@ Example notification
 
 ![example-gotify](imgs/gotify-example.png)
 
-# Sending Notifications From Other Plugins
+# Triggering a push notification
+The easiest way to trigger a push notification is to use the standard notification api: `notifier.notify("notification text")`, the notification text will be forwarded to the configured services.
 
-The use case for this is if you only want to trigger push notifications under specific conditions, rather than all notifications.
+There is also the option to send a `PluginMessage` with namespace `push-notifications` and name `notify`. This will forward the value of `$.message`.
 
-This prevents you from having to continually enable and disable push notifications plugin.
-
-As an example, the plugin "watchdog" can be configured to send a message to this plugin to trigger a push notification.
-
-Within watchdog, configure a notification of type "Plugin Message" with the namespace "push-notifications" and method "notify".
+## Watchdog
+Within watchdog, configure a notification of type "Plugin Message" with the namespace `push-notifications` and method `notify`.
 
 ![example-create-watchdog](imgs/create-new-watchdog.png)
 
-Add the message data as a JSON message: `{"message": "test from watchdog"}`
+Add the message data as a JSON message:
+```json
+{"message": "test from watchdog"}
+```
 
 ![example-create-watchdog-1](imgs/create-new-watchdog-1.png)
 
