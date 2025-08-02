@@ -3,7 +3,6 @@ package dekvall.pushnotification;
 import com.google.common.base.Strings;
 import com.google.inject.Provides;
 import java.io.IOException;
-import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -34,19 +33,6 @@ public class PushNotificationsPlugin extends Plugin
 	@Inject
 	private PushNotificationsConfig config;
 
-	@Subscribe
-	public void onPluginMessage(PluginMessage event) {
-		if ("push-notifications".equalsIgnoreCase(event.getNamespace())
-				&& "notify".equalsIgnoreCase(event.getName())) {
-			Map<String, Object> data = event.getData();
-			String message = data.get("message").toString();
-
-			handlePushbullet(message);
-			handlePushover(message);
-			handleGotify(message);
-		}
-	}
-
 	@Override
 	protected void startUp() throws Exception
 	{
@@ -68,14 +54,37 @@ public class PushNotificationsPlugin extends Plugin
 	@Subscribe
 	public void onNotificationFired(NotificationFired event)
 	{
-		handlePushbullet(event.getMessage());
-		handlePushover(event.getMessage());
-		handleGotify(event.getMessage());
+		String message = event.getMessage();
+		push(message);
 	}
 
-	private void handlePushbullet(String eventMessage)
+	@Subscribe
+	public void onPluginMessage(PluginMessage event) {
+		if (!"push-notifications".equals(event.getNamespace()) || !"notify".equals(event.getName()))
+		{
+			return;
+		}
+
+		Object maybeMessage = event.getData().get("message");
+		if (!(maybeMessage instanceof String))
+		{
+			return;
+		}
+
+		String message = (String)maybeMessage;
+		push(message);
+	}
+
+	private void push(String message)
 	{
-		if(Strings.isNullOrEmpty(config.pushbullet()))
+		handlePushbullet(message);
+		handlePushover(message);
+		handleGotify(message);
+	}
+
+	private void handlePushbullet(String message)
+	{
+		if (Strings.isNullOrEmpty(config.pushbullet()))
 		{
 			return;
 		}
@@ -89,7 +98,7 @@ public class PushNotificationsPlugin extends Plugin
 
 		RequestBody push = new FormBody.Builder()
 			.add("body", "You should probably do something about that..")
-			.add("title", eventMessage)
+			.add("title", message)
 			.add("type", "note")
 			.build();
 
@@ -104,9 +113,9 @@ public class PushNotificationsPlugin extends Plugin
 		sendRequest("Pushbullet", request);
 	}
 
-	private void handlePushover(String eventMessage)
+	private void handlePushover(String message)
 	{
-		if(Strings.isNullOrEmpty(config.pushover_api()) || Strings.isNullOrEmpty(config.pushover_user()))
+		if (Strings.isNullOrEmpty(config.pushover_api()) || Strings.isNullOrEmpty(config.pushover_user()))
 		{
 			return;
 		}
@@ -121,7 +130,7 @@ public class PushNotificationsPlugin extends Plugin
 		RequestBody push = new FormBody.Builder()
 			.add("token", config.pushover_api())
 			.add("user", config.pushover_user())
-			.add("message", eventMessage)
+			.add("message", message)
 			.build();
 
 		Request request = new Request.Builder()
@@ -134,9 +143,9 @@ public class PushNotificationsPlugin extends Plugin
 		sendRequest("Pushover", request);
 	}
 
-	private void handleGotify(String eventMessage)
+	private void handleGotify(String message)
 	{
-		if(Strings.isNullOrEmpty(config.gotify_url()) || Strings.isNullOrEmpty(config.gotify_token()))
+		if (Strings.isNullOrEmpty(config.gotify_url()) || Strings.isNullOrEmpty(config.gotify_token()))
 		{
 			return;
 		}
@@ -154,8 +163,8 @@ public class PushNotificationsPlugin extends Plugin
 			.build();
 		
 		RequestBody push = new FormBody.Builder()
-			.add("title", eventMessage)
-			.add("message", eventMessage)
+			.add("title", message)
+			.add("message", message)
 			.add("priority", String.valueOf(config.gotify_priority()))
 			.build();
 
