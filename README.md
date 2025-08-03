@@ -38,6 +38,15 @@ Example notification
 
 ![example-gotify](imgs/gotify-example.png)
 
+## Pushcut
+[Pushcut](https://www.pushcut.io/) is a notification service on iOS, that offers the ability to add _triggers_ to notifications. Meaning, you can trigger an iOS shortcut or open a URL (including deeplinks) by tapping or acknowledging the notification on your device. 
+
+You need to provide the following:
+* **Webhook Secret**: This is automatically created when creating an account. Locate your secret within the Pushcut app by navigating to _account_ -> _webhook_ -> _secret_
+* **Notification Name**: The name for a notification that you create within the app
+
+_**NOTE:**_ Both **Webhook Secret**, and **Notification Name** are CASE SENSITIVE.
+
 # Triggering a push notification
 The easiest way to trigger a push notification is to use the standard notification api: `notifier.notify("notification text")`, the notification text will be forwarded to the configured services.
 
