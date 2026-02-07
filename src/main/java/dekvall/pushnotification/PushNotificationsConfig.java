@@ -83,6 +83,14 @@ public interface PushNotificationsConfig extends Config
 	String gotifySection = "gotify";
 
 	@ConfigItem(
+		keyName = "gotify_title",
+		name = "Gotify title",
+		description = "Title section is optional. If empty it uses the Gotify app name.",
+		section = gotifySection
+	)
+	String gotifyTitle();
+
+	@ConfigItem(
 		keyName = "gotify_url",
 		name = "Gotify URL",
 		description = "URL for Gotify server, example: http://10.0.0.30:8080/message",
