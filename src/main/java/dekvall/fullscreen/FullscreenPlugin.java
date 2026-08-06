@@ -31,6 +31,7 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javax.inject.Inject;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -39,6 +40,8 @@ import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.RuneLiteConfig;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -56,7 +59,8 @@ import net.runelite.client.util.OSType;
 @Slf4j
 @PluginDescriptor(
 	name = "Fullscreen",
-	description = "Requires custom custom chrome to be disabled"
+	description = "RuneLite, but in fullscreen",
+	tags = {"exclusive", "borderless"}
 )
 public class FullscreenPlugin extends Plugin
 {
@@ -81,7 +85,9 @@ public class FullscreenPlugin extends Plugin
 	private Rectangle prevBounds;
 	private GraphicsConfiguration gc;
 	private Mode fullscreenMode;
-	private boolean isActivated;
+	private boolean isExclusiveActivated = false;
+	private boolean isBorderlessActivated = false;
+	private boolean wasFocused = true;
 
 	private HotkeyListener hotkeyListener = createHotkeyListener();
 
@@ -102,6 +108,7 @@ public class FullscreenPlugin extends Plugin
 	protected void startUp()
 	{
 		clientFrame = getClientFrame();
+
 		if (clientFrame == null)
 		{
 			return;
@@ -109,19 +116,59 @@ public class FullscreenPlugin extends Plugin
 
 		keyManager.registerKeyListener(hotkeyListener);
 		clientToolbar.addNavigation(navButtonEnable);
-		gc = clientUI.getGraphicsConfiguration();
+
+		wasFocused = true;
+
+		clientThread.invoke(() ->
+		{
+			// wait for client to initialize or else fullscreen doesn't initialize properly
+			if (!clientUI.isFocused())
+			{
+				wasFocused = false;
+
+				return false;
+			}
+
+			if (wasFocused)
+			{
+				if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
+				{
+					showWarning("For a better fullscreen mode experience, you must disable custom window chrome in 'RuneLite' settings");
+				}
+			}
+
+			enableFullscreen();
+
+			return true;
+		});
 	}
 
 	private void enableFullscreen()
 	{
+		gc = clientUI.getGraphicsConfiguration();
+
 		if (!canEnable())
 		{
 			return;
 		}
 
-		gc = clientUI.getGraphicsConfiguration();
-		prevExtState = clientFrame.getExtendedState();
-		prevBounds = clientFrame.getBounds();
+		SwingUtilities.invokeLater(() ->
+		{
+			prevExtState = clientFrame.getExtendedState();
+
+			if ((prevExtState & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH)
+			{
+				clientFrame.setExtendedState(Frame.NORMAL);
+			}
+
+			prevBounds = clientFrame.getBounds();
+
+			if ((prevExtState & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH)
+			{
+				clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+			}
+		});
+
 		fullscreenMode = config.fullscreenMode();
 
 		if (fullscreenMode == Mode.EXCLUSIVE)
@@ -133,7 +180,6 @@ public class FullscreenPlugin extends Plugin
 			enableBorderless();
 		}
 
-		isActivated = true;
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.addNavigation(navButtonDisable);
 	}
@@ -141,6 +187,8 @@ public class FullscreenPlugin extends Plugin
 	private void disableFullscreen()
 	{
 		gc = clientUI.getGraphicsConfiguration();
+		fullscreenMode = config.fullscreenMode();
+
 		if (fullscreenMode == Mode.EXCLUSIVE)
 		{
 			disableExclusive();
@@ -149,19 +197,13 @@ public class FullscreenPlugin extends Plugin
 		{
 			disableBorderless();
 		}
-		isActivated = false;
+
 		clientToolbar.removeNavigation(navButtonDisable);
 		clientToolbar.addNavigation(navButtonEnable);
 	}
 
 	private boolean canEnable()
 	{
-		if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
-		{
-			showError("You must disable custom chrome to in 'RuneLite' settings to enable fullscreen");
-			return false;
-		}
-
 		if (config.fullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
 		{
 			showError("Fullscreen mode 'Exclusive' is not available on your device");
@@ -169,6 +211,14 @@ public class FullscreenPlugin extends Plugin
 		}
 
 		return true;
+	}
+
+	private void showWarning(String message)
+	{
+		JOptionPane.showMessageDialog(clientFrame, message,
+				"Warning",
+				JOptionPane.WARNING_MESSAGE);
+		log.warn(message);
 	}
 
 	private void showError(String message)
@@ -181,42 +231,82 @@ public class FullscreenPlugin extends Plugin
 
 	private void enableExclusive()
 	{
-		gc.getDevice().setFullScreenWindow(clientFrame);
-	}
-
-	private void disableExclusive()
-	{
-		gc.getDevice().setFullScreenWindow(null);
-	}
-
-	private void enableBorderless()
-	{
-		stopGpuPlugins();
-		clientThread.invokeLater(() ->
+		if (isBorderlessActivated)
 		{
-			if (client.isGpu())
+			disableBorderless();
+		}
+
+		clientThread.invoke(() ->
+		{
+			if (isBorderlessActivated)
 			{
 				return false;
 			}
 
 			SwingUtilities.invokeLater(() ->
 			{
-				clientFrame.dispose();
-				clientFrame.setUndecorated(true);
-				clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
-				clientFrame.setAlwaysOnTop(true);
-				clientFrame.setResizable(false);
-				clientFrame.setSize(gc.getBounds().getSize());
-				clientFrame.setLocation(gc.getBounds().getLocation());
-				clientFrame.pack();
-				clientFrame.setVisible(true);
+				gc.getDevice().setFullScreenWindow(clientFrame);
 
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
+				isExclusiveActivated = true;
+			});
+
+			return true;
+		});
+	}
+
+	private void disableExclusive()
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			gc.getDevice().setFullScreenWindow(null);
+
+			isExclusiveActivated = false;
+		});
+	}
+
+	private void enableBorderless()
+	{
+		if (isExclusiveActivated)
+		{
+			disableExclusive();
+		}
+
+		clientThread.invoke(() ->
+		{
+			if (isExclusiveActivated)
+			{
+				return false;
+			}
+
+			SwingUtilities.invokeLater(this::stopGpuPlugins);
+
+			clientThread.invokeLater(() ->
+			{
+				if (client.isGpu())
+				{
+					return false;
+				}
+
+				SwingUtilities.invokeLater(() ->
+				{
+					clientFrame.dispose();
+					clientFrame.setUndecorated(true);
+					clientFrame.setResizable(false);
+					clientFrame.setBounds(gc.getBounds());
+					clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+					clientFrame.setVisible(true);
+
+					// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
+					// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
+					// There are probably better ways to handle this, but this is for the hub!
+					swapOutHotkeyListener();
+					restoreGpuPlugins();
+					clientUI.forceFocus();
+
+					isBorderlessActivated = true;
+				});
+
+				return true;
 			});
 
 			return true;
@@ -225,7 +315,8 @@ public class FullscreenPlugin extends Plugin
 
 	private void disableBorderless()
 	{
-		stopGpuPlugins();
+		SwingUtilities.invokeLater(this::stopGpuPlugins);
+
 		clientThread.invokeLater(() ->
 		{
 			if (client.isGpu())
@@ -237,14 +328,21 @@ public class FullscreenPlugin extends Plugin
 			{
 				clientFrame.dispose();
 				clientFrame.setUndecorated(false);
-				clientFrame.setExtendedState(prevExtState);
-				clientFrame.setAlwaysOnTop(false);
 				clientFrame.setResizable(true);
-				clientFrame.pack();
-				clientFrame.setVisible(true);
 
-				clientFrame.setBounds(prevBounds);
-				clientFrame.setLocation(prevBounds.getLocation());
+				if ((prevExtState & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH)
+				{
+					clientFrame.setExtendedState(Frame.NORMAL);
+					clientFrame.setBounds(prevBounds);
+					clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+				}
+				else
+				{
+					clientFrame.setExtendedState(prevExtState);
+					clientFrame.setBounds(prevBounds);
+				}
+
+				clientFrame.setVisible(true);
 
 				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
 				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
@@ -252,6 +350,8 @@ public class FullscreenPlugin extends Plugin
 				swapOutHotkeyListener();
 				restoreGpuPlugins();
 				clientUI.forceFocus();
+
+				isBorderlessActivated = false;
 			});
 
 			return true;
@@ -317,26 +417,27 @@ public class FullscreenPlugin extends Plugin
 
 	private static Frame getClientFrame()
 	{
-		Frame clientFrame = null;
-		Frame[] frames = Frame.getFrames();
-		for (Frame frame : frames)
+		for (Frame frame : Frame.getFrames())
 		{
 			if (frame instanceof ContainableFrame)
 			{
-				clientFrame = frame;
-				break;
+				return frame;
 			}
 		}
-		return clientFrame;
+		return null;
+	}
+
+	private boolean isFullScreenActivated()
+	{
+		return isExclusiveActivated || isBorderlessActivated;
 	}
 
 	@Override
 	protected void shutDown()
 	{
-		if (isActivated)
+		if (isFullScreenActivated())
 		{
 			disableFullscreen();
-			isActivated = false;
 		}
 
 		clientToolbar.removeNavigation(navButtonEnable);
@@ -358,7 +459,7 @@ public class FullscreenPlugin extends Plugin
 			@Override
 			public void hotkeyPressed()
 			{
-				if (!isActivated)
+				if (!isFullScreenActivated())
 				{
 					enableFullscreen();
 				}
@@ -368,6 +469,22 @@ public class FullscreenPlugin extends Plugin
 				}
 			}
 		};
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged configChanged)
+	{
+		if (Objects.equals(configChanged.getGroup(), "Fullscreen"))
+		{
+			if (Objects.equals(configChanged.getKey(), "fullscreenMode"))
+			{
+				if (isFullScreenActivated())
+				{
+					// switch fullscreen modes
+					enableFullscreen();
+				}
+			}
+		}
 	}
 
 	@Provides

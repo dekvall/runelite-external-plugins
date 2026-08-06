@@ -16,7 +16,7 @@ public interface FullscreenConfig extends Config
 	)
 	default Mode fullscreenMode()
 	{
-		return Mode.EXCLUSIVE;
+		return Mode.BORDERLESS;
 	}
 
 	@ConfigItem(
