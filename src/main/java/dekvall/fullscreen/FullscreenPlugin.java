@@ -137,7 +137,10 @@ public class FullscreenPlugin extends Plugin
 				}
 			}
 
-			enableFullscreen();
+			if (config.enableOnStartUp())
+			{
+				enableFullscreen();
+			}
 
 			return true;
 		});

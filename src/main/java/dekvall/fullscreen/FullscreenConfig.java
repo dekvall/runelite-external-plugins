@@ -29,4 +29,15 @@ public interface FullscreenConfig extends Config
 	{
 		return Keybind.NOT_SET;
 	}
+
+	@ConfigItem(
+			keyName = "enableOnStartUp",
+			name = "Enable on startup",
+			description = "Enable fullscreen mode on startup",
+			position = 2
+	)
+	default boolean enableOnStartUp()
+	{
+		return true;
+	}
 }
