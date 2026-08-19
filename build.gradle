@@ -24,7 +24,6 @@ dependencies {
 }
 
 group = 'dekvall.fullscreen'
-version = '1.2'
 
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
