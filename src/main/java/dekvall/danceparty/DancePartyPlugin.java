@@ -6,6 +6,7 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -158,7 +159,7 @@ public class DancePartyPlugin extends Plugin
 	void applyAnimationIfPossible(Player player)
 	{
 		if (player.getAnimation() != -1
-			|| config.disableInPvp() && client.getVar(Varbits.PVP_SPEC_ORB) == 1
+			|| config.disableInPvp() && client.getVarbitValue(VarbitID.PVP_AREA_CLIENT) == 1
 			|| ((config.partyOnBossKill() || config.partyOnLevelup() || config.partyOnPetDrop() || config.partyOnRaidDone())
 				&& forceDanceTick < client.getTickCount()))
 		{
