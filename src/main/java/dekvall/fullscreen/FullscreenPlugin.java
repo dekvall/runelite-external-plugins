@@ -79,9 +79,13 @@ public class FullscreenPlugin extends Plugin
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
+	private boolean prevAlwaysOnTop;
+	private boolean prevResizable;
 	private GraphicsConfiguration gc;
 	private Mode fullscreenMode;
 	private boolean isActivated;
+	private boolean running;
+	private boolean transitioning;
 
 	private HotkeyListener hotkeyListener = createHotkeyListener();
 
@@ -107,21 +111,32 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
+		running = true;
 		keyManager.registerKeyListener(hotkeyListener);
-		clientToolbar.addNavigation(navButtonEnable);
-		gc = clientUI.getGraphicsConfiguration();
+		clientToolbar.addNavigation(isActivated ? navButtonDisable : navButtonEnable);
 	}
 
 	private void enableFullscreen()
 	{
+		if (!SwingUtilities.isEventDispatchThread())
+		{
+			SwingUtilities.invokeLater(this::enableFullscreen);
+			return;
+		}
+		if (!running || isActivated || transitioning)
+		{
+			return;
+		}
+		gc = clientUI.getGraphicsConfiguration();
 		if (!canEnable())
 		{
 			return;
 		}
 
-		gc = clientUI.getGraphicsConfiguration();
 		prevExtState = clientFrame.getExtendedState();
 		prevBounds = clientFrame.getBounds();
+		prevAlwaysOnTop = clientFrame.isAlwaysOnTop();
+		prevResizable = clientFrame.isResizable();
 		fullscreenMode = config.fullscreenMode();
 
 		if (fullscreenMode == Mode.EXCLUSIVE)
@@ -140,7 +155,16 @@ public class FullscreenPlugin extends Plugin
 
 	private void disableFullscreen()
 	{
-		gc = clientUI.getGraphicsConfiguration();
+		if (!SwingUtilities.isEventDispatchThread())
+		{
+			SwingUtilities.invokeLater(this::disableFullscreen);
+			return;
+		}
+		if (!isActivated || transitioning)
+		{
+			return;
+		}
+		// Release the same graphics device used to enter exclusive fullscreen.
 		if (fullscreenMode == Mode.EXCLUSIVE)
 		{
 			disableExclusive();
@@ -151,7 +175,10 @@ public class FullscreenPlugin extends Plugin
 		}
 		isActivated = false;
 		clientToolbar.removeNavigation(navButtonDisable);
-		clientToolbar.addNavigation(navButtonEnable);
+		if (running)
+		{
+			clientToolbar.addNavigation(navButtonEnable);
+		}
 	}
 
 	private boolean canEnable()
@@ -191,6 +218,7 @@ public class FullscreenPlugin extends Plugin
 
 	private void enableBorderless()
 	{
+		transitioning = true;
 		stopGpuPlugins();
 		clientThread.invokeLater(() ->
 		{
@@ -203,20 +231,17 @@ public class FullscreenPlugin extends Plugin
 			{
 				clientFrame.dispose();
 				clientFrame.setUndecorated(true);
-				clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+				// Maximised windows use the desktop work area, which excludes the taskbar.
+				clientFrame.setExtendedState(Frame.NORMAL);
 				clientFrame.setAlwaysOnTop(true);
 				clientFrame.setResizable(false);
-				clientFrame.setSize(gc.getBounds().getSize());
-				clientFrame.setLocation(gc.getBounds().getLocation());
+				// pack() creates the peer but also resets the size to the preferred content size.
+				// Apply full monitor bounds afterwards, including non-zero monitor origins.
 				clientFrame.pack();
+				clientFrame.setBounds(gc.getBounds());
 				clientFrame.setVisible(true);
 
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
+				finishBorderlessTransition();
 			});
 
 			return true;
@@ -225,6 +250,7 @@ public class FullscreenPlugin extends Plugin
 
 	private void disableBorderless()
 	{
+		transitioning = true;
 		stopGpuPlugins();
 		clientThread.invokeLater(() ->
 		{
@@ -237,25 +263,37 @@ public class FullscreenPlugin extends Plugin
 			{
 				clientFrame.dispose();
 				clientFrame.setUndecorated(false);
-				clientFrame.setExtendedState(prevExtState);
-				clientFrame.setAlwaysOnTop(false);
-				clientFrame.setResizable(true);
+				clientFrame.setExtendedState(Frame.NORMAL);
+				clientFrame.setAlwaysOnTop(prevAlwaysOnTop);
+				clientFrame.setResizable(prevResizable);
 				clientFrame.pack();
 				clientFrame.setVisible(true);
 
 				clientFrame.setBounds(prevBounds);
-				clientFrame.setLocation(prevBounds.getLocation());
+				clientFrame.setExtendedState(prevExtState);
 
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
+				finishBorderlessTransition();
 			});
 
 			return true;
 		});
+	}
+
+	private void finishBorderlessTransition()
+	{
+		restoreGpuPlugins();
+		transitioning = false;
+		if (running)
+		{
+			// Recreating the peer can lose the key release for the fullscreen hotkey.
+			swapOutHotkeyListener();
+			clientUI.forceFocus();
+		}
+		else if (isActivated)
+		{
+			// Shutdown may have happened while waiting for the GPU to stop.
+			disableFullscreen();
+		}
 	}
 
 	private void restoreGpuPlugins()
@@ -333,10 +371,10 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		running = false;
 		if (isActivated)
 		{
 			disableFullscreen();
-			isActivated = false;
 		}
 
 		clientToolbar.removeNavigation(navButtonEnable);
@@ -358,14 +396,21 @@ public class FullscreenPlugin extends Plugin
 			@Override
 			public void hotkeyPressed()
 			{
-				if (!isActivated)
+				SwingUtilities.invokeLater(() ->
 				{
-					enableFullscreen();
-				}
-				else
-				{
-					disableFullscreen();
-				}
+					if (!running || transitioning)
+					{
+						return;
+					}
+					if (!isActivated)
+					{
+						enableFullscreen();
+					}
+					else
+					{
+						disableFullscreen();
+					}
+				});
 			}
 		};
 	}
