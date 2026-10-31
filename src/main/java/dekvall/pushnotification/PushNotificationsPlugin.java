@@ -198,11 +198,18 @@ public class PushNotificationsPlugin extends Plugin
 			.addQueryParameter("token", config.gotifyToken())
 			.build();
 		
-		RequestBody push = new FormBody.Builder()
-			.add("title", config.gotifyTitle())
+		FormBody.Builder pushBuilder = new FormBody.Builder()
 			.add("message", message)
-			.add("priority", String.valueOf(config.gotifyPriority()))
-			.build();
+			.add("priority", String.valueOf(config.gotifyPriority()));
+
+		// If a custom "title" is not provided, gotify uses the app name connected to the token as notification title
+		String title = config.gotifyTitle();
+		if (!Strings.isNullOrEmpty(title))
+		{
+			pushBuilder.add("title", title);
+		}
+
+		RequestBody push = pushBuilder.build();
 
 		Request request = new Request.Builder()
 			.header("User-Agent", "RuneLite")
