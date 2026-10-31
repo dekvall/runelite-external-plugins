@@ -92,6 +92,11 @@ public class FullscreenPlugin extends Plugin
 	private FullscreenController controller;
 	private HotkeyListener hotkeyListener;
 	private NavigationButton button;
+	/** Shown only while fullscreen, which has no title bar and so no close button. */
+	private NavigationButton exitButton;
+	static final String EXIT_TOOLTIP = "Exit RuneLite";
+	/** Above every other sidebar button (Configuration uses 0). */
+	static final int EXIT_PRIORITY = -1000;
 	private boolean enabled;
 	private boolean closing;
 	private boolean errorDialogOpen;
@@ -710,6 +715,11 @@ public class FullscreenPlugin extends Plugin
 			clientToolbar.removeNavigation(button);
 			button = null;
 		}
+		if (exitButton != null)
+		{
+			clientToolbar.removeNavigation(exitButton);
+			exitButton = null;
+		}
 		if (controller == null)
 		{
 			return;
@@ -750,14 +760,50 @@ public class FullscreenPlugin extends Plugin
 			}))
 			.build();
 		clientToolbar.addNavigation(button);
-
+		if (active)
+		{
+			exitButton = NavigationButton.builder()
+				.tooltip(EXIT_TOOLTIP)
+				.icon(exitIcon())
+				.priority(EXIT_PRIORITY)
+				.onClick(() -> onEdt(this::requestClientClose))
+				.build();
+			clientToolbar.addNavigation(exitButton);
+		}
 	}
 
 	/**
 	 * Same as clicking the title bar's X: RuneLite's own close handling runs, including
 	 * its exit confirmation and window-bounds save.
 	 */
+	void requestClientClose()
+	{
+		Frame target = frame != null ? frame : findClientFrame();
+		if (target != null && target.isDisplayable())
+		{
+			target.dispatchEvent(new WindowEvent(target, WindowEvent.WINDOW_CLOSING));
+		}
+	}
 
+	static BufferedImage exitIcon()
+	{
+		BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = image.createGraphics();
+		try
+		{
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g.setColor(new Color(0xC8C8C8));
+			// RuneLite scales toolbar icons to 16x16; use nearly all of it.
+			g.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+			g.draw(new Line2D.Float(2.5f, 2.5f, 13.5f, 13.5f));
+			g.draw(new Line2D.Float(13.5f, 2.5f, 2.5f, 13.5f));
+		}
+		finally
+		{
+			g.dispose();
+		}
+		return image;
+	}
 
 	private void chooseMonitor(FullscreenController session)
 	{
