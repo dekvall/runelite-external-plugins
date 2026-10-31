@@ -377,10 +377,79 @@ public class FullscreenPlugin extends Plugin
 	{
 		HotkeyListener listener = new HotkeyListener(keybind)
 		{
+			private boolean toggleRequested;
+			private Keybind previousBinding;
+			/** Whether the most recent non-modifier key press was the hotkey itself. */
+			private boolean typedBelongsToHotkey;
+
 			@Override
 			public void hotkeyPressed()
 			{
-				SwingUtilities.invokeLater(toggle);
+				toggleRequested = true;
+			}
+
+			@Override
+			public synchronized void keyPressed(KeyEvent event)
+			{
+				resetChangedBinding();
+				if (Keybind.getModifierForKeyCode(event.getKeyCode()) == null)
+				{
+					// HotkeyListener consumes every KEY_TYPED until it sees the hotkey's
+					// release. That release can go to a dialog, another window or an
+					// earlier listener, so only suppress the character of the hotkey press
+					// itself. Held state is untouched, so auto-repeat cannot re-toggle.
+					typedBelongsToHotkey = keybind.get().matches(event);
+				}
+				super.keyPressed(event);
+				if (toggleRequested)
+				{
+					toggleRequested = false;
+					// Dispatch only after the base handler finishes, even if input arrives
+					// on a thread other than the EDT.
+					long queuedAt = System.nanoTime();
+					SwingUtilities.invokeLater(() ->
+					{
+						long delayMillis = (System.nanoTime() - queuedAt) / 1000000;
+						if (delayMillis > 250)
+						{
+							log.warn("Fullscreen hotkey waited {} ms for the UI thread", delayMillis);
+						}
+						toggle.run();
+					});
+				}
+			}
+
+			@Override
+			public synchronized void keyReleased(KeyEvent event)
+			{
+				resetChangedBinding();
+				super.keyReleased(event);
+			}
+
+			@Override
+			public synchronized void keyTyped(KeyEvent event)
+			{
+				resetChangedBinding();
+				if (typedBelongsToHotkey)
+				{
+					super.keyTyped(event);
+				}
+			}
+
+			@Override
+			public synchronized void focusLost()
+			{
+				super.focusLost();
+			}
+
+			private void resetChangedBinding()
+			{
+				Keybind binding = keybind.get();
+				if (!Objects.equals(previousBinding, binding))
+				{
+					super.focusLost();
+					previousBinding = binding;
+				}
 			}
 		};
 		listener.setEnabledOnLoginScreen(true);
