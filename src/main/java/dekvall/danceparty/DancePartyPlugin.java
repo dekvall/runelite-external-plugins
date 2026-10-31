@@ -62,6 +62,17 @@ public class DancePartyPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onCommandExecuted(CommandExecuted event)
+	{
+		if (!event.getCommand().equalsIgnoreCase("plsdance"))
+		{
+			return;
+		}
+
+		forceDanceTick = client.getTickCount() + DANCE_DURATION_LEVELUP;
+	}
+
+	@Subscribe
 	public void onPlayerSpawned(PlayerSpawned event)
 	{
 		if (event.getPlayer() != client.getLocalPlayer())
