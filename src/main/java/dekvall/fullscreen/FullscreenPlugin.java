@@ -25,26 +25,42 @@
 package dekvall.fullscreen;
 
 import com.google.inject.Provides;
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Frame;
-import java.awt.GraphicsConfiguration;
-import java.awt.Rectangle;
+import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
+import java.awt.RenderingHints;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
+import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Supplier;
 import javax.inject.Inject;
+import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.ConfigProfile;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.config.RuneLiteConfig;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ClientShutdown;
+import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.ProfileChanged;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
-import net.runelite.client.plugins.gpu.GpuPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ContainableFrame;
@@ -56,323 +72,908 @@ import net.runelite.client.util.OSType;
 @Slf4j
 @PluginDescriptor(
 	name = "Fullscreen",
-	description = "Requires custom custom chrome to be disabled"
+	description = "Borderless or exclusive fullscreen with safe window restoration.",
+	tags = {"window", "monitor", "borderless", "exclusive"},
+	internalName = "fullscreen"
 )
 public class FullscreenPlugin extends Plugin
 {
-	@Inject
-	private ClientUI clientUI;
-	@Inject
-	private Client client;
-	@Inject
-	private ConfigManager configManager;
-	@Inject
-	private KeyManager keyManager;
-	@Inject
-	private FullscreenConfig config;
-	@Inject
-	private ClientToolbar clientToolbar;
-	@Inject
-	private ClientThread clientThread;
-	@Inject
-	PluginManager pluginManager;
-	private Frame clientFrame;
-	private int prevExtState;
-	private Rectangle prevBounds;
-	private GraphicsConfiguration gc;
-	private Mode fullscreenMode;
-	private boolean isActivated;
+	@Inject private Client client;
+	@Inject private ClientUI clientUI;
+	@Inject private ConfigManager configManager;
+	@Inject private KeyManager keyManager;
+	@Inject private FullscreenConfig config;
+	@Inject private ClientToolbar clientToolbar;
+	@Inject private ClientThread clientThread;
+	@Inject private PluginManager pluginManager;
 
-	private HotkeyListener hotkeyListener = createHotkeyListener();
-
-	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
-	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
-	private final NavigationButton navButtonEnable = NavigationButton.builder()
-		.tooltip("Enable fullscreen")
-		.icon(iconEnable)
-		.onClick(this::enableFullscreen)
-		.build();
-	private final NavigationButton navButtonDisable = NavigationButton.builder()
-		.tooltip("Disable fullscreen")
-		.icon(iconDisable)
-		.onClick(this::disableFullscreen)
-		.build();
+	private Frame frame;
+	private FullscreenWindow window;
+	private FullscreenController controller;
+	private HotkeyListener hotkeyListener;
+	private NavigationButton button;
+	/** Shown only while fullscreen, which has no title bar and so no close button. */
+	private NavigationButton exitButton;
+	static final String EXIT_TOOLTIP = "Exit RuneLite";
+	/** Above every other sidebar button (Configuration uses 0). */
+	static final int EXIT_PRIORITY = -1000;
+	private boolean enabled;
+	private boolean closing;
+	private boolean errorDialogOpen;
+	private boolean updatingMonitorSelection;
+	private boolean updatingModeSelection;
+	/** Crash marker for the fullscreen change in progress (automatic startup or manual). */
+	private StartupRecovery startupRecovery;
+	private Timer startupTimer;
+	private Timer windowReadyTimer;
+	/** Profile whose Fullscreen settings this session applies; written on the profile-switch thread. */
+	private volatile long sessionProfile;
+	/** Only return focus to RuneLite when it was focused when the request began. */
+	private boolean refocusAfterTransition;
+	/** Re-enabled while a shutdown exit was still waiting; retry that exit once if it fails. */
+	private boolean retryCloseOnSettle;
+	/** Automatic entry reached settled fullscreen; later errors are not startup failures. */
+	private boolean startupSettled;
 
 	@Override
 	protected void startUp()
 	{
-		clientFrame = getClientFrame();
-		if (clientFrame == null)
+		onEdt(() ->
 		{
+			enabled = true;
+			if (controller == null)
+			{
+				closing = false;
+				initialize();
+			}
+			else if (closing && !controller.isTransitioning())
+			{
+				// A renderer timeout may have prevented safe shutdown. Keep its snapshot
+				// and retry restoration before starting a new session.
+				controller.close();
+			}
+			else if (closing)
+			{
+				// The pending shutdown exit may still time out. Without a retry the plugin
+				// would stay enabled with no toolbar button or hotkey for the fullscreen window.
+				retryCloseOnSettle = true;
+			}
+		});
+	}
+
+	private void initialize()
+	{
+		frame = findClientFrame();
+		if (frame == null)
+		{
+			if (windowReadyTimer == null)
+			{
+				int[] attempts = {0};
+				windowReadyTimer = new Timer(250, event ->
+				{
+					if (!enabled || closing)
+					{
+						stopWaitingForWindow();
+					}
+					else if (findClientFrame() != null)
+					{
+						stopWaitingForWindow();
+						initialize();
+					}
+					else if (++attempts[0] >= 40)
+					{
+						stopWaitingForWindow();
+						report(new IllegalStateException("RuneLite's main window could not be found."));
+					}
+				});
+				windowReadyTimer.start();
+			}
 			return;
 		}
-
+		stopWaitingForWindow();
+		closing = false;
+		retryCloseOnSettle = false;
+		sessionProfile = currentProfileId();
+		Frame sessionFrame = frame;
+		window = new FullscreenWindow(frame, () ->
+		{
+			GraphicsEnvironment environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
+			return MonitorSelector.select(sessionFrame.getGraphicsConfiguration(), config.monitorTarget(),
+				config.preferredMonitor(), environment.getScreenDevices(), environment.getDefaultScreenDevice());
+		});
+		controller = new FullscreenController(window,
+			new RendererSuspender(pluginManager, clientThread, client),
+			this::transitionChanged, this::report);
+		FullscreenController session = controller;
+		hotkeyListener = createHotkeyListener(config::fullscreenHotKey, () ->
+		{
+			if (controller == session)
+			{
+				toggle();
+			}
+		});
 		keyManager.registerKeyListener(hotkeyListener);
-		clientToolbar.addNavigation(navButtonEnable);
-		gc = clientUI.getGraphicsConfiguration();
+		refreshControls();
+		if (!recoverFromInterruptedChange() && config.fullscreenOnStartup())
+		{
+			// Windowed in the dropdown is the previous session's live state, not a
+			// preference: toggle() then uses the last fullscreen mode that was entered,
+			// and the dropdown is synchronized to it once entry settles.
+			attemptAutomaticStartup();
+		}
+		showWindowedAtStartup();
 	}
 
-	private void enableFullscreen()
+	/**
+	 * A fullscreen mode saved by the previous session would otherwise stay selected while
+	 * the window is windowed, and re-selecting it would do nothing (no change event).
+	 * Only done when automatic entry is off, so this never changes startup behavior.
+	 */
+	private void showWindowedAtStartup()
 	{
-		if (!canEnable())
+		Mode shown = config.fullscreenMode();
+		if (controller == null || controller.isActive() || controller.isTransitioning() || config.fullscreenOnStartup()
+			|| shown == null || shown == Mode.WINDOWED)
 		{
 			return;
 		}
-
-		gc = clientUI.getGraphicsConfiguration();
-		prevExtState = clientFrame.getExtendedState();
-		prevBounds = clientFrame.getBounds();
-		fullscreenMode = config.fullscreenMode();
-
-		if (fullscreenMode == Mode.EXCLUSIVE)
+		if (config.lastFullscreenMode() != shown)
 		{
-			enableExclusive();
+			configManager.setConfiguration("Fullscreen", "lastFullscreenMode", shown);
 		}
-		else
+		updatingModeSelection = true;
+		try
 		{
-			enableBorderless();
+			configManager.setConfiguration("Fullscreen", "fullscreenMode", Mode.WINDOWED);
 		}
-
-		isActivated = true;
-		clientToolbar.removeNavigation(navButtonEnable);
-		clientToolbar.addNavigation(navButtonDisable);
+		finally
+		{
+			updatingModeSelection = false;
+		}
 	}
 
-	private void disableFullscreen()
+	private void stopWaitingForWindow()
 	{
-		gc = clientUI.getGraphicsConfiguration();
-		if (fullscreenMode == Mode.EXCLUSIVE)
+		if (windowReadyTimer != null)
 		{
-			disableExclusive();
+			windowReadyTimer.stop();
+			windowReadyTimer = null;
 		}
-		else
-		{
-			disableBorderless();
-		}
-		isActivated = false;
-		clientToolbar.removeNavigation(navButtonDisable);
-		clientToolbar.addNavigation(navButtonEnable);
 	}
 
-	private boolean canEnable()
+	StartupRecovery createStartupRecovery() throws IOException
 	{
-		if (configManager.getConfig(RuneLiteConfig.class).enableCustomChrome())
+		// .runelite/plugin-data/fullscreen/startup-<profile>, through RuneLite's Filepath.
+		return new StartupRecovery(getPluginDirectory().joinSegment("startup-" + currentProfileId()));
+	}
+
+	private long currentProfileId()
+	{
+		ConfigProfile currentProfile = configManager.getProfile();
+		return currentProfile == null ? 0 : currentProfile.getId();
+	}
+
+	private void attemptAutomaticStartup()
+	{
+		if (!canEnter())
 		{
-			showError("You must disable custom chrome to in 'RuneLite' settings to enable fullscreen");
+			return;
+		}
+		try
+		{
+			startupSettled = false;
+			startupRecovery = createStartupRecovery();
+			StartupRecovery.Result result = startupRecovery.begin();
+			if (result != StartupRecovery.Result.READY)
+			{
+				finishStartup(false);
+				if (result == StartupRecovery.Result.RECOVERED)
+				{
+					// Only if the launch check raced with another client that left a marker.
+					configManager.setConfiguration("Fullscreen", "fullscreenOnStartup", false);
+					report(new IllegalStateException(INTERRUPTED_CHANGE + INTERRUPTED_STARTUP_OFF + INTERRUPTED_ADVICE));
+				}
+				else
+				{
+					report(new IllegalStateException("Another RuneLite client is starting fullscreen with this profile. "
+						+ "This client will start windowed; you can toggle fullscreen manually."));
+				}
+				return;
+			}
+			toggle();
+		}
+		catch (IOException | RuntimeException ex)
+		{
+			report(new IllegalStateException("Automatic fullscreen could not start safely. "
+				+ "You can toggle fullscreen manually. " + ex.getMessage(), ex));
+		}
+	}
+
+	static final String INTERRUPTED_CHANGE = "RuneLite closed unexpectedly while changing fullscreen last time, "
+		+ "so it started in a normal window.";
+	static final String INTERRUPTED_STARTUP_OFF = "\nFullscreen on startup has been turned off. You can turn it back on "
+		+ "in the Fullscreen settings once fullscreen works reliably.";
+	static final String INTERRUPTED_ADVICE = "\nYou can still use the hotkey or the toolbar button. If this keeps "
+		+ "happening, updating your graphics driver may help.";
+
+	/**
+	 * A marker left behind means RuneLite closed in the middle of a fullscreen change (for
+	 * example a graphics-driver crash). Start windowed instead of repeating it at every launch.
+	 */
+	private boolean recoverFromInterruptedChange()
+	{
+		StartupRecovery.Result result;
+		try
+		{
+			result = createStartupRecovery().check();
+		}
+		catch (IOException | RuntimeException ex)
+		{
+			log.warn("Unable to check the fullscreen recovery marker", ex);
 			return false;
 		}
-
-		if (config.fullscreenMode() == Mode.EXCLUSIVE && (!gc.getDevice().isFullScreenSupported() || OSType.getOSType() == OSType.MacOS))
+		if (result != StartupRecovery.Result.RECOVERED)
 		{
-			showError("Fullscreen mode 'Exclusive' is not available on your device");
 			return false;
 		}
-
+		boolean startup = config.fullscreenOnStartup();
+		if (startup)
+		{
+			configManager.setConfiguration("Fullscreen", "fullscreenOnStartup", false);
+		}
+		report(new IllegalStateException(INTERRUPTED_CHANGE + (startup ? INTERRUPTED_STARTUP_OFF : "") + INTERRUPTED_ADVICE));
 		return true;
 	}
 
-	private void showError(String message)
+	/** Writes the marker before a manual change stops renderers or touches the window. */
+	private void guardChange()
 	{
-		JOptionPane.showMessageDialog(clientFrame, message,
-			"Unable to toggle fullscreen mode",
-			JOptionPane.ERROR_MESSAGE);
-		log.info(message);
-	}
-
-	private void enableExclusive()
-	{
-		gc.getDevice().setFullScreenWindow(clientFrame);
-	}
-
-	private void disableExclusive()
-	{
-		gc.getDevice().setFullScreenWindow(null);
-	}
-
-	private void enableBorderless()
-	{
-		stopGpuPlugins();
-		clientThread.invokeLater(() ->
-		{
-			if (client.isGpu())
-			{
-				return false;
-			}
-
-			SwingUtilities.invokeLater(() ->
-			{
-				clientFrame.dispose();
-				clientFrame.setUndecorated(true);
-				clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
-				clientFrame.setAlwaysOnTop(true);
-				clientFrame.setResizable(false);
-				clientFrame.setSize(gc.getBounds().getSize());
-				clientFrame.setLocation(gc.getBounds().getLocation());
-				clientFrame.pack();
-				clientFrame.setVisible(true);
-
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
-			});
-
-			return true;
-		});
-	}
-
-	private void disableBorderless()
-	{
-		stopGpuPlugins();
-		clientThread.invokeLater(() ->
-		{
-			if (client.isGpu())
-			{
-				return false;
-			}
-
-			SwingUtilities.invokeLater(() ->
-			{
-				clientFrame.dispose();
-				clientFrame.setUndecorated(false);
-				clientFrame.setExtendedState(prevExtState);
-				clientFrame.setAlwaysOnTop(false);
-				clientFrame.setResizable(true);
-				clientFrame.pack();
-				clientFrame.setVisible(true);
-
-				clientFrame.setBounds(prevBounds);
-				clientFrame.setLocation(prevBounds.getLocation());
-
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
-			});
-
-			return true;
-		});
-	}
-
-	private void restoreGpuPlugins()
-	{
-		for (Plugin p : getPluginsUsingGpu())
-		{
-			boolean isEnabled = pluginManager.isPluginEnabled(p);
-			if (isEnabled)
-			{
-				try
-				{
-					pluginManager.startPlugin(p);
-				}
-				catch (PluginInstantiationException ex)
-				{
-					log.error("Error starting plugin", ex);
-				}
-			}
-		}
-	}
-
-	private void stopGpuPlugins()
-	{
-		for (Plugin p : getPluginsUsingGpu())
+		for (int attempt = 0; attempt < 2; attempt++)
 		{
 			try
 			{
-				pluginManager.stopPlugin(p);
+				StartupRecovery guard = createStartupRecovery();
+				StartupRecovery.Result result = guard.begin();
+				if (result == StartupRecovery.Result.READY)
+				{
+					startupRecovery = guard;
+					// Errors in a manual change must never turn automatic startup off.
+					startupSettled = true;
+					return;
+				}
+				if (result == StartupRecovery.Result.BUSY)
+				{
+					// Another client using this profile holds the marker; it guards itself.
+					return;
+				}
+				// RECOVERED: a stale marker was removed; write a fresh one.
 			}
-			catch (PluginInstantiationException ex)
+			catch (IOException | RuntimeException ex)
 			{
-				log.error("Error stopping plugin", ex);
+				log.warn("Unable to write the fullscreen recovery marker; this change is unguarded", ex);
+				return;
 			}
 		}
 	}
 
-	private List<Plugin> getPluginsUsingGpu()
+	private void finishStartup(boolean clearMarker)
 	{
-		GpuPlugin gpuPlugin = getCoreGpuPlugin();
-		List<Plugin> conflicts = pluginManager.conflictsForPlugin(gpuPlugin);
-
-		List<Plugin> pluginsUsingGpu = new ArrayList<>();
-		pluginsUsingGpu.add(gpuPlugin);
-		pluginsUsingGpu.addAll(conflicts);
-		return pluginsUsingGpu;
-	}
-
-	private GpuPlugin getCoreGpuPlugin()
-	{
-		for (Plugin p : pluginManager.getPlugins())
+		if (startupTimer != null)
 		{
-			if (p instanceof GpuPlugin)
+			startupTimer.stop();
+			startupTimer = null;
+		}
+		StartupRecovery recovery = startupRecovery;
+		startupRecovery = null;
+		if (recovery != null)
+		{
+			try
 			{
-				return (GpuPlugin) p;
+				recovery.finish(clearMarker);
+			}
+			catch (IOException ex)
+			{
+				log.warn("Unable to finish fullscreen startup recovery marker", ex);
 			}
 		}
-		return null;
 	}
 
-	private static Frame getClientFrame()
+	static HotkeyListener createHotkeyListener(Supplier<Keybind> keybind, Runnable toggle)
 	{
-		Frame clientFrame = null;
-		Frame[] frames = Frame.getFrames();
-		for (Frame frame : frames)
+		HotkeyListener listener = new HotkeyListener(keybind)
 		{
-			if (frame instanceof ContainableFrame)
+			private boolean toggleRequested;
+			private Keybind previousBinding;
+			/** Whether the most recent non-modifier key press was the hotkey itself. */
+			private boolean typedBelongsToHotkey;
+
+			@Override
+			public void hotkeyPressed()
 			{
-				clientFrame = frame;
-				break;
+				toggleRequested = true;
+			}
+
+			@Override
+			public synchronized void keyPressed(KeyEvent event)
+			{
+				resetChangedBinding();
+				if (Keybind.getModifierForKeyCode(event.getKeyCode()) == null)
+				{
+					// HotkeyListener consumes every KEY_TYPED until it sees the hotkey's
+					// release. That release can go to a dialog, another window or an
+					// earlier listener, so only suppress the character of the hotkey press
+					// itself. Held state is untouched, so auto-repeat cannot re-toggle.
+					typedBelongsToHotkey = keybind.get().matches(event);
+				}
+				super.keyPressed(event);
+				if (toggleRequested)
+				{
+					toggleRequested = false;
+					// Dispatch only after the base handler finishes, even if input arrives
+					// on a thread other than the EDT.
+					long queuedAt = System.nanoTime();
+					SwingUtilities.invokeLater(() ->
+					{
+						long delayMillis = (System.nanoTime() - queuedAt) / 1000000;
+						if (delayMillis > 250)
+						{
+							log.warn("Fullscreen hotkey waited {} ms for the UI thread", delayMillis);
+						}
+						toggle.run();
+					});
+				}
+			}
+
+			@Override
+			public synchronized void keyReleased(KeyEvent event)
+			{
+				resetChangedBinding();
+				super.keyReleased(event);
+			}
+
+			@Override
+			public synchronized void keyTyped(KeyEvent event)
+			{
+				resetChangedBinding();
+				if (typedBelongsToHotkey)
+				{
+					super.keyTyped(event);
+				}
+			}
+
+			@Override
+			public synchronized void focusLost()
+			{
+				super.focusLost();
+			}
+
+			private void resetChangedBinding()
+			{
+				Keybind binding = keybind.get();
+				if (!Objects.equals(previousBinding, binding))
+				{
+					super.focusLost();
+					previousBinding = binding;
+				}
+			}
+		};
+		listener.setEnabledOnLoginScreen(true);
+		return listener;
+	}
+
+	private void transitionChanged()
+	{
+		refreshControls();
+		syncModeSelection();
+		if (startupRecovery == null && controller != null && controller.isTransitioning() && enabled && !closing)
+		{
+			// The controller reports a change before it stops renderers or touches the window.
+			guardChange();
+		}
+		if (startupRecovery != null && controller != null)
+		{
+			if (startupTimer != null)
+			{
+				startupTimer.stop();
+			}
+			if (!controller.isTransitioning() && (controller.isActive() || startupSettled))
+			{
+				// Leave the flushed marker armed long enough to catch delayed driver crashes
+				// while renderers restart, not just the window change itself. Leaving
+				// fullscreen restarts renderers too, so it is guarded the same way.
+				StartupRecovery attempt = startupRecovery;
+				startupSettled = true;
+				startupTimer = new Timer(10000, event -> clientThread.invokeLater((Runnable) () ->
+					SwingUtilities.invokeLater(() ->
+					{
+						if (startupRecovery == attempt && controller != null && !controller.isTransitioning())
+						{
+							finishStartup(true);
+						}
+					})));
+				startupTimer.setRepeats(false);
+				startupTimer.start();
+			}
+			else if (!controller.isTransitioning())
+			{
+				StartupRecovery attempt = startupRecovery;
+				// Failure callbacks run immediately after the state update. Give them
+				// the chance to disable automatic startup before treating this as exit.
+				SwingUtilities.invokeLater(() ->
+				{
+					if (startupRecovery == attempt && controller != null
+						&& !controller.isTransitioning() && !controller.isActive())
+					{
+						finishStartup(true);
+					}
+				});
 			}
 		}
-		return clientFrame;
+		if (enabled && !closing && controller != null && !controller.isTransitioning() && refocusAfterTransition)
+		{
+			// Return keyboard focus to the game after window changes, but never pull
+			// RuneLite in front of an application the user switched to meanwhile.
+			refocusAfterTransition = false;
+			clientUI.forceFocus();
+		}
+	}
+
+	private void beginRequest()
+	{
+		refocusAfterTransition = frame != null && frame.isFocused();
+	}
+
+	private void toggle()
+	{
+		if (!enabled || closing || controller == null || controller.isTransitioning())
+		{
+			return;
+		}
+		if (!controller.isActive() && !canEnter())
+		{
+			return;
+		}
+		Mode mode = config.fullscreenMode();
+		if (mode == Mode.WINDOWED)
+		{
+			mode = config.lastFullscreenMode();
+			if (mode == null || mode == Mode.WINDOWED)
+			{
+				mode = Mode.BORDERLESS;
+			}
+		}
+		beginRequest();
+		controller.toggle(mode);
+	}
+
+	private void syncModeSelection()
+	{
+		if (!enabled || closing || controller == null || controller.isTransitioning())
+		{
+			return;
+		}
+		Mode actual = controller.currentMode();
+		if (actual != Mode.WINDOWED && config.lastFullscreenMode() != actual)
+		{
+			// Remember only modes that were actually entered. A rejected selection must
+			// not become the mode the hotkey and toolbar retry.
+			configManager.setConfiguration("Fullscreen", "lastFullscreenMode", actual);
+		}
+		if (actual != null && config.fullscreenMode() != actual)
+		{
+			updatingModeSelection = true;
+			try
+			{
+				configManager.setConfiguration("Fullscreen", "fullscreenMode", actual);
+			}
+			finally
+			{
+				updatingModeSelection = false;
+			}
+		}
+	}
+
+	enum ChromeBlock
+	{
+		/** Custom window chrome is off on the running window. */
+		NONE,
+		/** "Enable custom window chrome" is on; it can be turned off for the next start. */
+		SETTING_ON,
+		/** The setting is already off but RuneLite has not restarted yet. */
+		RESTART_PENDING
+	}
+
+	private RuneLiteConfig runeLiteConfig()
+	{
+		return configManager.getConfig(RuneLiteConfig.class);
+	}
+
+	private boolean canEnter()
+	{
+		ChromeBlock chrome = customChromeBlock(frame, runeLiteConfig().enableCustomChrome());
+		if (chrome == ChromeBlock.SETTING_ON)
+		{
+			report(new IllegalStateException("Disable 'Enable custom window chrome' in RuneLite settings, "
+				+ "then restart RuneLite before entering fullscreen."));
+			return false;
+		}
+		if (chrome == ChromeBlock.RESTART_PENDING)
+		{
+			report(new IllegalStateException(
+				"Custom window chrome is still active. Restart RuneLite to finish turning it off, then enter fullscreen."));
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * The RuneLite setting only takes effect after a restart, so check both the saved
+	 * setting and the decorations actually installed on the running window.
+	 */
+	static ChromeBlock customChromeBlock(Frame frame, boolean configured)
+	{
+		if (configured)
+		{
+			return ChromeBlock.SETTING_ON;
+		}
+		if (frame instanceof JFrame)
+		{
+			JFrame swingFrame = (JFrame) frame;
+			JRootPane root = swingFrame.getRootPane();
+			// RuneLite installs its toolbar as a menu bar only for custom chrome, and FlatLaf
+			// marks the root pane when it replaces the native title bar.
+			boolean active = swingFrame.getJMenuBar() != null || (root != null
+				&& (Boolean.TRUE.equals(root.getClientProperty("JRootPane.useWindowDecorations"))
+				|| root.getWindowDecorationStyle() != JRootPane.NONE));
+			if (active)
+			{
+				return ChromeBlock.RESTART_PENDING;
+			}
+		}
+		return ChromeBlock.NONE;
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if ("runelite".equals(event.getGroup()) && !"clientBounds".equals(event.getKey())
+			&& !"clientMaximized".equals(event.getKey()))
+		{
+			// ClientUI re-applies "Always on top" for any of its settings, and "Lock window
+			// size" via Frame.setResizable, which re-adds a native resize border. Both run in
+			// an invokeLater from its own ConfigChanged handler; queue behind that.
+			boolean resizeLock = "lockWindowSize".equals(event.getKey());
+			SwingUtilities.invokeLater(() -> SwingUtilities.invokeLater(() ->
+			{
+				if (enabled && !closing && window != null && controller != null && controller.isActive()
+					&& !controller.isTransitioning())
+				{
+					try
+					{
+						window.windowSettingsChanged(resizeLock);
+					}
+					catch (RuntimeException | LinkageError ex)
+					{
+						log.warn("Unable to keep fullscreen decorations after a RuneLite window setting changed", ex);
+					}
+				}
+			}));
+			return;
+		}
+		if ("Fullscreen".equals(event.getGroup()) && "fullscreenMode".equals(event.getKey()) && updatingModeSelection)
+		{
+			return;
+		}
+		boolean windowKey = "fullscreenMode".equals(event.getKey()) || "monitorTarget".equals(event.getKey())
+			|| "preferredMonitor".equals(event.getKey());
+		if ("Fullscreen".equals(event.getGroup()) && windowKey && currentProfileId() != sessionProfile)
+		{
+			// ConfigManager.switchProfile posts the new profile's differing values before
+			// ProfileChanged. Those are saved preferences, not requests to change the window.
+			log.debug("Ignoring {} from profile switch", event.getKey());
+			return;
+		}
+		boolean modeChanged = "fullscreenMode".equals(event.getKey());
+		boolean monitorChanged = "monitorTarget".equals(event.getKey()) || "preferredMonitor".equals(event.getKey());
+		if ("Fullscreen".equals(event.getGroup()) && (modeChanged || monitorChanged))
+		{
+			onEdt(() ->
+			{
+				if (enabled && !closing && controller != null && !updatingMonitorSelection)
+				{
+					if (monitorChanged)
+					{
+						beginRequest();
+						controller.changeMonitor();
+					}
+					else
+					{
+						Mode requested = config.fullscreenMode();
+						if (requested != Mode.WINDOWED && !controller.isActive() && !canEnter())
+						{
+							syncModeSelection();
+							return;
+						}
+						beginRequest();
+						controller.changeMode(requested);
+					}
+				}
+			});
+		}
+	}
+
+	@Subscribe
+	public void onProfileChanged(ProfileChanged event)
+	{
+		sessionProfile = currentProfileId();
+	}
+
+	private void refreshControls()
+	{
+		if (button != null)
+		{
+			clientToolbar.removeNavigation(button);
+			button = null;
+		}
+		if (exitButton != null)
+		{
+			clientToolbar.removeNavigation(exitButton);
+			exitButton = null;
+		}
+		if (controller == null)
+		{
+			return;
+		}
+		if (closing && enabled && retryCloseOnSettle && !controller.isTransitioning() && controller.isActive())
+		{
+			retryCloseOnSettle = false;
+			controller.close();
+			return;
+		}
+		if (closing && !controller.isTransitioning() && !controller.isActive())
+		{
+			window.detach();
+			controller = null;
+			window = null;
+			if (enabled)
+			{
+				initialize();
+			}
+			return;
+		}
+		if (!enabled || closing || controller.isTransitioning())
+		{
+			return;
+		}
+		boolean active = controller.isActive();
+		FullscreenController session = controller;
+		button = NavigationButton.builder()
+			.tooltip((active ? "Disable fullscreen" : "Enable fullscreen") + " (right-click to choose monitor)")
+			.popup(Collections.singletonMap("Choose fullscreen monitor", () -> onEdt(() -> chooseMonitor(session))))
+			.icon(ImageUtil.loadImageResource(getClass(), active ? "fullscreen_off.png" : "fullscreen_on.png"))
+			.onClick(() -> onEdt(() ->
+			{
+				if (controller == session)
+				{
+					toggle();
+				}
+			}))
+			.build();
+		clientToolbar.addNavigation(button);
+		if (active)
+		{
+			exitButton = NavigationButton.builder()
+				.tooltip(EXIT_TOOLTIP)
+				.icon(exitIcon())
+				.priority(EXIT_PRIORITY)
+				.onClick(() -> onEdt(this::requestClientClose))
+				.build();
+			clientToolbar.addNavigation(exitButton);
+		}
+	}
+
+	/**
+	 * Same as clicking the title bar's X: RuneLite's own close handling runs, including
+	 * its exit confirmation and window-bounds save.
+	 */
+	void requestClientClose()
+	{
+		Frame target = frame != null ? frame : findClientFrame();
+		if (target != null && target.isDisplayable())
+		{
+			target.dispatchEvent(new WindowEvent(target, WindowEvent.WINDOW_CLOSING));
+		}
+	}
+
+	static BufferedImage exitIcon()
+	{
+		BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = image.createGraphics();
+		try
+		{
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g.setColor(new Color(0xC8C8C8));
+			// RuneLite scales toolbar icons to 16x16; use nearly all of it.
+			g.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+			g.draw(new Line2D.Float(2.5f, 2.5f, 13.5f, 13.5f));
+			g.draw(new Line2D.Float(13.5f, 2.5f, 2.5f, 13.5f));
+		}
+		finally
+		{
+			g.dispose();
+		}
+		return image;
+	}
+
+	private void chooseMonitor(FullscreenController session)
+	{
+		if (!enabled || closing || controller != session || controller.isTransitioning())
+		{
+			return;
+		}
+		GraphicsEnvironment environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		List<MonitorSelector.Choice> choices = MonitorSelector.choices(
+			environment.getScreenDevices(), environment.getDefaultScreenDevice());
+		MonitorSelector.Choice current = choices.stream()
+			.filter(choice -> choice.matches(config.monitorTarget(), config.preferredMonitor()))
+			.findFirst().orElse(choices.get(0));
+		Object answer = JOptionPane.showInputDialog(frame, "Enter fullscreen on:", "Fullscreen monitor",
+			JOptionPane.QUESTION_MESSAGE, null, choices.toArray(), current);
+		if (answer instanceof MonitorSelector.Choice && enabled && !closing && controller == session)
+		{
+			MonitorSelector.Choice choice = (MonitorSelector.Choice) answer;
+			updatingMonitorSelection = true;
+			try
+			{
+				configManager.setConfiguration("Fullscreen", "preferredMonitor", choice.deviceId);
+				configManager.setConfiguration("Fullscreen", "monitorTarget", choice.target);
+			}
+			finally
+			{
+				updatingMonitorSelection = false;
+			}
+			// The user just answered RuneLite's own dialog.
+			refocusAfterTransition = true;
+			controller.changeMonitor();
+		}
+		if (enabled && controller == session)
+		{
+			clientUI.forceFocus();
+		}
+	}
+
+	private void report(Exception ex)
+	{
+		if (startupRecovery != null && !startupSettled)
+		{
+			// Only failures of the automatic entry itself disable it. Once fullscreen has
+			// settled, the marker keeps watching for native crashes, but an unrelated error
+			// (for example a manual mode change) must not turn startup entry off.
+			finishStartup(true);
+			configManager.setConfiguration("Fullscreen", "fullscreenOnStartup", false);
+			ex = new IllegalStateException(ex.getMessage() + "\nFullscreen on startup has been turned off.", ex);
+		}
+		log.warn("Unable to change fullscreen mode", ex);
+		Exception failure = ex;
+		if (enabled && !errorDialogOpen)
+		{
+			errorDialogOpen = true;
+			SwingUtilities.invokeLater(() ->
+			{
+				try
+				{
+					if (enabled)
+					{
+						JOptionPane.showMessageDialog(frame, failure.getMessage(),
+							"Unable to change fullscreen mode", JOptionPane.ERROR_MESSAGE);
+					}
+				}
+				finally
+				{
+					errorDialogOpen = false;
+					if (enabled)
+					{
+						clientUI.forceFocus();
+					}
+				}
+			});
+		}
+	}
+
+	static Frame findClientFrame()
+	{
+		Frame result = null;
+		for (Frame candidate : Frame.getFrames())
+		{
+			if (candidate instanceof ContainableFrame && candidate.isDisplayable())
+			{
+				if (candidate.isActive())
+				{
+					return candidate;
+				}
+				result = candidate;
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * RuneLite exits without stopping plugins. Its window-bounds save has already run
+	 * and recorded the fullscreen rectangle as the normal window; replace that with
+	 * the placement fullscreen will restore, before ConfigManager flushes (priority).
+	 */
+	@Subscribe(priority = 100)
+	public void onClientShutdown(ClientShutdown event)
+	{
+		Runnable cleanup = () ->
+		{
+			// A clean exit during the startup grace period is not an interrupted startup.
+			finishStartup(true);
+			FullscreenWindow.Placement placement = window == null || controller == null || !controller.isActive()
+				? null : window.restorePlacement();
+			if (placement != null)
+			{
+				configManager.setConfiguration("runelite", "clientBounds", placement.clientBoundsConfig());
+				if (placement.maximized)
+				{
+					configManager.setConfiguration("runelite", "clientMaximized", true);
+				}
+				else
+				{
+					configManager.unsetConfiguration("runelite", "clientMaximized");
+				}
+			}
+		};
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			cleanup.run();
+		}
+		else
+		{
+			// ClientUI posts this from the EDT; anything else is best effort.
+			SwingUtilities.invokeLater(cleanup);
+		}
 	}
 
 	@Override
 	protected void shutDown()
 	{
-		if (isActivated)
+		onEdt(() ->
 		{
-			disableFullscreen();
-			isActivated = false;
-		}
-
-		clientToolbar.removeNavigation(navButtonEnable);
-		clientToolbar.removeNavigation(navButtonDisable);
-		keyManager.unregisterKeyListener(hotkeyListener);
-	}
-
-	private void swapOutHotkeyListener()
-	{
-		keyManager.unregisterKeyListener(hotkeyListener);
-		hotkeyListener = createHotkeyListener();
-		keyManager.registerKeyListener(hotkeyListener);
-	}
-
-	private HotkeyListener createHotkeyListener()
-	{
-		return new HotkeyListener(() -> config.fullscreenHotKey())
-		{
-			@Override
-			public void hotkeyPressed()
+			enabled = false;
+			closing = true;
+			retryCloseOnSettle = false;
+			stopWaitingForWindow();
+			finishStartup(true);
+			if (hotkeyListener != null)
 			{
-				if (!isActivated)
-				{
-					enableFullscreen();
-				}
-				else
-				{
-					disableFullscreen();
-				}
+				keyManager.unregisterKeyListener(hotkeyListener);
+				hotkeyListener = null;
 			}
-		};
+			if (controller != null)
+			{
+				controller.close();
+			}
+			refreshControls();
+
+		});
+	}
+
+	private static void onEdt(Runnable action)
+	{
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			action.run();
+		}
+		else
+		{
+			SwingUtilities.invokeLater(action);
+		}
 	}
 
 	@Provides
-	FullscreenConfig provideConfig(ConfigManager configManager)
+	FullscreenConfig provideConfig(ConfigManager manager)
 	{
-		return configManager.getConfig(FullscreenConfig.class);
+		return manager.getConfig(FullscreenConfig.class);
 	}
 }
