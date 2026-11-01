@@ -231,12 +231,15 @@ public class FullscreenPlugin extends Plugin
 			{
 				clientFrame.dispose();
 				clientFrame.setUndecorated(true);
-				clientFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
+				// On Windows a maximized frame only covers the work area (the monitor minus the taskbar),
+				// so keep the frame in the normal state and size it to the whole monitor instead.
+				clientFrame.setExtendedState(Frame.NORMAL);
 				clientFrame.setAlwaysOnTop(true);
 				clientFrame.setResizable(false);
-				clientFrame.setSize(gc.getBounds().getSize());
-				clientFrame.setLocation(gc.getBounds().getLocation());
+				// pack() recreates the native window but also resizes the frame to its preferred size,
+				// so the monitor bounds must be applied after it.
 				clientFrame.pack();
+				clientFrame.setBounds(monitorBounds());
 				clientFrame.setVisible(true);
 				keepFullscreenBounds();
 
@@ -267,14 +270,16 @@ public class FullscreenPlugin extends Plugin
 				releaseFullscreenBounds();
 				clientFrame.dispose();
 				clientFrame.setUndecorated(false);
-				clientFrame.setExtendedState(prevExtState);
+				clientFrame.setExtendedState(Frame.NORMAL);
 				clientFrame.setAlwaysOnTop(false);
 				clientFrame.setResizable(true);
 				clientFrame.pack();
 				clientFrame.setVisible(true);
 
+				// pack() resets the size, so apply the saved bounds after it, and the saved state last so a
+				// previously maximized window is maximized by the window manager rather than just sized like it.
 				clientFrame.setBounds(prevBounds);
-				clientFrame.setLocation(prevBounds.getLocation());
+				clientFrame.setExtendedState(prevExtState);
 
 				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
 				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
