@@ -35,6 +35,7 @@ import java.awt.event.ComponentListener;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
@@ -69,6 +70,7 @@ public class FullscreenPlugin extends Plugin
 	private static final int REVERT_SECONDS = 15;
 	private static final String KEEP_OPTION = "Keep";
 	private static final String REVERT_OPTION = "Revert";
+	private static final long GPU_STOP_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
 
 	@Inject
 	private ClientUI clientUI;
@@ -97,11 +99,12 @@ public class FullscreenPlugin extends Plugin
 	private boolean reachedFullscreenBounds;
 	private GraphicsConfiguration gc;
 	private Mode fullscreenMode;
-	private boolean isActivated;
+	// isActivated and running are also read on the client thread, while borderless waits for the GPU renderer to stop
+	private volatile boolean isActivated;
 	// Borderless mode waits for the GPU plugins to stop before changing the window, so it is in progress for
 	// a while after enableFullscreen()/disableFullscreen() return.
 	private boolean transitioning;
-	private boolean running;
+	private volatile boolean running;
 
 	private HotkeyListener hotkeyListener = createHotkeyListener();
 
@@ -177,9 +180,7 @@ public class FullscreenPlugin extends Plugin
 			enableBorderless();
 		}
 
-		isActivated = true;
-		clientToolbar.removeNavigation(navButtonEnable);
-		clientToolbar.addNavigation(navButtonDisable);
+		setActivated(true);
 
 		if (fullscreenMode == Mode.EXCLUSIVE && !config.exclusiveConfirmed())
 		{
@@ -246,11 +247,16 @@ public class FullscreenPlugin extends Plugin
 		{
 			disableBorderless();
 		}
-		isActivated = false;
-		clientToolbar.removeNavigation(navButtonDisable);
+		setActivated(false);
+	}
+
+	private void setActivated(boolean activated)
+	{
+		isActivated = activated;
+		clientToolbar.removeNavigation(activated ? navButtonEnable : navButtonDisable);
 		if (running)
 		{
-			clientToolbar.addNavigation(navButtonEnable);
+			clientToolbar.addNavigation(activated ? navButtonDisable : navButtonEnable);
 		}
 	}
 
@@ -339,11 +345,24 @@ public class FullscreenPlugin extends Plugin
 	{
 		stopGpuPlugins();
 		transitioning = true;
+		long started = System.nanoTime();
 		clientThread.invokeLater(() ->
 		{
-			if (client.isGpu())
+			boolean gpu = client.isGpu();
+			boolean timedOut = System.nanoTime() - started >= GPU_STOP_TIMEOUT_NANOS;
+			if (gpu && !timedOut)
 			{
 				return false;
+			}
+
+			// Once the plugin is off nothing else can turn borderless off, so it is left even with the GPU renderer
+			// still running. isActivated is already false when this transition is the one leaving fullscreen.
+			boolean mustLeave = !running && !isActivated;
+			if (gpu && !mustLeave)
+			{
+				// e.g. a GPU plugin we don't know about; without this the toggle would wait, and ignore all others, forever
+				SwingUtilities.invokeLater(this::gpuDidNotStop);
+				return true;
 			}
 
 			SwingUtilities.invokeLater(() ->
@@ -360,6 +379,18 @@ public class FullscreenPlugin extends Plugin
 			});
 			return true;
 		});
+	}
+
+	private void gpuDidNotStop()
+	{
+		transitioning = false;
+		restoreGpuPlugins();
+		// The window was never changed, so undo the toggle
+		setActivated(!isActivated);
+		if (running)
+		{
+			showError("The GPU renderer did not stop, so fullscreen was not changed. Turn off your GPU plugins and try again.");
+		}
 	}
 
 	private void finishBorderlessTransition()
