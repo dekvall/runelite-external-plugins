@@ -142,17 +142,17 @@ public class FullscreenPlugin extends Plugin
 
 		keyManager.registerKeyListener(hotkeyListener);
 		clientToolbar.addNavigation(navButtonEnable);
-		gc = clientUI.getGraphicsConfiguration();
 	}
 
 	private void enableFullscreen()
 	{
+		// Read once here and kept until fullscreen is disabled, so leaving fullscreen uses the same monitor
+		gc = clientUI.getGraphicsConfiguration();
 		if (!canEnable())
 		{
 			return;
 		}
 
-		gc = clientUI.getGraphicsConfiguration();
 		prevExtState = clientFrame.getExtendedState();
 		prevBounds = clientFrame.getBounds();
 		prevResizable = clientFrame.isResizable();
@@ -223,7 +223,6 @@ public class FullscreenPlugin extends Plugin
 
 	private void disableFullscreen()
 	{
-		gc = clientUI.getGraphicsConfiguration();
 		if (fullscreenMode == Mode.EXCLUSIVE)
 		{
 			disableExclusive();
