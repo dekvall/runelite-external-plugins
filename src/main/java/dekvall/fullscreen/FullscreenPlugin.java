@@ -27,7 +27,11 @@ package dekvall.fullscreen;
 import com.google.inject.Provides;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
+import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,11 +83,33 @@ public class FullscreenPlugin extends Plugin
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
+	private Rectangle rejectedBounds;
+	// Parts of the monitor the window manager won't let the window cover, such as GNOME's top bar
+	private Insets panelInsets;
+	// Whether the window has been where it should be yet, i.e. whether to correct it
+	private boolean reachedFullscreenBounds;
 	private GraphicsConfiguration gc;
 	private Mode fullscreenMode;
 	private boolean isActivated;
 
 	private HotkeyListener hotkeyListener = createHotkeyListener();
+
+	// RuneLite widens the frame by the sidebar's width when the sidebar is opened (with the default
+	// 'Keep game size' resize type), which pushes a fullscreen window past the edge of its monitor.
+	private final ComponentListener fullscreenBoundsKeeper = new ComponentAdapter()
+	{
+		@Override
+		public void componentResized(ComponentEvent e)
+		{
+			restoreFullscreenBounds();
+		}
+
+		@Override
+		public void componentMoved(ComponentEvent e)
+		{
+			restoreFullscreenBounds();
+		}
+	};
 
 	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
 	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
@@ -182,10 +208,12 @@ public class FullscreenPlugin extends Plugin
 	private void enableExclusive()
 	{
 		gc.getDevice().setFullScreenWindow(clientFrame);
+		keepFullscreenBounds();
 	}
 
 	private void disableExclusive()
 	{
+		releaseFullscreenBounds();
 		gc.getDevice().setFullScreenWindow(null);
 	}
 
@@ -210,6 +238,7 @@ public class FullscreenPlugin extends Plugin
 				clientFrame.setLocation(gc.getBounds().getLocation());
 				clientFrame.pack();
 				clientFrame.setVisible(true);
+				keepFullscreenBounds();
 
 				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
 				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
@@ -235,6 +264,7 @@ public class FullscreenPlugin extends Plugin
 
 			SwingUtilities.invokeLater(() ->
 			{
+				releaseFullscreenBounds();
 				clientFrame.dispose();
 				clientFrame.setUndecorated(false);
 				clientFrame.setExtendedState(prevExtState);
@@ -256,6 +286,96 @@ public class FullscreenPlugin extends Plugin
 
 			return true;
 		});
+	}
+
+	private void keepFullscreenBounds()
+	{
+		panelInsets = new Insets(0, 0, 0, 0);
+		rejectedBounds = null;
+		// The window is left alone until it gets to its fullscreen bounds. Borderless puts it there before this, but
+		// exclusive mode leaves it to the system, and on Linux the window manager takes a few steps to make a window
+		// fullscreen. Asking for the bounds in between makes it treat the window as a normal one and push it below
+		// its panels.
+		reachedFullscreenBounds = clientFrame.getBounds().equals(fullscreenBounds());
+		clientFrame.addComponentListener(fullscreenBoundsKeeper);
+	}
+
+	private void releaseFullscreenBounds()
+	{
+		clientFrame.removeComponentListener(fullscreenBoundsKeeper);
+	}
+
+	private void restoreFullscreenBounds()
+	{
+		Rectangle fullscreenBounds = fullscreenBounds();
+		Rectangle bounds = clientFrame.getBounds();
+		int dx = bounds.x - fullscreenBounds.x;
+		int dy = bounds.y - fullscreenBounds.y;
+		// A small move without a resize comes from the window manager, not from RuneLite, which always resizes. Only
+		// in borderless: exclusive mode is the system's own fullscreen, which covers panels anyway, and on Linux the
+		// window manager moves and resizes the window in steps while entering it, which would look like a panel.
+		if (fullscreenMode == Mode.BORDERLESS && (dx != 0 || dy != 0)
+			&& bounds.getSize().equals(fullscreenBounds.getSize())
+			&& Math.abs(dx) < fullscreenBounds.width / 4 && Math.abs(dy) < fullscreenBounds.height / 4)
+		{
+			// Window managers such as GNOME's keep windows out of their panels by moving them without shrinking them,
+			// which pushes the far edge of the window off the monitor. Leave the panel free and fit into the rest.
+			if (dx > 0)
+			{
+				panelInsets.left += dx;
+			}
+			else
+			{
+				panelInsets.right -= dx;
+			}
+			if (dy > 0)
+			{
+				panelInsets.top += dy;
+			}
+			else
+			{
+				panelInsets.bottom -= dy;
+			}
+			fullscreenBounds = fullscreenBounds();
+		}
+
+		if (bounds.equals(fullscreenBounds))
+		{
+			rejectedBounds = null;
+			reachedFullscreenBounds = true;
+			return;
+		}
+
+		if (!reachedFullscreenBounds)
+		{
+			return;
+		}
+
+		// If the window system answers our correction with the same bounds again, give up instead of
+		// fighting it in an endless resize loop.
+		if (bounds.equals(rejectedBounds))
+		{
+			return;
+		}
+
+		rejectedBounds = bounds;
+		clientFrame.setBounds(fullscreenBounds);
+	}
+
+	private Rectangle fullscreenBounds()
+	{
+		Rectangle monitor = monitorBounds();
+		return new Rectangle(monitor.x + panelInsets.left, monitor.y + panelInsets.top,
+			monitor.width - panelInsets.left - panelInsets.right, monitor.height - panelInsets.top - panelInsets.bottom);
+	}
+
+	/**
+	 * Read from the device every time rather than once, since the user can change the monitor's resolution or
+	 * scaling while fullscreen, and the window should follow.
+	 */
+	private Rectangle monitorBounds()
+	{
+		return gc.getDevice().getDefaultConfiguration().getBounds();
 	}
 
 	private void restoreGpuPlugins()
