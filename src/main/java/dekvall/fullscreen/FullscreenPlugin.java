@@ -143,7 +143,13 @@ public class FullscreenPlugin extends Plugin
 		@Override
 		public void componentResized(ComponentEvent e)
 		{
-			restoreFullscreenBounds();
+			if (restoreFullscreenBounds())
+			{
+				// The game doesn't always notice that its canvas got bigger (seen in exclusive mode with the GPU
+				// plugin), and keeps drawing at the old size with black bars around it. Make it re-read the size, as
+				// the GPU plugin does when it starts, once RuneLite has laid out the window at its new size.
+				SwingUtilities.invokeLater(() -> clientThread.invokeLater(client::resizeCanvas));
+			}
 		}
 
 		@Override
@@ -508,7 +514,10 @@ public class FullscreenPlugin extends Plugin
 		clientFrame.removeComponentListener(fullscreenBoundsKeeper);
 	}
 
-	private void restoreFullscreenBounds()
+	/**
+	 * @return whether the window is at its fullscreen bounds
+	 */
+	private boolean restoreFullscreenBounds()
 	{
 		Rectangle fullscreenBounds = fullscreenBounds();
 		Rectangle bounds = clientFrame.getBounds();
@@ -546,23 +555,24 @@ public class FullscreenPlugin extends Plugin
 		{
 			rejectedBounds = null;
 			reachedFullscreenBounds = true;
-			return;
+			return true;
 		}
 
 		if (!reachedFullscreenBounds)
 		{
-			return;
+			return false;
 		}
 
 		// If the window system answers our correction with the same bounds again, give up instead of
 		// fighting it in an endless resize loop.
 		if (bounds.equals(rejectedBounds))
 		{
-			return;
+			return false;
 		}
 
 		rejectedBounds = bounds;
 		clientFrame.setBounds(fullscreenBounds);
+		return false;
 	}
 
 	private Rectangle fullscreenBounds()
