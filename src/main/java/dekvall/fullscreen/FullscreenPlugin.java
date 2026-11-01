@@ -83,6 +83,7 @@ public class FullscreenPlugin extends Plugin
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
+	private boolean prevResizable;
 	private Rectangle rejectedBounds;
 	// Parts of the monitor the window manager won't let the window cover, such as GNOME's top bar
 	private Insets panelInsets;
@@ -148,6 +149,7 @@ public class FullscreenPlugin extends Plugin
 		gc = clientUI.getGraphicsConfiguration();
 		prevExtState = clientFrame.getExtendedState();
 		prevBounds = clientFrame.getBounds();
+		prevResizable = clientFrame.isResizable();
 		fullscreenMode = config.fullscreenMode();
 
 		if (fullscreenMode == Mode.EXCLUSIVE)
@@ -234,7 +236,6 @@ public class FullscreenPlugin extends Plugin
 				// On Windows a maximized frame only covers the work area (the monitor minus the taskbar),
 				// so keep the frame in the normal state and size it to the whole monitor instead.
 				clientFrame.setExtendedState(Frame.NORMAL);
-				clientFrame.setAlwaysOnTop(true);
 				clientFrame.setResizable(false);
 				// pack() recreates the native window but also resizes the frame to its preferred size,
 				// so the monitor bounds must be applied after it.
@@ -271,8 +272,9 @@ public class FullscreenPlugin extends Plugin
 				clientFrame.dispose();
 				clientFrame.setUndecorated(false);
 				clientFrame.setExtendedState(Frame.NORMAL);
-				clientFrame.setAlwaysOnTop(false);
-				clientFrame.setResizable(true);
+				// Always-on-top is left untouched so RuneLite's own setting applies, and resizable goes back
+				// to what it was since RuneLite turns it off when 'Lock window size' is enabled.
+				clientFrame.setResizable(prevResizable);
 				clientFrame.pack();
 				clientFrame.setVisible(true);
 
