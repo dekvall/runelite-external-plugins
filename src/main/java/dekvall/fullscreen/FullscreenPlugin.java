@@ -159,9 +159,9 @@ public class FullscreenPlugin extends Plugin
 		}
 	};
 
-	// Started when leaving fullscreen and restarted while the window is still moving or resizing, so the game area
-	// is checked once the window has settled at its restored size
-	private final Timer leftFullscreenTimer = new Timer(250, e -> capGameSize());
+	// Started when leaving fullscreen and restarted while the window is still moving or resizing, so the window is
+	// checked once it has settled at its restored bounds
+	private final Timer leftFullscreenTimer = new Timer(250, e -> settleRestoredWindow());
 	private final ComponentListener leftFullscreenSettler = new ComponentAdapter()
 	{
 		@Override
@@ -663,7 +663,7 @@ public class FullscreenPlugin extends Plugin
 		return clientFrame;
 	}
 
-	private void capGameSize()
+	private void settleRestoredWindow()
 	{
 		if (transitioning)
 		{
@@ -671,26 +671,47 @@ public class FullscreenPlugin extends Plugin
 			leftFullscreenTimer.restart();
 			return;
 		}
-		if (isActivated || prevGameSize == null || clientFrame.getExtendedState() != Frame.NORMAL
-			|| configManager.getConfig(RuneLiteConfig.class).automaticResizeType() != ExpandResizeType.KEEP_GAME_SIZE)
+		if (isActivated)
 		{
 			return;
 		}
+		if (prevExtState != Frame.NORMAL)
+		{
+			// Asking for the maximized state right after the native frame changed isn't always honored, and resizing
+			// the window while the window manager is still maximizing it would cancel that. So a window that was
+			// maximized is only maximized again.
+			if (clientFrame.getExtendedState() != prevExtState)
+			{
+				clientFrame.setExtendedState(prevExtState);
+			}
+			return;
+		}
+		if (clientFrame.getExtendedState() != Frame.NORMAL)
+		{
+			return;
+		}
+
+		Rectangle bounds = clientFrame.getBounds();
+		// The window is put back right after its native frame changed, before the window manager has told Java how
+		// big the title bar is, so on Linux it can land a title bar too low and creep down every time. By now Java
+		// knows, so move it to where it was.
+		bounds.setLocation(prevBounds.getLocation());
 
 		// With 'Keep game size', closing the sidebar in a window shrinks the window and keeps the game area. While
 		// fullscreen the window can't shrink, so the game area grows instead and would stay that big afterwards. It
 		// never gets bigger than it was when entering fullscreen: shrink the window by the difference, and RuneLite
 		// shrinks the game area with it.
 		Canvas canvas = client.getCanvas();
-		if (canvas == null)
+		if (prevGameSize != null && canvas != null
+			&& configManager.getConfig(RuneLiteConfig.class).automaticResizeType() == ExpandResizeType.KEEP_GAME_SIZE)
 		{
-			return;
+			bounds.width -= Math.max(0, canvas.getWidth() - prevGameSize.width);
+			bounds.height -= Math.max(0, canvas.getHeight() - prevGameSize.height);
 		}
-		int extraWidth = Math.max(0, canvas.getWidth() - prevGameSize.width);
-		int extraHeight = Math.max(0, canvas.getHeight() - prevGameSize.height);
-		if (extraWidth > 0 || extraHeight > 0)
+
+		if (!bounds.equals(clientFrame.getBounds()))
 		{
-			clientFrame.setSize(clientFrame.getWidth() - extraWidth, clientFrame.getHeight() - extraHeight);
+			clientFrame.setBounds(bounds);
 		}
 	}
 
