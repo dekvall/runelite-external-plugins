@@ -36,8 +36,10 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Inject;
+import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
@@ -64,6 +66,10 @@ import net.runelite.client.util.OSType;
 )
 public class FullscreenPlugin extends Plugin
 {
+	private static final int REVERT_SECONDS = 15;
+	private static final String KEEP_OPTION = "Keep";
+	private static final String REVERT_OPTION = "Revert";
+
 	@Inject
 	private ClientUI clientUI;
 	@Inject
@@ -164,6 +170,55 @@ public class FullscreenPlugin extends Plugin
 		isActivated = true;
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.addNavigation(navButtonDisable);
+
+		if (fullscreenMode == Mode.EXCLUSIVE && !config.exclusiveConfirmed())
+		{
+			// Queued so it runs after the caller has finished, with the plugin state above already updated.
+			SwingUtilities.invokeLater(this::confirmExclusive);
+		}
+	}
+
+	/**
+	 * Some setups show a black screen in exclusive mode, leaving the user unable to see the button
+	 * to turn it off. Like the Windows display settings dialog, revert unless the user can see this
+	 * dialog and confirm it in time.
+	 */
+	private void confirmExclusive()
+	{
+		JOptionPane pane = new JOptionPane(revertMessage(REVERT_SECONDS), JOptionPane.QUESTION_MESSAGE,
+			JOptionPane.DEFAULT_OPTION, null, new Object[]{KEEP_OPTION, REVERT_OPTION}, REVERT_OPTION);
+		JDialog dialog = pane.createDialog(clientFrame, "Keep exclusive fullscreen?");
+
+		int[] secondsLeft = {REVERT_SECONDS};
+		Timer countdown = new Timer(1000, e ->
+		{
+			if (--secondsLeft[0] <= 0)
+			{
+				dialog.setVisible(false);
+			}
+			else
+			{
+				pane.setMessage(revertMessage(secondsLeft[0]));
+			}
+		});
+		countdown.start();
+		dialog.setVisible(true);
+		countdown.stop();
+		dialog.dispose();
+
+		if (KEEP_OPTION.equals(pane.getValue()))
+		{
+			configManager.setConfiguration(FullscreenConfig.GROUP, "exclusiveConfirmed", true);
+		}
+		else if (isActivated && fullscreenMode == Mode.EXCLUSIVE)
+		{
+			disableFullscreen();
+		}
+	}
+
+	private static String revertMessage(int seconds)
+	{
+		return "Exclusive fullscreen will be turned off in " + seconds + " seconds unless you keep it.";
 	}
 
 	private void disableFullscreen()
