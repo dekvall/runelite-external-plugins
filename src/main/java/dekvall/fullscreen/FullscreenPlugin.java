@@ -25,6 +25,8 @@
 package dekvall.fullscreen;
 
 import com.google.inject.Provides;
+import java.awt.Canvas;
+import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
@@ -45,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.ExpandResizeType;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
@@ -92,6 +95,7 @@ public class FullscreenPlugin extends Plugin
 	private Frame clientFrame;
 	private int prevExtState;
 	private Rectangle prevBounds;
+	private Dimension prevGameSize;
 	private boolean prevResizable;
 	private Rectangle rejectedBounds;
 	// Parts of the monitor the window manager won't let the window cover, such as GNOME's top bar
@@ -149,6 +153,32 @@ public class FullscreenPlugin extends Plugin
 		}
 	};
 
+	// Started when leaving fullscreen and restarted while the window is still moving or resizing, so the game area
+	// is checked once the window has settled at its restored size
+	private final Timer leftFullscreenTimer = new Timer(250, e -> capGameSize());
+	private final ComponentListener leftFullscreenSettler = new ComponentAdapter()
+	{
+		@Override
+		public void componentResized(ComponentEvent e)
+		{
+			restartIfRunning();
+		}
+
+		@Override
+		public void componentMoved(ComponentEvent e)
+		{
+			restartIfRunning();
+		}
+
+		private void restartIfRunning()
+		{
+			if (leftFullscreenTimer.isRunning())
+			{
+				leftFullscreenTimer.restart();
+			}
+		}
+	};
+
 	private final BufferedImage iconEnable = ImageUtil.loadImageResource(getClass(), "fullscreen_on.png");
 	private final BufferedImage iconDisable = ImageUtil.loadImageResource(getClass(), "fullscreen_off.png");
 	private final NavigationButton navButtonEnable = NavigationButton.builder()
@@ -172,6 +202,8 @@ public class FullscreenPlugin extends Plugin
 		}
 
 		running = true;
+		leftFullscreenTimer.setRepeats(false);
+		clientFrame.addComponentListener(leftFullscreenSettler);
 		keyManager.registerKeyListener(hotkeyListener);
 		clientToolbar.addNavigation(isActivated ? navButtonDisable : navButtonEnable);
 	}
@@ -193,6 +225,8 @@ public class FullscreenPlugin extends Plugin
 		prevExtState = clientFrame.getExtendedState();
 		prevBounds = clientFrame.getBounds();
 		prevResizable = clientFrame.isResizable();
+		Canvas canvas = client.getCanvas();
+		prevGameSize = canvas == null ? null : canvas.getSize();
 		fullscreenMode = config.fullscreenMode();
 
 		if (fullscreenMode == Mode.EXCLUSIVE)
@@ -272,6 +306,11 @@ public class FullscreenPlugin extends Plugin
 			disableBorderless();
 		}
 		setActivated(false);
+		// A borderless transition can finish after shutDown(), which leaves fullscreen then but starts nothing new
+		if (running)
+		{
+			leftFullscreenTimer.restart();
+		}
 	}
 
 	private void setActivated(boolean activated)
@@ -614,6 +653,37 @@ public class FullscreenPlugin extends Plugin
 		return clientFrame;
 	}
 
+	private void capGameSize()
+	{
+		if (transitioning)
+		{
+			// Leaving borderless waits for the GPU plugin to stop, so the window hasn't been restored yet
+			leftFullscreenTimer.restart();
+			return;
+		}
+		if (isActivated || prevGameSize == null || clientFrame.getExtendedState() != Frame.NORMAL
+			|| configManager.getConfig(RuneLiteConfig.class).automaticResizeType() != ExpandResizeType.KEEP_GAME_SIZE)
+		{
+			return;
+		}
+
+		// With 'Keep game size', closing the sidebar in a window shrinks the window and keeps the game area. While
+		// fullscreen the window can't shrink, so the game area grows instead and would stay that big afterwards. It
+		// never gets bigger than it was when entering fullscreen: shrink the window by the difference, and RuneLite
+		// shrinks the game area with it.
+		Canvas canvas = client.getCanvas();
+		if (canvas == null)
+		{
+			return;
+		}
+		int extraWidth = Math.max(0, canvas.getWidth() - prevGameSize.width);
+		int extraHeight = Math.max(0, canvas.getHeight() - prevGameSize.height);
+		if (extraWidth > 0 || extraHeight > 0)
+		{
+			clientFrame.setSize(clientFrame.getWidth() - extraWidth, clientFrame.getHeight() - extraHeight);
+		}
+	}
+
 	@Override
 	protected void shutDown()
 	{
@@ -625,6 +695,11 @@ public class FullscreenPlugin extends Plugin
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
 		keyManager.unregisterKeyListener(hotkeyListener);
+		leftFullscreenTimer.stop();
+		if (clientFrame != null)
+		{
+			clientFrame.removeComponentListener(leftFullscreenSettler);
+		}
 		// The same listener is registered again if the plugin is turned back on, so don't let it keep a held hotkey
 		hotkeyListener.focusLost();
 	}
