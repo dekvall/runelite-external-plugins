@@ -71,6 +71,7 @@ public class FullscreenPlugin extends Plugin
 	private static final String KEEP_OPTION = "Keep";
 	private static final String REVERT_OPTION = "Revert";
 	private static final long GPU_STOP_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
+	private static final long HOTKEY_COOLDOWN_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
 
 	@Inject
 	private ClientUI clientUI;
@@ -106,7 +107,30 @@ public class FullscreenPlugin extends Plugin
 	private boolean transitioning;
 	private volatile boolean running;
 
-	private HotkeyListener hotkeyListener = createHotkeyListener();
+	// The hotkey is ignored until then, see resetHotkey()
+	private long hotkeyCooldownEnd = System.nanoTime();
+
+	private final HotkeyListener hotkeyListener = new HotkeyListener(() -> config.fullscreenHotKey())
+	{
+		@Override
+		public void hotkeyPressed()
+		{
+			if (System.nanoTime() - hotkeyCooldownEnd < 0)
+			{
+				return;
+			}
+
+			hotkeyCooldownEnd = System.nanoTime() + HOTKEY_COOLDOWN_NANOS;
+			if (!isActivated)
+			{
+				enableFullscreen();
+			}
+			else
+			{
+				disableFullscreen();
+			}
+		}
+	};
 
 	// RuneLite widens the frame by the sidebar's width when the sidebar is opened (with the default
 	// 'Keep game size' resize type), which pushes a fullscreen window past the edge of its monitor.
@@ -411,12 +435,21 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
-		// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-		// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-		// There are probably better ways to handle this, but this is for the hub!
-		swapOutHotkeyListener();
+		resetHotkey();
 		restoreGpuPlugins();
 		clientUI.forceFocus();
+	}
+
+	/**
+	 * If the hotkey was used, the window was replaced while it was down, and its release went to the old window. Until
+	 * HotkeyListener sees a release it consumes every typed character and ignores the next press, so tell it the key
+	 * isn't held anymore. If the key actually is still held, its next repeat now looks like a new press, so the hotkey
+	 * is ignored for a moment: that repeat marks the key as held again, and the rest are ignored until it is let go.
+	 */
+	private void resetHotkey()
+	{
+		hotkeyListener.focusLost();
+		hotkeyCooldownEnd = System.nanoTime() + HOTKEY_COOLDOWN_NANOS;
 	}
 
 	private void keepFullscreenBounds()
@@ -592,32 +625,8 @@ public class FullscreenPlugin extends Plugin
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
 		keyManager.unregisterKeyListener(hotkeyListener);
-	}
-
-	private void swapOutHotkeyListener()
-	{
-		keyManager.unregisterKeyListener(hotkeyListener);
-		hotkeyListener = createHotkeyListener();
-		keyManager.registerKeyListener(hotkeyListener);
-	}
-
-	private HotkeyListener createHotkeyListener()
-	{
-		return new HotkeyListener(() -> config.fullscreenHotKey())
-		{
-			@Override
-			public void hotkeyPressed()
-			{
-				if (!isActivated)
-				{
-					enableFullscreen();
-				}
-				else
-				{
-					disableFullscreen();
-				}
-			}
-		};
+		// The same listener is registered again if the plugin is turned back on, so don't let it keep a held hotkey
+		hotkeyListener.focusLost();
 	}
 
 	@Provides
