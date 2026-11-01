@@ -98,6 +98,10 @@ public class FullscreenPlugin extends Plugin
 	private GraphicsConfiguration gc;
 	private Mode fullscreenMode;
 	private boolean isActivated;
+	// Borderless mode waits for the GPU plugins to stop before changing the window, so it is in progress for
+	// a while after enableFullscreen()/disableFullscreen() return.
+	private boolean transitioning;
+	private boolean running;
 
 	private HotkeyListener hotkeyListener = createHotkeyListener();
 
@@ -140,12 +144,18 @@ public class FullscreenPlugin extends Plugin
 			return;
 		}
 
+		running = true;
 		keyManager.registerKeyListener(hotkeyListener);
-		clientToolbar.addNavigation(navButtonEnable);
+		clientToolbar.addNavigation(isActivated ? navButtonDisable : navButtonEnable);
 	}
 
 	private void enableFullscreen()
 	{
+		if (isActivated || transitioning)
+		{
+			return;
+		}
+
 		// Read once here and kept until fullscreen is disabled, so leaving fullscreen uses the same monitor
 		gc = clientUI.getGraphicsConfiguration();
 		if (!canEnable())
@@ -223,6 +233,11 @@ public class FullscreenPlugin extends Plugin
 
 	private void disableFullscreen()
 	{
+		if (!isActivated || transitioning)
+		{
+			return;
+		}
+
 		if (fullscreenMode == Mode.EXCLUSIVE)
 		{
 			disableExclusive();
@@ -233,7 +248,10 @@ public class FullscreenPlugin extends Plugin
 		}
 		isActivated = false;
 		clientToolbar.removeNavigation(navButtonDisable);
-		clientToolbar.addNavigation(navButtonEnable);
+		if (running)
+		{
+			clientToolbar.addNavigation(navButtonEnable);
+		}
 	}
 
 	private boolean canEnable()
@@ -275,44 +293,52 @@ public class FullscreenPlugin extends Plugin
 
 	private void enableBorderless()
 	{
-		stopGpuPlugins();
-		clientThread.invokeLater(() ->
+		changeWindowWithoutGpu(() ->
 		{
-			if (client.isGpu())
-			{
-				return false;
-			}
-
-			SwingUtilities.invokeLater(() ->
-			{
-				clientFrame.dispose();
-				clientFrame.setUndecorated(true);
-				// On Windows a maximized frame only covers the work area (the monitor minus the taskbar),
-				// so keep the frame in the normal state and size it to the whole monitor instead.
-				clientFrame.setExtendedState(Frame.NORMAL);
-				clientFrame.setResizable(false);
-				// pack() recreates the native window but also resizes the frame to its preferred size,
-				// so the monitor bounds must be applied after it.
-				clientFrame.pack();
-				clientFrame.setBounds(monitorBounds());
-				clientFrame.setVisible(true);
-				keepFullscreenBounds();
-
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
-			});
-
-			return true;
+			clientFrame.dispose();
+			clientFrame.setUndecorated(true);
+			// On Windows a maximized frame only covers the work area (the monitor minus the taskbar),
+			// so keep the frame in the normal state and size it to the whole monitor instead.
+			clientFrame.setExtendedState(Frame.NORMAL);
+			clientFrame.setResizable(false);
+			// pack() recreates the native window but also resizes the frame to its preferred size,
+			// so the monitor bounds must be applied after it.
+			clientFrame.pack();
+			clientFrame.setBounds(monitorBounds());
+			clientFrame.setVisible(true);
+			keepFullscreenBounds();
 		});
 	}
 
 	private void disableBorderless()
 	{
+		changeWindowWithoutGpu(() ->
+		{
+			releaseFullscreenBounds();
+			clientFrame.dispose();
+			clientFrame.setUndecorated(false);
+			clientFrame.setExtendedState(Frame.NORMAL);
+			// Always-on-top is left untouched so RuneLite's own setting applies, and resizable goes back
+			// to what it was since RuneLite turns it off when 'Lock window size' is enabled.
+			clientFrame.setResizable(prevResizable);
+			clientFrame.pack();
+			clientFrame.setVisible(true);
+
+			// pack() resets the size, so apply the saved bounds after it, and the saved state last so a
+			// previously maximized window is maximized by the window manager rather than just sized like it.
+			clientFrame.setBounds(prevBounds);
+			clientFrame.setExtendedState(prevExtState);
+		});
+	}
+
+	/**
+	 * Borderless recreates the native window, which the GPU plugins' OpenGL surface doesn't survive, so they are
+	 * stopped first and changeWindow runs once the client reports the GPU renderer is gone.
+	 */
+	private void changeWindowWithoutGpu(Runnable changeWindow)
+	{
 		stopGpuPlugins();
+		transitioning = true;
 		clientThread.invokeLater(() ->
 		{
 			if (client.isGpu())
@@ -322,31 +348,44 @@ public class FullscreenPlugin extends Plugin
 
 			SwingUtilities.invokeLater(() ->
 			{
-				releaseFullscreenBounds();
-				clientFrame.dispose();
-				clientFrame.setUndecorated(false);
-				clientFrame.setExtendedState(Frame.NORMAL);
-				// Always-on-top is left untouched so RuneLite's own setting applies, and resizable goes back
-				// to what it was since RuneLite turns it off when 'Lock window size' is enabled.
-				clientFrame.setResizable(prevResizable);
-				clientFrame.pack();
-				clientFrame.setVisible(true);
-
-				// pack() resets the size, so apply the saved bounds after it, and the saved state last so a
-				// previously maximized window is maximized by the window manager rather than just sized like it.
-				clientFrame.setBounds(prevBounds);
-				clientFrame.setExtendedState(prevExtState);
-
-				// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
-				// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
-				// There are probably better ways to handle this, but this is for the hub!
-				swapOutHotkeyListener();
-				restoreGpuPlugins();
-				clientUI.forceFocus();
+				try
+				{
+					changeWindow.run();
+				}
+				finally
+				{
+					// Otherwise one exception leaves the plugin ignoring every toggle, with the GPU plugins off
+					finishBorderlessTransition();
+				}
 			});
-
 			return true;
 		});
+	}
+
+	private void finishBorderlessTransition()
+	{
+		transitioning = false;
+		if (!running)
+		{
+			if (isActivated)
+			{
+				// The plugin was turned off while entering fullscreen; shutDown() couldn't leave it then.
+				// The GPU plugins are restored at the end of that transition instead.
+				disableFullscreen();
+			}
+			else
+			{
+				restoreGpuPlugins();
+			}
+			return;
+		}
+
+		// Triggering fullscreen via hotkey will set the listener in a state of consuming all key events until
+		// the same hotkey is pressed again, which is not ideal, so we swap out the old listener for a new one.
+		// There are probably better ways to handle this, but this is for the hub!
+		swapOutHotkeyListener();
+		restoreGpuPlugins();
+		clientUI.forceFocus();
 	}
 
 	private void keepFullscreenBounds()
@@ -514,11 +553,10 @@ public class FullscreenPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		if (isActivated)
-		{
-			disableFullscreen();
-			isActivated = false;
-		}
+		running = false;
+		// If a borderless transition is in progress this does nothing, and finishBorderlessTransition() exits
+		// fullscreen once it is done.
+		disableFullscreen();
 
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
