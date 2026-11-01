@@ -94,6 +94,11 @@ public class FullscreenPlugin extends Plugin
 	PluginManager pluginManager;
 	private Frame clientFrame;
 	private int prevExtState;
+	// The last bounds of the window while it was neither maximized nor fullscreen, so a maximized window can be restored
+	// down to its real size. Null if it has been maximized since the plugin started.
+	private Rectangle windowedBounds;
+	// Set when leaving fullscreen, so the window is put back once it has settled
+	private boolean leftFullscreen;
 	private Rectangle prevBounds;
 	private Dimension prevGameSize;
 	private boolean prevResizable;
@@ -159,29 +164,21 @@ public class FullscreenPlugin extends Plugin
 		}
 	};
 
-	// Started when leaving fullscreen and restarted while the window is still moving or resizing, so the window is
-	// checked once it has settled at its restored bounds
-	private final Timer leftFullscreenTimer = new Timer(250, e -> settleRestoredWindow());
-	private final ComponentListener leftFullscreenSettler = new ComponentAdapter()
+	// Restarted while the window is moving or resizing, so it fires once the window has settled. 250 ms like ClientUI
+	// uses for its own window bounds: when maximizing, the move can arrive before the state change.
+	private final Timer windowSettledTimer = new Timer(250, e -> windowSettled());
+	private final ComponentListener windowSettledListener = new ComponentAdapter()
 	{
 		@Override
 		public void componentResized(ComponentEvent e)
 		{
-			restartIfRunning();
+			windowSettledTimer.restart();
 		}
 
 		@Override
 		public void componentMoved(ComponentEvent e)
 		{
-			restartIfRunning();
-		}
-
-		private void restartIfRunning()
-		{
-			if (leftFullscreenTimer.isRunning())
-			{
-				leftFullscreenTimer.restart();
-			}
+			windowSettledTimer.restart();
 		}
 	};
 
@@ -208,8 +205,9 @@ public class FullscreenPlugin extends Plugin
 		}
 
 		running = true;
-		leftFullscreenTimer.setRepeats(false);
-		clientFrame.addComponentListener(leftFullscreenSettler);
+		windowSettledTimer.setRepeats(false);
+		windowSettled();
+		clientFrame.addComponentListener(windowSettledListener);
 		keyManager.registerKeyListener(hotkeyListener);
 		clientToolbar.addNavigation(isActivated ? navButtonDisable : navButtonEnable);
 	}
@@ -229,7 +227,8 @@ public class FullscreenPlugin extends Plugin
 		}
 
 		prevExtState = clientFrame.getExtendedState();
-		prevBounds = clientFrame.getBounds();
+		// A maximized window's bounds are the maximized ones, which aren't what it should restore down to
+		prevBounds = prevExtState == Frame.NORMAL ? clientFrame.getBounds() : windowedBounds;
 		prevResizable = clientFrame.isResizable();
 		Canvas canvas = client.getCanvas();
 		prevGameSize = canvas == null ? null : canvas.getSize();
@@ -315,7 +314,8 @@ public class FullscreenPlugin extends Plugin
 		// A borderless transition can finish after shutDown(), which leaves fullscreen then but starts nothing new
 		if (running)
 		{
-			leftFullscreenTimer.restart();
+			leftFullscreen = true;
+			windowSettledTimer.restart();
 		}
 	}
 
@@ -400,8 +400,11 @@ public class FullscreenPlugin extends Plugin
 			clientFrame.setVisible(true);
 
 			// pack() resets the size, so apply the saved bounds after it, and the saved state last so a
-			// previously maximized window is maximized by the window manager rather than just sized like it.
-			clientFrame.setBounds(prevBounds);
+			// previously maximized window is maximized by the window manager and restores down to these bounds.
+			if (prevBounds != null)
+			{
+				clientFrame.setBounds(prevBounds);
+			}
 			clientFrame.setExtendedState(prevExtState);
 		});
 	}
@@ -663,18 +666,33 @@ public class FullscreenPlugin extends Plugin
 		return clientFrame;
 	}
 
-	private void settleRestoredWindow()
+	private void windowSettled()
 	{
-		if (transitioning)
-		{
-			// Leaving borderless waits for the GPU plugin to stop, so the window hasn't been restored yet
-			leftFullscreenTimer.restart();
-			return;
-		}
 		if (isActivated)
 		{
 			return;
 		}
+		if (transitioning)
+		{
+			// Leaving borderless waits for the GPU plugin to stop, so the window hasn't been restored yet
+			windowSettledTimer.restart();
+			return;
+		}
+		if (leftFullscreen)
+		{
+			// Putting the window back moves or resizes it, which remembers the bounds once it has settled again
+			leftFullscreen = false;
+			settleRestoredWindow();
+			return;
+		}
+		if (clientFrame.getExtendedState() == Frame.NORMAL)
+		{
+			windowedBounds = clientFrame.getBounds();
+		}
+	}
+
+	private void settleRestoredWindow()
+	{
 		if (prevExtState != Frame.NORMAL)
 		{
 			// Asking for the maximized state right after the native frame changed isn't always honored, and resizing
@@ -726,10 +744,10 @@ public class FullscreenPlugin extends Plugin
 		clientToolbar.removeNavigation(navButtonEnable);
 		clientToolbar.removeNavigation(navButtonDisable);
 		keyManager.unregisterKeyListener(hotkeyListener);
-		leftFullscreenTimer.stop();
+		windowSettledTimer.stop();
 		if (clientFrame != null)
 		{
-			clientFrame.removeComponentListener(leftFullscreenSettler);
+			clientFrame.removeComponentListener(windowSettledListener);
 		}
 		// The same listener is registered again if the plugin is turned back on, so don't let it keep a held hotkey
 		hotkeyListener.focusLost();
