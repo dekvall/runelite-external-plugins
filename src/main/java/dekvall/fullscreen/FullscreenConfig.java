@@ -5,9 +5,11 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.Keybind;
 
-@ConfigGroup("Fullscreen")
+@ConfigGroup(FullscreenConfig.GROUP)
 public interface FullscreenConfig extends Config
 {
+	String GROUP = "Fullscreen";
+
 	@ConfigItem(
 		keyName = "fullscreenMode",
 		name = "Mode",
@@ -28,5 +30,16 @@ public interface FullscreenConfig extends Config
 	default Keybind fullscreenHotKey()
 	{
 		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "exclusiveConfirmed",
+		name = "",
+		description = "Whether the user has confirmed that exclusive fullscreen works on their setup",
+		hidden = true
+	)
+	default boolean exclusiveConfirmed()
+	{
+		return false;
 	}
 }
